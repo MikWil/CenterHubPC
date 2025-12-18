@@ -1,0 +1,259 @@
+<UserControl x:Class="CenterHubNew.MVVM.View.NotesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel" 
+             d:DataContext="{d:DesignInstance Type=viewmodel:QuickNotesViewModel}"
+             xmlns:local="clr-namespace:CenterHubNew.MVVM.View"
+             mc:Ignorable="d" 
+             d:DesignHeight="900" d:DesignWidth="1200"
+             Background="Transparent"
+             FontFamily="Segoe UI">
+    
+    <Grid Margin="24,20">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="280"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        
+        <!-- Notes List Panel -->
+        <Border Grid.Column="0" Style="{StaticResource CardStyle}" Margin="0,0,12,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                
+                <!-- Header -->
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,16">
+                    <TextBlock Text="📝" FontSize="20" Margin="0,0,10,0" Foreground="{StaticResource AccentLightBrush}"/>
+                    <TextBlock Text="Notes" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                </StackPanel>
+                
+                <!-- New Note Button -->
+                <Button Grid.Row="1" Content="+ New Note" Style="{StaticResource PrimaryButton}"
+                        Command="{Binding CreateNoteCommand}"
+                        HorizontalAlignment="Stretch" Margin="0,0,0,16" Padding="12,10"/>
+                
+                <!-- Notes List -->
+                <ScrollViewer Grid.Row="2" Style="{StaticResource ModernScrollViewer}" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding Notes}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border x:Name="NoteItemBorder" Background="{StaticResource CardInnerBrush}" CornerRadius="8" 
+                                        Padding="12" Margin="0,0,0,8" Cursor="Hand">
+                                    <Border.InputBindings>
+                                        <MouseBinding MouseAction="LeftClick"
+                                                      Command="{Binding DataContext.SelectNoteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                      CommandParameter="{Binding}"/>
+                                    </Border.InputBindings>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13"
+                                                       Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding ModifiedAt, StringFormat='{}{0:MMM dd, HH:mm}'}" 
+                                                       FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1" ToolTip="Delete" 
+                                                Background="Transparent" BorderThickness="0" 
+                                                Padding="6,4" Cursor="Hand" VerticalAlignment="Center"
+                                                Command="{Binding DataContext.DeleteNoteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}">
+                                            <TextBlock Text="🗑️" FontSize="12" Foreground="{StaticResource ErrorBrush}"/>
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Opacity" Value="0.5"/>
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Opacity" Value="1"/>
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                                <DataTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="NoteItemBorder" Property="Background" Value="{StaticResource InputBackgroundBrush}"/>
+                                    </Trigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+        
+        <!-- Note Editor Panel -->
+        <Border Grid.Column="1" Style="{StaticResource CardStyle}" Margin="12,0,0,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                
+                <!-- Editor Header -->
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,16">
+                    <TextBlock Text="✏️" FontSize="20" Margin="0,0,10,0" Foreground="{StaticResource AccentLightBrush}"/>
+                    <TextBlock Text="Editor" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                </StackPanel>
+                
+                <!-- Title Input -->
+                <Border Grid.Row="1" Background="{StaticResource CardInnerBrush}" CornerRadius="8" Padding="2" Margin="0,0,0,12">
+                    <TextBox Text="{Binding CurrentTitle, UpdateSourceTrigger=PropertyChanged}"
+                             Background="Transparent" BorderThickness="0"
+                             Foreground="{StaticResource TextPrimaryBrush}"
+                             CaretBrush="{StaticResource TextPrimaryBrush}"
+                             SelectionBrush="{StaticResource AccentBrush}"
+                             FontSize="16" FontWeight="SemiBold"
+                             Padding="12,10"
+                             VerticalContentAlignment="Center">
+                        <TextBox.Style>
+                            <Style TargetType="TextBox">
+                                <Style.Triggers>
+                                    <Trigger Property="Text" Value="">
+                                        <Setter Property="Background">
+                                            <Setter.Value>
+                                                <VisualBrush AlignmentX="Left" AlignmentY="Center" Stretch="None">
+                                                    <VisualBrush.Visual>
+                                                        <TextBlock Text="Enter note title..." Foreground="#707085" Margin="12,0,0,0" FontSize="16"/>
+                                                    </VisualBrush.Visual>
+                                                </VisualBrush>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBox.Style>
+                    </TextBox>
+                </Border>
+                
+                <!-- Formatting Toolbar -->
+                <Border Grid.Row="2" Background="{StaticResource CardInnerBrush}" CornerRadius="8" Padding="8" Margin="0,0,0,8">
+                    <StackPanel Orientation="Horizontal">
+                        <!-- Font Style -->
+                        <Button x:Name="BoldBtn" Content="B" FontWeight="Bold" ToolTip="Bold (Ctrl+B)" Click="BoldBtn_Click"
+                                Style="{StaticResource SecondaryButton}" Padding="10,6" Margin="0,0,4,0" FontSize="13"/>
+                        <Button x:Name="ItalicBtn" Content="I" FontStyle="Italic" ToolTip="Italic (Ctrl+I)" Click="ItalicBtn_Click"
+                                Style="{StaticResource SecondaryButton}" Padding="12,6" Margin="0,0,4,0" FontSize="13"/>
+                        <Button x:Name="UnderlineBtn" ToolTip="Underline (Ctrl+U)" Click="UnderlineBtn_Click"
+                                Style="{StaticResource SecondaryButton}" Padding="10,6" Margin="0,0,8,0" FontSize="13">
+                            <TextBlock Text="U" TextDecorations="Underline"/>
+                        </Button>
+                        
+                        <!-- Separator -->
+                        <Border Width="1" Background="{StaticResource BorderBrush}" Margin="4,2,12,2"/>
+                        
+                        <!-- Font Size -->
+                        <TextBlock Text="Size" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="FontSizeCombo" Width="60" SelectionChanged="FontSizeCombo_SelectionChanged"
+                                  Style="{StaticResource DropdownStyle}" Height="32">
+                            <ComboBoxItem Content="10"/>
+                            <ComboBoxItem Content="12" IsSelected="True"/>
+                            <ComboBoxItem Content="14"/>
+                            <ComboBoxItem Content="16"/>
+                            <ComboBoxItem Content="18"/>
+                            <ComboBoxItem Content="20"/>
+                            <ComboBoxItem Content="24"/>
+                            <ComboBoxItem Content="28"/>
+                            <ComboBoxItem Content="32"/>
+                        </ComboBox>
+                        
+                        <!-- Separator -->
+                        <Border Width="1" Background="{StaticResource BorderBrush}" Margin="12,2,12,2"/>
+                        
+                        <!-- Text Color -->
+                        <TextBlock Text="Color" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <Button x:Name="ColorWhiteBtn" ToolTip="White" Click="ColorBtn_Click" Tag="#F0F0F5"
+                                Style="{StaticResource SecondaryButton}" Padding="4" Margin="0,0,4,0">
+                            <Border Width="16" Height="16" Background="#F0F0F5" CornerRadius="3"/>
+                        </Button>
+                        <Button x:Name="ColorBlueBtn" ToolTip="Blue" Click="ColorBtn_Click" Tag="#7DD3FC"
+                                Style="{StaticResource SecondaryButton}" Padding="4" Margin="0,0,4,0">
+                            <Border Width="16" Height="16" Background="#7DD3FC" CornerRadius="3"/>
+                        </Button>
+                        <Button x:Name="ColorGreenBtn" ToolTip="Green" Click="ColorBtn_Click" Tag="#86EFAC"
+                                Style="{StaticResource SecondaryButton}" Padding="4" Margin="0,0,4,0">
+                            <Border Width="16" Height="16" Background="#86EFAC" CornerRadius="3"/>
+                        </Button>
+                        <Button x:Name="ColorYellowBtn" ToolTip="Yellow" Click="ColorBtn_Click" Tag="#FCD34D"
+                                Style="{StaticResource SecondaryButton}" Padding="4" Margin="0,0,4,0">
+                            <Border Width="16" Height="16" Background="#FCD34D" CornerRadius="3"/>
+                        </Button>
+                        <Button x:Name="ColorRedBtn" ToolTip="Red" Click="ColorBtn_Click" Tag="#FCA5A5"
+                                Style="{StaticResource SecondaryButton}" Padding="4">
+                            <Border Width="16" Height="16" Background="#FCA5A5" CornerRadius="3"/>
+                        </Button>
+                        
+                        <!-- Separator -->
+                        <Border Width="1" Background="{StaticResource BorderBrush}" Margin="12,2,12,2"/>
+                        
+                        <!-- Lists -->
+                        <Button x:Name="BulletBtn" Content="•" ToolTip="Bullet List" Click="BulletBtn_Click"
+                                Style="{StaticResource SecondaryButton}" Padding="12,6" Margin="0,0,4,0" FontSize="16"/>
+                        <Button x:Name="NumberBtn" Content="1." ToolTip="Numbered List" Click="NumberBtn_Click"
+                                Style="{StaticResource SecondaryButton}" Padding="10,6" FontSize="12"/>
+                    </StackPanel>
+                </Border>
+                
+                <!-- Rich Text Editor -->
+                <Border Grid.Row="3" Background="{StaticResource CardInnerBrush}" CornerRadius="8" Padding="4">
+                    <RichTextBox x:Name="ContentEditor"
+                                 Background="Transparent" BorderThickness="0"
+                                 Foreground="{StaticResource TextPrimaryBrush}"
+                                 CaretBrush="{StaticResource TextPrimaryBrush}"
+                                 SelectionBrush="{StaticResource AccentBrush}"
+                                 AcceptsReturn="True" AcceptsTab="True"
+                                 VerticalScrollBarVisibility="Auto"
+                                 Padding="12" FontSize="13"
+                                 TextChanged="ContentEditor_TextChanged">
+                        <RichTextBox.Resources>
+                            <Style TargetType="Paragraph">
+                                <Setter Property="Margin" Value="0,0,0,8"/>
+                            </Style>
+                        </RichTextBox.Resources>
+                    </RichTextBox>
+                </Border>
+                
+                <!-- Action Buttons -->
+                <Grid Grid.Row="4" Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <Button Grid.Column="0" Style="{StaticResource PrimaryButton}"
+                            Command="{Binding SaveCurrentNoteCommand}"
+                            Padding="20,10">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Save" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextOnAccentBrush}"/>
+                        </StackPanel>
+                    </Button>
+                    
+                    <TextBlock Grid.Column="1" Text="{Binding SelectedNote.ModifiedAt, StringFormat='Last saved: {0:MMM dd, yyyy HH:mm}'}"
+                               FontSize="11" Foreground="{StaticResource TextMutedBrush}"
+                               VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    
+                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                        <Button Content="Export" Style="{StaticResource SecondaryButton}" Padding="16,10" Margin="0,0,8,0"
+                                Click="ExportBtn_Click" ToolTip="Export as RTF"/>
+                        <Button Content="Import" Style="{StaticResource SecondaryButton}" Padding="16,10"
+                                Click="ImportBtn_Click" ToolTip="Import RTF file"/>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Border>
+        
+    </Grid>
+</UserControl>

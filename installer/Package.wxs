@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="CenterHub" 
+           Manufacturer="CenterHub" 
+           Version="3.1.1" 
+           UpgradeCode="E8F3D2A1-5B7C-4E9F-A1D3-8C2B6F4E7A9D"
+           Scope="perMachine">
+    
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="CenterHub">
+        <Directory Id="ImagesFolder" Name="Images" />
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="CenterHub">
+        <Component Id="StartMenuFolderComponent" Guid="F6A7B8C9-D0E1-2345-F012-678901234567">
+          <RemoveFolder Id="RemoveStartMenuFolder" On="uninstall" />
+          <RegistryValue Root="HKCU" Key="Software\CenterHub" Name="StartMenuInstalled" Type="integer" Value="1" KeyPath="yes" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+      <!-- Main executable -->
+      <Component Id="MainExecutable" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567890">
+        <File Id="CenterHubExe" Source="..\publish\Release\CenterHubNew.exe" KeyPath="yes">
+          <Shortcut Id="StartMenuShortcut" 
+                    Directory="ApplicationProgramsFolder" 
+                    Name="CenterHub" 
+                    WorkingDirectory="INSTALLFOLDER"
+                    Icon="AppIcon.ico"
+                    Advertise="yes" />
+          <Shortcut Id="DesktopShortcut" 
+                    Directory="DesktopFolder" 
+                    Name="CenterHub" 
+                    WorkingDirectory="INSTALLFOLDER"
+                    Icon="AppIcon.ico"
+                    Advertise="yes" />
+        </File>
+      </Component>
+      
+      <!-- Main DLL -->
+      <Component Id="MainDll" Guid="B2C3D4E5-F6A7-8901-BCDE-F23456789012">
+        <File Id="CenterHubDll" Source="..\publish\Release\CenterHubNew.dll" KeyPath="yes" />
+      </Component>
+      
+      <!-- Runtime config -->
+      <Component Id="RuntimeConfig" Guid="C3D4E5F6-A7B8-9012-CDEF-345678901234">
+        <File Id="RuntimeConfigJson" Source="..\publish\Release\CenterHubNew.runtimeconfig.json" KeyPath="yes" />
+      </Component>
+      
+      <!-- Dependencies JSON -->
+      <Component Id="DepsJson" Guid="D4E5F6A7-B8C9-0123-DEF0-456789012345">
+        <File Id="DepsJsonFile" Source="..\publish\Release\CenterHubNew.deps.json" KeyPath="yes" />
+      </Component>
+      
+      <!-- App Settings -->
+      <Component Id="AppSettings" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000001">
+        <File Id="AppSettingsJson" Source="..\publish\Release\appsettings.json" KeyPath="yes" />
+      </Component>
+      
+      <!-- Core Dependencies -->
+      <Component Id="AudioSwitcherCore" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000002">
+        <File Id="AudioSwitcherCoreDll" Source="..\publish\Release\AudioSwitcher.AudioApi.CoreAudio.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="AudioSwitcherApi" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000003">
+        <File Id="AudioSwitcherApiDll" Source="..\publish\Release\AudioSwitcher.AudioApi.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="CommunityToolkitMvvm" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000004">
+        <File Id="CommunityToolkitMvvmDll" Source="..\publish\Release\CommunityToolkit.Mvvm.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="CommunityToolkitNotifications" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000005">
+        <File Id="CommunityToolkitNotificationsDll" Source="..\publish\Release\CommunityToolkit.WinUI.Notifications.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="HidSharp" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000006">
+        <File Id="HidSharpDll" Source="..\publish\Release\HidSharp.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="LibMonoPosix" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000007">
+        <File Id="LibMonoPosixDll" Source="..\publish\Release\libMonoPosixHelper.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="LibreHardwareMonitor" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000008">
+        <File Id="LibreHardwareMonitorDll" Source="..\publish\Release\LibreHardwareMonitorLib.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="MaterialDesignColors" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000009">
+        <File Id="MaterialDesignColorsDll" Source="..\publish\Release\MaterialDesignColors.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="MaterialDesignThemes" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000010">
+        <File Id="MaterialDesignThemesDll" Source="..\publish\Release\MaterialDesignThemes.Wpf.dll" KeyPath="yes" />
+      </Component>
+      
+      <!-- Microsoft Extensions -->
+      <Component Id="ExtConfigAbstractions" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000011">
+        <File Id="ExtConfigAbstractionsDll" Source="..\publish\Release\Microsoft.Extensions.Configuration.Abstractions.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="ExtConfigBinder" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000012">
+        <File Id="ExtConfigBinderDll" Source="..\publish\Release\Microsoft.Extensions.Configuration.Binder.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="ExtConfigCommandLine" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000013">
+        <File Id="ExtConfigCommandLineDll" Source="..\publish\Release\Microsoft.Extensions.Configuration.CommandLine.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="ExtConfig" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000014">
+        <File Id="ExtConfigDll" Source="..\publish\Release\Microsoft.Extensions.Configuration.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="ExtConfigEnvVars" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000015">
+        <File Id="ExtConfigEnvVarsDll" Source="..\publish\Release\Microsoft.Extensions.Configuration.EnvironmentVariables.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="ExtConfigFileExt" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000016">
+        <File Id="ExtConfigFileExtDll" Source="..\publish\Release\Microsoft.Extensions.Configuration.FileExtensions.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="ExtConfigJson" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000017">
+        <File Id="ExtConfigJsonDll" Source="..\publish\Release\Microsoft.Extensions.Configuration.Json.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="ExtConfigUserSecrets" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000018">
+        <File Id="ExtConfigUserSecretsDll" Source="..\publish\Release\Microsoft.Extensions.Configuration.UserSecrets.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="ExtDIAbstractions" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000019">
+        <File Id="ExtDIAbstractionsDll" Source="..\publish\Release\Microsoft.Extensions.DependencyInjection.Abstractions.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="ExtDI" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000020">
+        <File Id="ExtDIDll" Source="..\publish\Release\Microsoft.Extensions.DependencyInjection.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="ExtDiagAbstractions" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000021">
+        <File Id="ExtDiagAbstractionsDll" Source="..\publish\Release\Microsoft.Extensions.Diagnostics.Abstractions.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="ExtDiag" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000022">
+        <File Id="ExtDiagDll" Source="..\publish\Release\Microsoft.Extensions.Diagnostics.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="ExtFileProvAbstractions" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000023">
+        <File Id="ExtFileProvAbstractionsDll" Source="..\publish\Release\Microsoft.Extensions.FileProviders.Abstractions.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="ExtFileProvPhysical" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000024">
+        <File Id="ExtFileProvPhysicalDll" Source="..\publish\Release\Microsoft.Extensions.FileProviders.Physical.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="ExtFileSystemGlobbing" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000025">
+        <File Id="ExtFileSystemGlobbingDll" Source="..\publish\Release\Microsoft.Extensions.FileSystemGlobbing.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="ExtHostingAbstractions" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000026">
+        <File Id="ExtHostingAbstractionsDll" Source="..\publish\Release\Microsoft.Extensions.Hosting.Abstractions.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="ExtHosting" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000027">
+        <File Id="ExtHostingDll" Source="..\publish\Release\Microsoft.Extensions.Hosting.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="ExtLoggingAbstractions" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000028">
+        <File Id="ExtLoggingAbstractionsDll" Source="..\publish\Release\Microsoft.Extensions.Logging.Abstractions.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="ExtLoggingConfig" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000029">
+        <File Id="ExtLoggingConfigDll" Source="..\publish\Release\Microsoft.Extensions.Logging.Configuration.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="ExtLoggingConsole" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000030">
+        <File Id="ExtLoggingConsoleDll" Source="..\publish\Release\Microsoft.Extensions.Logging.Console.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="ExtLoggingDebug" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000031">
+        <File Id="ExtLoggingDebugDll" Source="..\publish\Release\Microsoft.Extensions.Logging.Debug.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="ExtLogging" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000032">
+        <File Id="ExtLoggingDll" Source="..\publish\Release\Microsoft.Extensions.Logging.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="ExtLoggingEventLog" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000033">
+        <File Id="ExtLoggingEventLogDll" Source="..\publish\Release\Microsoft.Extensions.Logging.EventLog.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="ExtLoggingEventSource" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000034">
+        <File Id="ExtLoggingEventSourceDll" Source="..\publish\Release\Microsoft.Extensions.Logging.EventSource.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="ExtOptionsConfig" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000035">
+        <File Id="ExtOptionsConfigDll" Source="..\publish\Release\Microsoft.Extensions.Options.ConfigurationExtensions.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="ExtOptions" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000036">
+        <File Id="ExtOptionsDll" Source="..\publish\Release\Microsoft.Extensions.Options.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="ExtPrimitives" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000037">
+        <File Id="ExtPrimitivesDll" Source="..\publish\Release\Microsoft.Extensions.Primitives.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="WinSdkNet" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000038">
+        <File Id="WinSdkNetDll" Source="..\publish\Release\Microsoft.Windows.SDK.NET.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="XamlBehaviors" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000039">
+        <File Id="XamlBehaviorsDll" Source="..\publish\Release\Microsoft.Xaml.Behaviors.dll" KeyPath="yes" />
+      </Component>
+      
+      <!-- Mono -->
+      <Component Id="MonoPosix" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000040">
+        <File Id="MonoPosixDll" Source="..\publish\Release\Mono.Posix.NETStandard.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="MonoPosixHelper" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000041">
+        <File Id="MonoPosixHelperDll" Source="..\publish\Release\MonoPosixHelper.dll" KeyPath="yes" />
+      </Component>
+      
+      <!-- NAudio -->
+      <Component Id="NAudioAsio" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000042">
+        <File Id="NAudioAsioDll" Source="..\publish\Release\NAudio.Asio.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="NAudioCore" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000043">
+        <File Id="NAudioCoreDll" Source="..\publish\Release\NAudio.Core.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="NAudio" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000044">
+        <File Id="NAudioDll" Source="..\publish\Release\NAudio.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="NAudioMidi" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000045">
+        <File Id="NAudioMidiDll" Source="..\publish\Release\NAudio.Midi.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="NAudioWasapi" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000046">
+        <File Id="NAudioWasapiDll" Source="..\publish\Release\NAudio.Wasapi.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="NAudioWinForms" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000047">
+        <File Id="NAudioWinFormsDll" Source="..\publish\Release\NAudio.WinForms.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="NAudioWinMM" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000048">
+        <File Id="NAudioWinMMDll" Source="..\publish\Release\NAudio.WinMM.dll" KeyPath="yes" />
+      </Component>
+      
+      <!-- Other -->
+      <Component Id="NewtonsoftJson" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000049">
+        <File Id="NewtonsoftJsonDll" Source="..\publish\Release\Newtonsoft.Json.dll" KeyPath="yes" />
+      </Component>
+      
+      <!-- System -->
+      <Component Id="SystemCodeDom" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000050">
+        <File Id="SystemCodeDomDll" Source="..\publish\Release\System.CodeDom.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="SystemConfigManager" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000051">
+        <File Id="SystemConfigManagerDll" Source="..\publish\Release\System.Configuration.ConfigurationManager.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="SystemDiagEventLog" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000052">
+        <File Id="SystemDiagEventLogDll" Source="..\publish\Release\System.Diagnostics.EventLog.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="SystemDiagEventLogMsgs" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000053">
+        <File Id="SystemDiagEventLogMsgsDll" Source="..\publish\Release\System.Diagnostics.EventLog.Messages.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="SystemDiagPerfCounter" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000054">
+        <File Id="SystemDiagPerfCounterDll" Source="..\publish\Release\System.Diagnostics.PerformanceCounter.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="SystemDrawingCommon" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000055">
+        <File Id="SystemDrawingCommonDll" Source="..\publish\Release\System.Drawing.Common.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="SystemIOPorts" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000056">
+        <File Id="SystemIOPortsDll" Source="..\publish\Release\System.IO.Ports.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="SystemManagement" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000057">
+        <File Id="SystemManagementDll" Source="..\publish\Release\System.Management.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="SystemSecurityProtectedData" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000058">
+        <File Id="SystemSecurityProtectedDataDll" Source="..\publish\Release\System.Security.Cryptography.ProtectedData.dll" KeyPath="yes" />
+      </Component>
+      
+      <!-- WPF -->
+      <Component Id="VirtualizingWrapPanel" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000059">
+        <File Id="VirtualizingWrapPanelDll" Source="..\publish\Release\VirtualizingWrapPanel.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="WinRTRuntime" Guid="A1B2C3D4-E5F6-7890-ABCD-000000000060">
+        <File Id="WinRTRuntimeDll" Source="..\publish\Release\WinRT.Runtime.dll" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+    
+    <!-- Images -->
+    <ComponentGroup Id="ImagesComponents" Directory="ImagesFolder">
+      <Component Id="AppIcon" Guid="E5F6A7B8-C9D0-1234-EF01-567890123456">
+        <File Id="IconFile" Source="..\publish\Release\Images\circular_connection_icon_155652.ico" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <Feature Id="ProductFeature" Title="CenterHub" Level="1">
+      <ComponentGroupRef Id="ProductComponents" />
+      <ComponentGroupRef Id="ImagesComponents" />
+      <ComponentRef Id="StartMenuFolderComponent" />
+    </Feature>
+    
+    <Icon Id="AppIcon.ico" SourceFile="..\Images\circular_connection_icon_155652.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
+    
+    <StandardDirectory Id="DesktopFolder" />
+  </Package>
+</Wix>
