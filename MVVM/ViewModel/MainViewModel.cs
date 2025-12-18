@@ -12,6 +12,7 @@ namespace CenterHubNew.MVVM.ViewModel
         private MonitoringViewModel? _monitoringVM;
         private UtilitiesViewModel? _utilitiesVM;
         private QuickNotesViewModel? _notesVM;
+        private SoundboardViewModel? _soundboardVM;
 
         [ObservableProperty]
         private object? _currentView;
@@ -24,6 +25,9 @@ namespace CenterHubNew.MVVM.ViewModel
 
         [ObservableProperty]
         private bool isNotesSelected = false;
+
+        [ObservableProperty]
+        private bool isSoundboardSelected = false;
 
         [ObservableProperty]
         private bool isSidebarExpanded = true;
@@ -62,6 +66,7 @@ namespace CenterHubNew.MVVM.ViewModel
                 IsMonitoringSelected = true;
                 IsUtilitiesSelected = false;
                 IsNotesSelected = false;
+                IsSoundboardSelected = false;
                 Logger?.LogDebug("Switched to Monitoring view");
             }
         }
@@ -77,6 +82,7 @@ namespace CenterHubNew.MVVM.ViewModel
                 IsMonitoringSelected = false;
                 IsUtilitiesSelected = true;
                 IsNotesSelected = false;
+                IsSoundboardSelected = false;
                 Logger?.LogDebug("Switched to Utilities view");
             }
         }
@@ -92,7 +98,24 @@ namespace CenterHubNew.MVVM.ViewModel
                 IsMonitoringSelected = false;
                 IsUtilitiesSelected = false;
                 IsNotesSelected = true;
+                IsSoundboardSelected = false;
                 Logger?.LogDebug("Switched to Notes view");
+            }
+        }
+
+        [RelayCommand]
+        private void SoundboardView()
+        {
+            ThrowIfDisposed();
+            _soundboardVM ??= App.Services.GetService(typeof(SoundboardViewModel)) as SoundboardViewModel;
+            if (_soundboardVM != null)
+            {
+                CurrentView = _soundboardVM;
+                IsMonitoringSelected = false;
+                IsUtilitiesSelected = false;
+                IsNotesSelected = false;
+                IsSoundboardSelected = true;
+                Logger?.LogDebug("Switched to Soundboard view");
             }
         }
 
@@ -108,6 +131,7 @@ namespace CenterHubNew.MVVM.ViewModel
                 _monitoringVM?.Dispose();
                 _utilitiesVM?.Dispose();
                 _notesVM?.Dispose();
+                _soundboardVM?.Dispose();
             }
             base.Dispose(disposing);
         }

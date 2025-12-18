@@ -58,6 +58,7 @@ namespace CenterHubNew
                     services.AddSingleton<ClipboardService>();
                     services.AddSingleton<QuickNotesService>();
                     services.AddSingleton<AutoClickerService>();
+                    services.AddSingleton<SoundboardService>();
 
                     // Register ViewModels
                     services.AddTransient<MainViewModel>();
@@ -73,6 +74,7 @@ namespace CenterHubNew
                     services.AddTransient<ClipboardViewModel>();
                     services.AddTransient<QuickNotesViewModel>();
                     services.AddTransient<AutoClickerViewModel>();
+                    services.AddTransient<SoundboardViewModel>();
 
                     // Register Views
                     services.AddTransient<MainWindow>();

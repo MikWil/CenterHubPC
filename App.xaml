@@ -52,6 +52,9 @@
             <DataTemplate DataType="{x:Type viewmodel:QuickNotesViewModel}">
                 <view:NotesView/>
             </DataTemplate>
+            <DataTemplate DataType="{x:Type viewmodel:SoundboardViewModel}">
+                <view:SoundboardView/>
+            </DataTemplate>
             
             <!-- Converters -->
             <converters:InverseBooleanConverter x:Key="InverseBooleanConverter"/>

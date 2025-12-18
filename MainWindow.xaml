@@ -347,6 +347,56 @@
                                 </Style>
                             </RadioButton.Style>
                         </RadioButton>
+                        
+                        <!-- Soundboard Tab -->
+                        <RadioButton x:Name="SoundboardTab"
+                                     IsChecked="{Binding IsSoundboardSelected}"
+                                     Command="{Binding SoundboardViewCommand}"
+                                     GroupName="NavTabs"
+                                     Cursor="Hand">
+                            <RadioButton.Style>
+                                <Style TargetType="RadioButton">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="RadioButton">
+                                                <Border x:Name="NavBorder"
+                                                        Background="Transparent"
+                                                        CornerRadius="8"
+                                                        Padding="8,10"
+                                                        Margin="0,2">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock x:Name="NavIcon" Text="🔊" FontSize="16" VerticalAlignment="Center" MinWidth="20" TextAlignment="Center" Foreground="{StaticResource AccentLightBrush}"/>
+                                                        <TextBlock x:Name="NavText" 
+                                                                   Text="Soundboard" 
+                                                                   FontSize="14" 
+                                                                   FontWeight="SemiBold"
+                                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                                   VerticalAlignment="Center"
+                                                                   Margin="10,0,0,0"
+                                                                   Visibility="{Binding DataContext.IsSidebarExpanded, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                    </StackPanel>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsChecked" Value="True">
+                                                        <Setter TargetName="NavBorder" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                                        <Setter TargetName="NavText" Property="Foreground" Value="{StaticResource TextOnAccentBrush}"/>
+                                                        <Setter TargetName="NavIcon" Property="Foreground" Value="{StaticResource TextOnAccentBrush}"/>
+                                                    </Trigger>
+                                                    <MultiTrigger>
+                                                        <MultiTrigger.Conditions>
+                                                            <Condition Property="IsMouseOver" Value="True"/>
+                                                            <Condition Property="IsChecked" Value="False"/>
+                                                        </MultiTrigger.Conditions>
+                                                        <Setter TargetName="NavBorder" Property="Background" Value="{StaticResource CardInnerBrush}"/>
+                                                        <Setter TargetName="NavText" Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                                                    </MultiTrigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </RadioButton.Style>
+                        </RadioButton>
                     </StackPanel>
                         
                         <!-- Collapse/Expand Button -->
