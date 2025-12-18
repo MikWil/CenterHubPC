@@ -69,8 +69,16 @@ namespace CenterHubNew.MVVM.ViewModel
         private void CreateNote()
         {
             var note = _notesService.CreateNote();
+            var noteId = note.Id;
             RefreshNotes();
-            SelectedNote = Notes.FirstOrDefault(n => n.Id == note.Id);
+            
+            // Find and select the newly created note
+            var newNote = Notes.FirstOrDefault(n => n.Id == noteId);
+            if (newNote != null)
+            {
+                SelectedNote = newNote;
+                Logger?.LogDebug("Created and selected new note: {Id}", noteId);
+            }
         }
 
         [RelayCommand]
@@ -78,21 +86,40 @@ namespace CenterHubNew.MVVM.ViewModel
         {
             if (note == null) return;
             
-            // Save current note before switching
-            if (SelectedNote != null && !string.IsNullOrEmpty(CurrentTitle))
+            // Save current note before switching (auto-save)
+            if (SelectedNote != null && SelectedNote.Id != note.Id)
             {
-                SelectedNote.Title = CurrentTitle;
+                SelectedNote.Title = string.IsNullOrWhiteSpace(CurrentTitle) ? "Untitled" : CurrentTitle;
                 SelectedNote.Content = CurrentContent;
                 _notesService.UpdateNote(SelectedNote);
             }
             
             SelectedNote = note;
+            Logger?.LogDebug("Selected note: {Title}", note.Title);
         }
 
         [RelayCommand]
         private void SaveCurrentNote()
         {
-            if (SelectedNote == null) return;
+            // If no note is selected but we have content, create a new note
+            if (SelectedNote == null)
+            {
+                if (string.IsNullOrWhiteSpace(CurrentTitle) && string.IsNullOrWhiteSpace(CurrentContent))
+                {
+                    return; // Nothing to save
+                }
+                
+                // Create a new note with the current content
+                var title = string.IsNullOrWhiteSpace(CurrentTitle) ? "Untitled" : CurrentTitle;
+                var newNote = _notesService.CreateNote(title);
+                newNote.Content = CurrentContent;
+                _notesService.UpdateNote(newNote);
+                
+                RefreshNotes();
+                SelectedNote = Notes.FirstOrDefault(n => n.Id == newNote.Id);
+                Logger?.LogDebug("Created and saved new note: {Title}", title);
+                return;
+            }
 
             SelectedNote.Title = string.IsNullOrWhiteSpace(CurrentTitle) ? "Untitled" : CurrentTitle;
             SelectedNote.Content = CurrentContent;
@@ -103,6 +130,7 @@ namespace CenterHubNew.MVVM.ViewModel
             
             // Re-select the note
             SelectedNote = Notes.FirstOrDefault(n => n.Id == selectedId);
+            
             Logger?.LogDebug("Saved note: {Title}", CurrentTitle);
         }
 

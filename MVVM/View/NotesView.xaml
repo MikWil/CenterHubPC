@@ -38,56 +38,68 @@
                         HorizontalAlignment="Stretch" Margin="0,0,0,16" Padding="12,10"/>
                 
                 <!-- Notes List -->
-                <ScrollViewer Grid.Row="2" Style="{StaticResource ModernScrollViewer}" VerticalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{Binding Notes}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border x:Name="NoteItemBorder" Background="{StaticResource CardInnerBrush}" CornerRadius="8" 
-                                        Padding="12" Margin="0,0,0,8" Cursor="Hand">
-                                    <Border.InputBindings>
-                                        <MouseBinding MouseAction="LeftClick"
-                                                      Command="{Binding DataContext.SelectNoteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                      CommandParameter="{Binding}"/>
-                                    </Border.InputBindings>
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0">
-                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13"
-                                                       Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="{Binding ModifiedAt, StringFormat='{}{0:MMM dd, HH:mm}'}" 
-                                                       FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
-                                        </StackPanel>
-                                        <Button Grid.Column="1" ToolTip="Delete" 
-                                                Background="Transparent" BorderThickness="0" 
-                                                Padding="6,4" Cursor="Hand" VerticalAlignment="Center"
-                                                Command="{Binding DataContext.DeleteNoteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                CommandParameter="{Binding}">
-                                            <TextBlock Text="🗑️" FontSize="12" Foreground="{StaticResource ErrorBrush}"/>
-                                            <Button.Style>
-                                                <Style TargetType="Button">
-                                                    <Setter Property="Opacity" Value="0.5"/>
-                                                    <Style.Triggers>
-                                                        <Trigger Property="IsMouseOver" Value="True">
-                                                            <Setter Property="Opacity" Value="1"/>
-                                                        </Trigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Button.Style>
-                                        </Button>
-                                    </Grid>
-                                </Border>
-                                <DataTemplate.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="NoteItemBorder" Property="Background" Value="{StaticResource InputBackgroundBrush}"/>
-                                    </Trigger>
-                                </DataTemplate.Triggers>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
+                <ListBox Grid.Row="2" 
+                         ItemsSource="{Binding Notes}" 
+                         SelectedItem="{Binding SelectedNote, Mode=TwoWay}"
+                         Background="Transparent" 
+                         BorderThickness="0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border x:Name="NoteItemBorder" Background="{StaticResource CardInnerBrush}" CornerRadius="8" 
+                                                Padding="12" Margin="0,0,0,8" Cursor="Hand">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13"
+                                                               Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding ModifiedAt, StringFormat='{}{0:MMM dd, HH:mm}'}" 
+                                                               FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="0,4,0,0"/>
+                                                </StackPanel>
+                                                <Button Grid.Column="1" ToolTip="Delete" 
+                                                        Background="Transparent" BorderThickness="0" 
+                                                        Padding="6,4" Cursor="Hand" VerticalAlignment="Center"
+                                                        Command="{Binding DataContext.DeleteNoteCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                        CommandParameter="{Binding}">
+                                                    <TextBlock Text="🗑️" FontSize="12" Foreground="{StaticResource ErrorBrush}"/>
+                                                    <Button.Style>
+                                                        <Style TargetType="Button">
+                                                            <Setter Property="Opacity" Value="0.5"/>
+                                                            <Style.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter Property="Opacity" Value="1"/>
+                                                                </Trigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Button.Style>
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="NoteItemBorder" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                                <Setter TargetName="NoteItemBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                            </Trigger>
+                                            <MultiTrigger>
+                                                <MultiTrigger.Conditions>
+                                                    <Condition Property="IsMouseOver" Value="True"/>
+                                                    <Condition Property="IsSelected" Value="False"/>
+                                                </MultiTrigger.Conditions>
+                                                <Setter TargetName="NoteItemBorder" Property="Background" Value="{StaticResource InputBackgroundBrush}"/>
+                                            </MultiTrigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                </ListBox>
             </Grid>
         </Border>
         

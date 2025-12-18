@@ -10,18 +10,43 @@ namespace CenterHubNew.MVVM.View
     public partial class NotesView : UserControl
     {
         private bool _isUpdatingContent = false;
+        private MVVM.ViewModel.QuickNotesViewModel? _viewModel;
 
         public NotesView()
         {
             InitializeComponent();
             DataContextChanged += NotesView_DataContextChanged;
+            Loaded += NotesView_Loaded;
+        }
+
+        private void NotesView_Loaded(object sender, RoutedEventArgs e)
+        {
+            // Initial load of content if there's a selected note
+            if (_viewModel != null && !string.IsNullOrEmpty(_viewModel.CurrentContent))
+            {
+                LoadContentToEditor(_viewModel.CurrentContent);
+            }
         }
 
         private void NotesView_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
-            if (DataContext is MVVM.ViewModel.QuickNotesViewModel vm)
+            // Unsubscribe from old viewmodel
+            if (_viewModel != null)
             {
-                vm.PropertyChanged += ViewModel_PropertyChanged;
+                _viewModel.PropertyChanged -= ViewModel_PropertyChanged;
+            }
+
+            _viewModel = DataContext as MVVM.ViewModel.QuickNotesViewModel;
+            
+            if (_viewModel != null)
+            {
+                _viewModel.PropertyChanged += ViewModel_PropertyChanged;
+                
+                // Load current content if any
+                if (!string.IsNullOrEmpty(_viewModel.CurrentContent))
+                {
+                    LoadContentToEditor(_viewModel.CurrentContent);
+                }
             }
         }
 
@@ -29,15 +54,17 @@ namespace CenterHubNew.MVVM.View
         {
             if (e.PropertyName == nameof(MVVM.ViewModel.QuickNotesViewModel.CurrentContent) && !_isUpdatingContent)
             {
-                if (DataContext is MVVM.ViewModel.QuickNotesViewModel vm)
+                if (_viewModel != null)
                 {
-                    LoadContentToEditor(vm.CurrentContent);
+                    LoadContentToEditor(_viewModel.CurrentContent);
                 }
             }
         }
 
         private void LoadContentToEditor(string content)
         {
+            if (ContentEditor == null) return;
+            
             _isUpdatingContent = true;
             try
             {
@@ -45,11 +72,19 @@ namespace CenterHubNew.MVVM.View
                 if (!string.IsNullOrEmpty(content))
                 {
                     // Try to load as RTF first
-                    if (content.StartsWith("{\\rtf"))
+                    if (content.TrimStart().StartsWith("{\\rtf"))
                     {
-                        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
-                        var range = new TextRange(ContentEditor.Document.ContentStart, ContentEditor.Document.ContentEnd);
-                        range.Load(stream, DataFormats.Rtf);
+                        try
+                        {
+                            using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+                            var range = new TextRange(ContentEditor.Document.ContentStart, ContentEditor.Document.ContentEnd);
+                            range.Load(stream, DataFormats.Rtf);
+                        }
+                        catch
+                        {
+                            // If RTF parsing fails, load as plain text
+                            ContentEditor.Document.Blocks.Add(new Paragraph(new Run(content)));
+                        }
                     }
                     else
                     {
@@ -64,23 +99,26 @@ namespace CenterHubNew.MVVM.View
             }
         }
 
+        private string GetEditorContent()
+        {
+            if (ContentEditor == null) return string.Empty;
+            
+            using var stream = new MemoryStream();
+            var range = new TextRange(ContentEditor.Document.ContentStart, ContentEditor.Document.ContentEnd);
+            range.Save(stream, DataFormats.Rtf);
+            stream.Position = 0;
+            using var reader = new StreamReader(stream);
+            return reader.ReadToEnd();
+        }
+
         private void ContentEditor_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (_isUpdatingContent) return;
+            if (_isUpdatingContent || _viewModel == null) return;
 
             _isUpdatingContent = true;
             try
             {
-                if (DataContext is MVVM.ViewModel.QuickNotesViewModel vm)
-                {
-                    // Save as RTF
-                    using var stream = new MemoryStream();
-                    var range = new TextRange(ContentEditor.Document.ContentStart, ContentEditor.Document.ContentEnd);
-                    range.Save(stream, DataFormats.Rtf);
-                    stream.Position = 0;
-                    using var reader = new StreamReader(stream);
-                    vm.CurrentContent = reader.ReadToEnd();
-                }
+                _viewModel.CurrentContent = GetEditorContent();
             }
             finally
             {
@@ -202,6 +240,12 @@ namespace CenterHubNew.MVVM.View
                 var range = new TextRange(ContentEditor.Document.ContentStart, ContentEditor.Document.ContentEnd);
                 var format = dialog.FileName.EndsWith(".rtf") ? DataFormats.Rtf : DataFormats.Text;
                 range.Load(stream, format);
+                
+                // Update the viewmodel with the imported content
+                if (_viewModel != null)
+                {
+                    _viewModel.CurrentContent = GetEditorContent();
+                }
             }
         }
     }
