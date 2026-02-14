@@ -2,7 +2,7 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Package Name="CenterHub" 
            Manufacturer="CenterHub" 
-           Version="3.1.4" 
+           Version="4.0.0" 
            UpgradeCode="E8F3D2A1-5B7C-4E9F-A1D3-8C2B6F4E7A9D"
            Scope="perUser">
     
