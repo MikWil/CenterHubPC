@@ -367,3 +367,7 @@ FodyWeavers.xsd
 
 # CenterHub runtime config
 hotkeys.json
+
+# Code signing certificates
+certs/
+*.pfx
