@@ -4,12 +4,12 @@
            Manufacturer="CenterHub" 
            Version="3.1.4" 
            UpgradeCode="E8F3D2A1-5B7C-4E9F-A1D3-8C2B6F4E7A9D"
-           Scope="perMachine">
+           Scope="perUser">
     
     <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
-    <StandardDirectory Id="ProgramFiles64Folder">
+    <StandardDirectory Id="LocalAppDataFolder">
       <Directory Id="INSTALLFOLDER" Name="CenterHub">
         <Directory Id="ImagesFolder" Name="Images" />
       </Directory>
