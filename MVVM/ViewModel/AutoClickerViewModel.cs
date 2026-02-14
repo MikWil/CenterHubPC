@@ -4,7 +4,6 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Windows;
-using System.Windows.Interop;
 using System.Windows.Threading;
 
 namespace CenterHubNew.MVVM.ViewModel
@@ -12,9 +11,7 @@ namespace CenterHubNew.MVVM.ViewModel
     public partial class AutoClickerViewModel : BaseViewModel
     {
         private readonly AutoClickerService _autoClickerService;
-        private readonly GlobalHotkeyService _hotkeyService;
         private DispatcherTimer? _positionCaptureTimer;
-        private bool _hotkeysRegistered;
 
         [ObservableProperty]
         private int _clickX;
@@ -42,64 +39,24 @@ namespace CenterHubNew.MVVM.ViewModel
             ILogger<AutoClickerViewModel>? logger = null) : base(logger)
         {
             _autoClickerService = autoClickerService;
-            _hotkeyService = new GlobalHotkeyService();
             
             // Get initial mouse position
             var pos = AutoClickerService.GetCurrentMousePosition();
             ClickX = pos.X;
             ClickY = pos.Y;
 
-            // Register hotkeys when main window is loaded
-            Application.Current.Dispatcher.BeginInvoke(() =>
-            {
-                var mainWindow = Application.Current.MainWindow;
-                if (mainWindow != null)
-                {
-                    var handle = new WindowInteropHelper(mainWindow).Handle;
-                    if (handle != IntPtr.Zero)
-                    {
-                        RegisterHotkeys(handle);
-                    }
-                    else
-                    {
-                        mainWindow.Loaded += (s, e) =>
-                        {
-                            var h = new WindowInteropHelper(mainWindow).Handle;
-                            RegisterHotkeys(h);
-                        };
-                    }
-                }
-            });
-
             Logger?.LogInformation("AutoClickerViewModel initialized");
         }
 
-        private void RegisterHotkeys(IntPtr handle)
+        /// <summary>
+        /// Toggle start/stop, called by the global hotkey system.
+        /// </summary>
+        public void ToggleStartStop()
         {
-            if (_hotkeysRegistered) return;
-            
-            _hotkeyService.OnStartStopPressed += () =>
-            {
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    if (IsRunning)
-                        Stop();
-                    else
-                        Start();
-                });
-            };
-
-            _hotkeyService.OnSetPositionPressed += () =>
-            {
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    GetCurrentPosition();
-                });
-            };
-
-            _hotkeyService.Register(handle);
-            _hotkeysRegistered = true;
-            Logger?.LogInformation("Global hotkeys registered: Ctrl+K (start/stop), Ctrl+P (set position)");
+            if (IsRunning)
+                Stop();
+            else
+                Start();
         }
 
         [RelayCommand]
@@ -110,6 +67,7 @@ namespace CenterHubNew.MVVM.ViewModel
             if (IntervalSeconds <= 0)
             {
                 StatusMessage = "Interval must be greater than 0";
+                ToastService.Instance.Warning("Interval must be greater than 0");
                 return;
             }
 
@@ -117,6 +75,7 @@ namespace CenterHubNew.MVVM.ViewModel
             IsRunning = true;
             StatusMessage = $"Clicking at ({ClickX}, {ClickY}) every {IntervalSeconds}s";
             Logger?.LogInformation("AutoClicker started");
+            ToastService.Instance.Success($"Auto-clicker started at ({ClickX}, {ClickY})");
         }
 
         [RelayCommand]
@@ -126,6 +85,7 @@ namespace CenterHubNew.MVVM.ViewModel
             IsRunning = false;
             StatusMessage = "Stopped";
             Logger?.LogInformation("AutoClicker stopped");
+            ToastService.Instance.Success("Auto-clicker stopped");
         }
 
         [RelayCommand]
@@ -155,6 +115,7 @@ namespace CenterHubNew.MVVM.ViewModel
                     IsCapturingPosition = false;
                     StatusMessage = $"Position captured: ({ClickX}, {ClickY})";
                     Logger?.LogInformation("Position captured: ({X}, {Y})", ClickX, ClickY);
+                    ToastService.Instance.Success($"Position captured: ({ClickX}, {ClickY})");
                 }
                 else
                 {
@@ -166,12 +127,13 @@ namespace CenterHubNew.MVVM.ViewModel
         }
 
         [RelayCommand]
-        private void GetCurrentPosition()
+        public void GetCurrentPosition()
         {
             var pos = AutoClickerService.GetCurrentMousePosition();
             ClickX = pos.X;
             ClickY = pos.Y;
             StatusMessage = $"Current position: ({ClickX}, {ClickY})";
+            ToastService.Instance.Info($"Position set: ({ClickX}, {ClickY})");
         }
 
         protected override void Dispose(bool disposing)
@@ -180,11 +142,9 @@ namespace CenterHubNew.MVVM.ViewModel
             {
                 _autoClickerService.Stop();
                 _positionCaptureTimer?.Stop();
-                _hotkeyService.Dispose();
                 Logger?.LogInformation("AutoClickerViewModel disposed");
             }
             base.Dispose(disposing);
         }
     }
 }
-

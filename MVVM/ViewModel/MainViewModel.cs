@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using System;
@@ -10,9 +10,14 @@ namespace CenterHubNew.MVVM.ViewModel
     public partial class MainViewModel : BaseViewModel
     {
         private MonitoringViewModel? _monitoringVM;
-        private UtilitiesViewModel? _utilitiesVM;
-        private QuickNotesViewModel? _notesVM;
+        private SoundViewModel? _soundVM;
         private SoundboardViewModel? _soundboardVM;
+        private UtilitiesViewModel? _utilitiesVM;
+        private AutoClickerViewModel? _autoClickerVM;
+        private ClipboardViewModel? _clipboardVM;
+        private StandingViewModel? _standingVM;
+        private QuickNotesViewModel? _notesVM;
+        private HotkeySettingsViewModel? _hotkeySettingsVM;
 
         [ObservableProperty]
         private object? _currentView;
@@ -21,13 +26,28 @@ namespace CenterHubNew.MVVM.ViewModel
         private bool isMonitoringSelected = true;
 
         [ObservableProperty]
+        private bool isSoundSelected = false;
+
+        [ObservableProperty]
+        private bool isSoundboardSelected = false;
+
+        [ObservableProperty]
         private bool isUtilitiesSelected = false;
+
+        [ObservableProperty]
+        private bool isAutoClickerSelected = false;
+
+        [ObservableProperty]
+        private bool isClipboardSelected = false;
+
+        [ObservableProperty]
+        private bool isStandingSelected = false;
 
         [ObservableProperty]
         private bool isNotesSelected = false;
 
         [ObservableProperty]
-        private bool isSoundboardSelected = false;
+        private bool isHotkeySettingsSelected = false;
 
         [ObservableProperty]
         private bool isSidebarExpanded = true;
@@ -44,6 +64,19 @@ namespace CenterHubNew.MVVM.ViewModel
             MonitoringView();
             
             Logger?.LogInformation("MainViewModel initialized");
+        }
+
+        private void DeselectAll()
+        {
+            IsMonitoringSelected = false;
+            IsSoundSelected = false;
+            IsSoundboardSelected = false;
+            IsUtilitiesSelected = false;
+            IsAutoClickerSelected = false;
+            IsClipboardSelected = false;
+            IsStandingSelected = false;
+            IsNotesSelected = false;
+            IsHotkeySettingsSelected = false;
         }
 
         [RelayCommand]
@@ -63,43 +96,23 @@ namespace CenterHubNew.MVVM.ViewModel
             if (_monitoringVM != null)
             {
                 CurrentView = _monitoringVM;
+                DeselectAll();
                 IsMonitoringSelected = true;
-                IsUtilitiesSelected = false;
-                IsNotesSelected = false;
-                IsSoundboardSelected = false;
                 Logger?.LogDebug("Switched to Monitoring view");
             }
         }
 
         [RelayCommand]
-        private void UtilitiesView()
+        private void SoundView()
         {
             ThrowIfDisposed();
-            _utilitiesVM ??= App.Services.GetService(typeof(UtilitiesViewModel)) as UtilitiesViewModel;
-            if (_utilitiesVM != null)
+            _soundVM ??= App.Services.GetService(typeof(SoundViewModel)) as SoundViewModel;
+            if (_soundVM != null)
             {
-                CurrentView = _utilitiesVM;
-                IsMonitoringSelected = false;
-                IsUtilitiesSelected = true;
-                IsNotesSelected = false;
-                IsSoundboardSelected = false;
-                Logger?.LogDebug("Switched to Utilities view");
-            }
-        }
-
-        [RelayCommand]
-        private void NotesView()
-        {
-            ThrowIfDisposed();
-            _notesVM ??= App.Services.GetService(typeof(QuickNotesViewModel)) as QuickNotesViewModel;
-            if (_notesVM != null)
-            {
-                CurrentView = _notesVM;
-                IsMonitoringSelected = false;
-                IsUtilitiesSelected = false;
-                IsNotesSelected = true;
-                IsSoundboardSelected = false;
-                Logger?.LogDebug("Switched to Notes view");
+                CurrentView = _soundVM;
+                DeselectAll();
+                IsSoundSelected = true;
+                Logger?.LogDebug("Switched to Sound view");
             }
         }
 
@@ -111,11 +124,93 @@ namespace CenterHubNew.MVVM.ViewModel
             if (_soundboardVM != null)
             {
                 CurrentView = _soundboardVM;
-                IsMonitoringSelected = false;
-                IsUtilitiesSelected = false;
-                IsNotesSelected = false;
+                DeselectAll();
                 IsSoundboardSelected = true;
                 Logger?.LogDebug("Switched to Soundboard view");
+            }
+        }
+
+        [RelayCommand]
+        private void UtilitiesView()
+        {
+            ThrowIfDisposed();
+            _utilitiesVM ??= App.Services.GetService(typeof(UtilitiesViewModel)) as UtilitiesViewModel;
+            if (_utilitiesVM != null)
+            {
+                CurrentView = _utilitiesVM;
+                DeselectAll();
+                IsUtilitiesSelected = true;
+                Logger?.LogDebug("Switched to Utilities view");
+            }
+        }
+
+        [RelayCommand]
+        private void AutoClickerView()
+        {
+            ThrowIfDisposed();
+            _autoClickerVM ??= App.Services.GetService(typeof(AutoClickerViewModel)) as AutoClickerViewModel;
+            if (_autoClickerVM != null)
+            {
+                CurrentView = _autoClickerVM;
+                DeselectAll();
+                IsAutoClickerSelected = true;
+                Logger?.LogDebug("Switched to AutoClicker view");
+            }
+        }
+
+        [RelayCommand]
+        private void ClipboardView()
+        {
+            ThrowIfDisposed();
+            _clipboardVM ??= App.Services.GetService(typeof(ClipboardViewModel)) as ClipboardViewModel;
+            if (_clipboardVM != null)
+            {
+                CurrentView = _clipboardVM;
+                DeselectAll();
+                IsClipboardSelected = true;
+                Logger?.LogDebug("Switched to Clipboard view");
+            }
+        }
+
+        [RelayCommand]
+        private void StandingView()
+        {
+            ThrowIfDisposed();
+            _standingVM ??= App.Services.GetService(typeof(StandingViewModel)) as StandingViewModel;
+            if (_standingVM != null)
+            {
+                CurrentView = _standingVM;
+                DeselectAll();
+                IsStandingSelected = true;
+                Logger?.LogDebug("Switched to Standing view");
+            }
+        }
+
+        [RelayCommand]
+        private void NotesView()
+        {
+            ThrowIfDisposed();
+            _notesVM ??= App.Services.GetService(typeof(QuickNotesViewModel)) as QuickNotesViewModel;
+            if (_notesVM != null)
+            {
+                CurrentView = _notesVM;
+                DeselectAll();
+                IsNotesSelected = true;
+                Logger?.LogDebug("Switched to Notes view");
+            }
+        }
+
+        [RelayCommand]
+        private void HotkeySettingsView()
+        {
+            ThrowIfDisposed();
+            _hotkeySettingsVM ??= App.Services.GetService(typeof(HotkeySettingsViewModel)) as HotkeySettingsViewModel;
+            if (_hotkeySettingsVM != null)
+            {
+                CurrentView = _hotkeySettingsVM;
+                DeselectAll();
+                IsHotkeySettingsSelected = true;
+                Logger?.LogDebug("Switched to Hotkey Settings view");
             }
         }
 
@@ -129,9 +224,14 @@ namespace CenterHubNew.MVVM.ViewModel
                 }
 
                 _monitoringVM?.Dispose();
-                _utilitiesVM?.Dispose();
-                _notesVM?.Dispose();
+                _soundVM?.Dispose();
                 _soundboardVM?.Dispose();
+                _utilitiesVM?.Dispose();
+                _autoClickerVM?.Dispose();
+                _clipboardVM?.Dispose();
+                _standingVM?.Dispose();
+                _notesVM?.Dispose();
+                _hotkeySettingsVM?.Dispose();
             }
             base.Dispose(disposing);
         }

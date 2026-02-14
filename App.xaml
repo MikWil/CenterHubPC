@@ -55,6 +55,15 @@
             <DataTemplate DataType="{x:Type viewmodel:SoundboardViewModel}">
                 <view:SoundboardView/>
             </DataTemplate>
+            <DataTemplate DataType="{x:Type viewmodel:AutoClickerViewModel}">
+                <view:AutoClickerView/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type viewmodel:ClipboardViewModel}">
+                <view:ClipboardView/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type viewmodel:HotkeySettingsViewModel}">
+                <view:HotkeySettingsView/>
+            </DataTemplate>
             
             <!-- Converters -->
             <converters:InverseBooleanConverter x:Key="InverseBooleanConverter"/>

@@ -1,0 +1,77 @@
+<UserControl x:Class="CenterHubNew.MVVM.View.AutoClickerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:CenterHubNew.MVVM.View"
+             xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+             d:DataContext="{d:DesignInstance Type=viewmodel:AutoClickerViewModel}"
+             mc:Ignorable="d" 
+             d:DesignHeight="900" d:DesignWidth="1200"
+             Background="Transparent"
+             FontFamily="Segoe UI">
+    
+    <UserControl.Resources>
+        <local:BoolToRunningTextConverter x:Key="BoolToRunningTextConverter"/>
+        <local:BoolToRunningBrushConverter x:Key="BoolToRunningBrushConverter"/>
+        <local:InverseBoolConverter x:Key="InverseBoolConverter"/>
+    </UserControl.Resources>
+    
+    <Grid Margin="20,16">
+        <StackPanel>
+            <!-- Header -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                <TextBlock Text="🤖" FontSize="20" Margin="0,0,8,0" Foreground="{StaticResource AccentLightBrush}"/>
+                <TextBlock Text="Auto Clicker" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                <Border Background="{Binding IsRunning, Converter={StaticResource BoolToRunningBrushConverter}}"
+                        CornerRadius="4" Padding="8,3" Margin="12,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding IsRunning, Converter={StaticResource BoolToRunningTextConverter}}"
+                               FontSize="10" FontWeight="Bold" Foreground="White"/>
+                </Border>
+            </StackPanel>
+            
+            <!-- Controls -->
+            <Border Style="{StaticResource CardStyle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    
+                    <!-- Inputs Row -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,16">
+                        <TextBlock Text="X" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <TextBox Text="{Binding ClickX, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource InputTextBox}" Width="100"/>
+                        <TextBlock Text="Y" FontSize="12" VerticalAlignment="Center" Margin="20,0,8,0" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <TextBox Text="{Binding ClickY, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource InputTextBox}" Width="80"/>
+                        <TextBlock Text="Interval" FontSize="12" VerticalAlignment="Center" Margin="20,0,8,0" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <TextBox Text="{Binding IntervalSeconds, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource InputTextBox}" Width="70"/>
+                        <TextBlock Text="sec" FontSize="11" VerticalAlignment="Center" Margin="6,0,0,0" Foreground="{StaticResource TextMutedBrush}"/>
+                    </StackPanel>
+                    
+                    <!-- Buttons Row -->
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,12">
+                        <Button Content="Start" Style="{StaticResource PrimaryButton}" Padding="24,8"
+                                Command="{Binding StartCommand}"
+                                IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBoolConverter}}" Margin="0,0,8,0"/>
+                        <Button Content="Stop" Style="{StaticResource SecondaryButton}" Padding="24,8"
+                                Command="{Binding StopCommand}"
+                                IsEnabled="{Binding IsRunning}" Margin="0,0,20,0"/>
+                        <Button Content="Set Pos" Style="{StaticResource SecondaryButton}" Padding="14,8" ToolTip="Ctrl+P"
+                                Command="{Binding GetCurrentPositionCommand}" Margin="0,0,8,0"/>
+                        <Button Content="3s Delay" Style="{StaticResource SecondaryButton}" Padding="14,8" ToolTip="Capture in 3 seconds"
+                                Command="{Binding CapturePositionCommand}"
+                                IsEnabled="{Binding IsCapturingPosition, Converter={StaticResource InverseBoolConverter}}"/>
+                    </StackPanel>
+                    
+                    <!-- Status -->
+                    <TextBlock Grid.Row="2" Text="{Binding StatusMessage}" FontSize="11" Foreground="{StaticResource TextMutedBrush}"/>
+                </Grid>
+            </Border>
+        </StackPanel>
+    </Grid>
+</UserControl>

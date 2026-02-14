@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Timers;
 using System.Windows;
+using CenterHubNew.MVVM.Services;
 
 namespace CenterHubNew.MVVM.ViewModel
 {
@@ -140,6 +141,7 @@ namespace CenterHubNew.MVVM.ViewModel
                         SendStartNotification();
                         IsStartButtonEnabled = false;
                         Logger?.LogInformation("Timers started - Stand: {StandMinutes}, Sit: {SitMinutes}", standMinutes, sitMinutes);
+                        ToastService.Instance.Success($"Standing timer started - Stand: {standMinutes}min, Sit: {sitMinutes}min");
                     }
                     else
                     {
@@ -150,6 +152,7 @@ namespace CenterHubNew.MVVM.ViewModel
                 else
                 {
                     Logger?.LogWarning("Invalid timer values entered - Sitting: {SittingMinutes}, Standing: {StandingMinutes}", SittingMinutes, StandingMinutes);
+                    ToastService.Instance.Warning("Please enter valid numbers for sitting and standing time");
                     MessageBox.Show("Please enter valid numbers for sitting and standing time.");
                 }
             }
@@ -175,6 +178,7 @@ namespace CenterHubNew.MVVM.ViewModel
                 SendStopNotification();
                 IsStartButtonEnabled = true;
                 Logger?.LogInformation("Timers stopped");
+                ToastService.Instance.Success("Standing timer stopped");
             }
             catch (Exception ex)
             {

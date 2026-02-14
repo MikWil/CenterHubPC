@@ -74,9 +74,8 @@ namespace CenterHubNew.MVVM.Services
 
         private float GetCpuTemperature(out float maxTemp)
         {
-            float current = 0;
-            maxTemp = float.MinValue;
-            int count = 0;
+            float coreTemp = -1;
+            maxTemp = -1;
             foreach (var hardware in _computer.Hardware)
             {
                 if (hardware.HardwareType == HardwareType.Cpu)
@@ -84,29 +83,34 @@ namespace CenterHubNew.MVVM.Services
                     hardware.Update();
                     foreach (var sensor in hardware.Sensors)
                     {
-                        if (sensor.SensorType == SensorType.Temperature)
+                        if (sensor.SensorType == SensorType.Temperature && sensor.Value.HasValue)
                         {
-                            if (sensor.Value.HasValue)
+                            // Track the hottest reading as max
+                            if (sensor.Value.Value > maxTemp)
+                                maxTemp = sensor.Value.Value;
+
+                            // Prefer "CPU Package" or "Core (Tctl/Tdie)" as the primary reading
+                            if (sensor.Name.Contains("Package") || sensor.Name.Contains("Tctl") || sensor.Name.Contains("Tdie"))
                             {
-                                current += sensor.Value.Value;
-                                if (sensor.Value.Value > maxTemp)
-                                    maxTemp = sensor.Value.Value;
-                                count++;
+                                coreTemp = sensor.Value.Value;
+                            }
+                            // Fallback: use first temperature sensor if no specific one found yet
+                            else if (coreTemp < 0)
+                            {
+                                coreTemp = sensor.Value.Value;
                             }
                         }
                     }
                 }
             }
-            if (count == 0) { maxTemp = -1; return -1; }
-            if (maxTemp == float.MinValue) maxTemp = -1;
-            return current / count;
+            if (coreTemp < 0) maxTemp = -1;
+            return coreTemp;
         }
 
         private float GetGpuTemperature(out float maxTemp)
         {
-            float current = 0;
-            maxTemp = float.MinValue;
-            int count = 0;
+            float coreTemp = -1;
+            maxTemp = -1;
             foreach (var hardware in _computer.Hardware)
             {
                 if (hardware.HardwareType == HardwareType.GpuNvidia || hardware.HardwareType == HardwareType.GpuAmd)
@@ -114,22 +118,28 @@ namespace CenterHubNew.MVVM.Services
                     hardware.Update();
                     foreach (var sensor in hardware.Sensors)
                     {
-                        if (sensor.SensorType == SensorType.Temperature)
+                        if (sensor.SensorType == SensorType.Temperature && sensor.Value.HasValue)
                         {
-                            if (sensor.Value.HasValue)
+                            // Track the hottest reading as max (e.g. Hot Spot)
+                            if (sensor.Value.Value > maxTemp)
+                                maxTemp = sensor.Value.Value;
+
+                            // Prefer "GPU Core" as the primary reading
+                            if (sensor.Name.Contains("GPU Core"))
                             {
-                                current += sensor.Value.Value;
-                                if (sensor.Value.Value > maxTemp)
-                                    maxTemp = sensor.Value.Value;
-                                count++;
+                                coreTemp = sensor.Value.Value;
+                            }
+                            // Fallback: use first temperature sensor if no specific one found yet
+                            else if (coreTemp < 0)
+                            {
+                                coreTemp = sensor.Value.Value;
                             }
                         }
                     }
                 }
             }
-            if (count == 0) { maxTemp = -1; return -1; }
-            if (maxTemp == float.MinValue) maxTemp = -1;
-            return current / count;
+            if (coreTemp < 0) maxTemp = -1;
+            return coreTemp;
         }
 
         private GpuInfo GetGpuInfo()

@@ -6,24 +6,10 @@ namespace CenterHubNew.MVVM.ViewModel
 {
     public partial class UtilitiesViewModel : BaseViewModel
     {
-        private readonly SoundViewModel _soundViewModel;
-        private StandingViewModel? _standingViewModel;
         private MoveFilesViewModel? _moveFilesViewModel;
         private ComputerViewModel? _computerViewModel;
-        private ClipboardViewModel? _clipboardViewModel;
-        private QuickNotesViewModel? _quickNotesViewModel;
-        private AutoClickerViewModel? _autoClickerViewModel;
-
-        public SoundViewModel SoundViewModel => _soundViewModel;
-
-        public StandingViewModel StandingViewModel
-        {
-            get
-            {
-                _standingViewModel ??= App.Services.GetService(typeof(StandingViewModel)) as StandingViewModel;
-                return _standingViewModel!;
-            }
-        }
+        private JsonStringifyViewModel? _jsonStringifyViewModel;
+        private ConverterToolsViewModel? _converterToolsViewModel;
 
         public MoveFilesViewModel MoveFilesViewModel
         {
@@ -43,38 +29,27 @@ namespace CenterHubNew.MVVM.ViewModel
             }
         }
 
-        public ClipboardViewModel ClipboardViewModel
+        public JsonStringifyViewModel JsonStringifyViewModel
         {
             get
             {
-                _clipboardViewModel ??= App.Services.GetService(typeof(ClipboardViewModel)) as ClipboardViewModel;
-                return _clipboardViewModel!;
+                _jsonStringifyViewModel ??= App.Services.GetService(typeof(JsonStringifyViewModel)) as JsonStringifyViewModel;
+                return _jsonStringifyViewModel!;
             }
         }
 
-        public QuickNotesViewModel QuickNotesViewModel
+        public ConverterToolsViewModel ConverterToolsViewModel
         {
             get
             {
-                _quickNotesViewModel ??= App.Services.GetService(typeof(QuickNotesViewModel)) as QuickNotesViewModel;
-                return _quickNotesViewModel!;
-            }
-        }
-
-        public AutoClickerViewModel AutoClickerViewModel
-        {
-            get
-            {
-                _autoClickerViewModel ??= App.Services.GetService(typeof(AutoClickerViewModel)) as AutoClickerViewModel;
-                return _autoClickerViewModel!;
+                _converterToolsViewModel ??= App.Services.GetService(typeof(ConverterToolsViewModel)) as ConverterToolsViewModel;
+                return _converterToolsViewModel!;
             }
         }
 
         public UtilitiesViewModel(
-            SoundViewModel soundViewModel,
             ILogger<UtilitiesViewModel>? logger = null) : base(logger)
         {
-            _soundViewModel = soundViewModel ?? throw new ArgumentNullException(nameof(soundViewModel));
             Logger?.LogInformation("UtilitiesViewModel initialized");
         }
 
@@ -88,4 +63,3 @@ namespace CenterHubNew.MVVM.ViewModel
         }
     }
 }
-

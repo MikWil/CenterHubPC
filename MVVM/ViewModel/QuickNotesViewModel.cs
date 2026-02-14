@@ -78,6 +78,7 @@ namespace CenterHubNew.MVVM.ViewModel
             {
                 SelectedNote = newNote;
                 Logger?.LogDebug("Created and selected new note: {Id}", noteId);
+                ToastService.Instance.Success("New note created");
             }
         }
 
@@ -118,6 +119,7 @@ namespace CenterHubNew.MVVM.ViewModel
                 RefreshNotes();
                 SelectedNote = Notes.FirstOrDefault(n => n.Id == newNote.Id);
                 Logger?.LogDebug("Created and saved new note: {Title}", title);
+                ToastService.Instance.Success($"Note created and saved: {title}");
                 return;
             }
 
@@ -132,6 +134,7 @@ namespace CenterHubNew.MVVM.ViewModel
             SelectedNote = Notes.FirstOrDefault(n => n.Id == selectedId);
             
             Logger?.LogDebug("Saved note: {Title}", CurrentTitle);
+            ToastService.Instance.Success($"Note saved: {CurrentTitle}");
         }
 
         [RelayCommand]
@@ -149,9 +152,11 @@ namespace CenterHubNew.MVVM.ViewModel
             if (result == MessageBoxResult.Yes)
             {
                 var noteId = note.Id;
+                var noteTitle = note.Title;
                 _notesService.DeleteNote(noteId);
                 RefreshNotes();
                 SelectedNote = Notes.FirstOrDefault();
+                ToastService.Instance.Success($"Note deleted: {noteTitle}");
             }
         }
 

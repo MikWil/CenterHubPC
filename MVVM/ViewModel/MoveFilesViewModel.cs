@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
@@ -6,6 +6,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Windows;
+using CenterHubNew.MVVM.Services;
 
 namespace CenterHubNew.MVVM.ViewModel
 {
@@ -41,6 +42,7 @@ namespace CenterHubNew.MVVM.ViewModel
                 {
                     SourceLocation = dialog.SelectedPath;
                     Logger?.LogDebug("Source location selected: {Path}", SourceLocation);
+                    ToastService.Instance.Info($"Source folder selected: {Path.GetFileName(SourceLocation)}");
                 }
             }
             catch (Exception ex)
@@ -63,6 +65,7 @@ namespace CenterHubNew.MVVM.ViewModel
                 {
                     TargetLocation = dialog.SelectedPath;
                     Logger?.LogDebug("Target location selected: {Path}", TargetLocation);
+                    ToastService.Instance.Info($"Target folder selected: {Path.GetFileName(TargetLocation)}");
                 }
             }
             catch (Exception ex)
@@ -83,6 +86,7 @@ namespace CenterHubNew.MVVM.ViewModel
                 {
                     StatusMessage = "Please select both source and target locations.";
                     Logger?.LogWarning("Move files attempted without selecting both locations");
+                    ToastService.Instance.Warning("Please select both source and target locations");
                     return;
                 }
 
@@ -90,6 +94,7 @@ namespace CenterHubNew.MVVM.ViewModel
                 {
                     StatusMessage = "Source directory does not exist.";
                     Logger?.LogWarning("Source directory does not exist: {Path}", SourceLocation);
+                    ToastService.Instance.Error("Source directory does not exist");
                     return;
                 }
 
@@ -113,6 +118,7 @@ namespace CenterHubNew.MVVM.ViewModel
                 {
                     StatusMessage = "No files found in source directory.";
                     Logger?.LogWarning("No files found in source directory: {Path}", SourceLocation);
+                    ToastService.Instance.Warning("No files found in source directory");
                     return;
                 }
 
@@ -162,11 +168,13 @@ namespace CenterHubNew.MVVM.ViewModel
 
                 StatusMessage = $"Successfully {(IsCopy ? "copied" : "moved")} {processedFiles} files{(skippedFiles > 0 ? $", skipped {skippedFiles} files" : "")}.";
                 Logger?.LogInformation("File operation completed - Processed: {Processed}, Skipped: {Skipped}", processedFiles, skippedFiles);
+                ToastService.Instance.Success($"Successfully {(IsCopy ? "copied" : "moved")} {processedFiles} file{(processedFiles != 1 ? "s" : "")}");
             }
             catch (Exception ex)
             {
                 Logger?.LogError(ex, "Error during file operation");
                 StatusMessage = $"Error: {ex.Message}";
+                ToastService.Instance.Error($"File operation failed: {ex.Message}");
             }
         }
 

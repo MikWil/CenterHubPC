@@ -90,10 +90,13 @@ namespace CenterHubNew.MVVM.ViewModel
                 _lastClipboardContent = item.Content; // Prevent re-adding
                 Clipboard.SetText(item.Content);
                 Logger?.LogDebug("Copied item to clipboard");
+                var preview = item.Content.Length > 30 ? item.Content.Substring(0, 30) + "..." : item.Content;
+                ToastService.Instance.Success($"Copied to clipboard: {preview}");
             }
             catch (Exception ex)
             {
                 Logger?.LogError(ex, "Failed to copy to clipboard");
+                ToastService.Instance.Error($"Failed to copy to clipboard: {ex.Message}");
             }
         }
 
@@ -103,6 +106,7 @@ namespace CenterHubNew.MVVM.ViewModel
             if (item == null) return;
             _clipboardService.TogglePin(item);
             RefreshHistory();
+            ToastService.Instance.Success(item.IsPinned ? "Item pinned" : "Item unpinned");
         }
 
         [RelayCommand]
@@ -111,6 +115,7 @@ namespace CenterHubNew.MVVM.ViewModel
             if (item == null) return;
             _clipboardService.RemoveItem(item);
             RefreshHistory();
+            ToastService.Instance.Success("Item deleted");
         }
 
         [RelayCommand]
@@ -126,6 +131,7 @@ namespace CenterHubNew.MVVM.ViewModel
             {
                 _clipboardService.ClearHistory(keepPinned: true);
                 RefreshHistory();
+                ToastService.Instance.Success("Clipboard history cleared");
             }
         }
 
@@ -134,6 +140,7 @@ namespace CenterHubNew.MVVM.ViewModel
         {
             IsMonitoring = !IsMonitoring;
             Logger?.LogInformation("Clipboard monitoring: {Status}", IsMonitoring ? "enabled" : "disabled");
+            ToastService.Instance.Success(IsMonitoring ? "Clipboard monitoring enabled" : "Clipboard monitoring disabled");
         }
 
         protected override void Dispose(bool disposing)

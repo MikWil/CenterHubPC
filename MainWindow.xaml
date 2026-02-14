@@ -8,15 +8,68 @@
         xmlns:viewmodel ="clr-namespace:CenterHubNew.MVVM.ViewModel"
         mc:Ignorable="d"
         Height="900" Width="1400"
-        MinHeight="700" MinWidth="1200"
+        MinHeight="500" MinWidth="800"
         WindowStyle="None"
         ResizeMode="CanResize"
         Background="Transparent"
         AllowsTransparency="True"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        Loaded="MainWindow_Loaded">
     
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        
+        <!-- Reusable Nav Tab Style: Use Tag for icon emoji, Content for label text -->
+        <Style x:Key="NavTabStyle" TargetType="RadioButton">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="GroupName" Value="NavTabs"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="NavBorder"
+                                Background="Transparent"
+                                CornerRadius="8"
+                                Padding="8,10"
+                                Margin="0,2">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="NavIcon" Text="{TemplateBinding Tag}" FontSize="16" VerticalAlignment="Center" MinWidth="20" TextAlignment="Center" Foreground="{StaticResource AccentLightBrush}"/>
+                                <TextBlock x:Name="NavText" 
+                                           Text="{TemplateBinding Content}" 
+                                           FontSize="14" 
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           VerticalAlignment="Center"
+                                           Margin="10,0,0,0"
+                                           Visibility="{Binding DataContext.IsSidebarExpanded, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="NavBorder" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                <Setter TargetName="NavText" Property="Foreground" Value="{StaticResource TextOnAccentBrush}"/>
+                                <Setter TargetName="NavIcon" Property="Foreground" Value="{StaticResource TextOnAccentBrush}"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                    <Condition Property="IsChecked" Value="False"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="NavBorder" Property="Background" Value="{StaticResource CardInnerBrush}"/>
+                                <Setter TargetName="NavText" Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <!-- Nav Section Header Style -->
+        <Style x:Key="NavSectionHeader" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}"/>
+            <Setter Property="Margin" Value="8,16,0,8"/>
+        </Style>
     </Window.Resources>
 
     <Border Background="{StaticResource WindowBackgroundBrush}"
@@ -183,220 +236,45 @@
                 <Border Grid.Column="0" 
                         Background="{StaticResource CardBackgroundBrush}"
                         BorderThickness="0,0,1,0"
-                        BorderBrush="{StaticResource BorderBrush}">
+                        BorderBrush="{StaticResource BorderBrush}"
+                        MouseDown="Border_MouseDown">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
                         
-                    <StackPanel Grid.Row="0" Margin="4,24,4,24">
-                        <TextBlock Text="NAVIGATION" 
-                                   FontSize="11" 
-                                   FontWeight="Bold" 
-                                   Foreground="{StaticResource TextMutedBrush}"
-                                   Margin="8,0,0,16"
+                    <StackPanel Grid.Row="0" Margin="4,16,4,24">
+                        
+                        <!-- ═══ DASHBOARD ═══ -->
+                        <TextBlock Text="DASHBOARD" Style="{StaticResource NavSectionHeader}" Margin="8,0,0,8"
                                    Visibility="{Binding IsSidebarExpanded, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        <RadioButton Tag="📊" Content="Monitoring" IsChecked="{Binding IsMonitoringSelected}" Command="{Binding MonitoringViewCommand}" Style="{StaticResource NavTabStyle}"/>
                         
-                        <!-- Monitoring Tab -->
-                        <RadioButton x:Name="MonitoringTab"
-                                     IsChecked="{Binding IsMonitoringSelected}"
-                                     Command="{Binding MonitoringViewCommand}"
-                                     GroupName="NavTabs"
-                                     Cursor="Hand">
-                            <RadioButton.Style>
-                                <Style TargetType="RadioButton">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="RadioButton">
-                                                <Border x:Name="NavBorder"
-                                                        Background="Transparent"
-                                                        CornerRadius="8"
-                                                        Padding="8,10"
-                                                        Margin="0,2">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock x:Name="NavIcon" Text="📊" FontSize="16" VerticalAlignment="Center" MinWidth="20" TextAlignment="Center" Foreground="{StaticResource AccentLightBrush}"/>
-                                                        <TextBlock x:Name="NavText" 
-                                                                   Text="Monitoring" 
-                                                                   FontSize="14" 
-                                                                   FontWeight="SemiBold"
-                                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                                   VerticalAlignment="Center"
-                                                                   Margin="10,0,0,0"
-                                                                   Visibility="{Binding DataContext.IsSidebarExpanded, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                                                    </StackPanel>
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsChecked" Value="True">
-                                                        <Setter TargetName="NavBorder" Property="Background" Value="{StaticResource AccentBrush}"/>
-                                                        <Setter TargetName="NavText" Property="Foreground" Value="{StaticResource TextOnAccentBrush}"/>
-                                                        <Setter TargetName="NavIcon" Property="Foreground" Value="{StaticResource TextOnAccentBrush}"/>
-                                                    </Trigger>
-                                                    <MultiTrigger>
-                                                        <MultiTrigger.Conditions>
-                                                            <Condition Property="IsMouseOver" Value="True"/>
-                                                            <Condition Property="IsChecked" Value="False"/>
-                                                        </MultiTrigger.Conditions>
-                                                        <Setter TargetName="NavBorder" Property="Background" Value="{StaticResource CardInnerBrush}"/>
-                                                        <Setter TargetName="NavText" Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
-                                                    </MultiTrigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </RadioButton.Style>
-                        </RadioButton>
+                        <!-- ═══ PRODUCTIVITY ═══ -->
+                        <TextBlock Text="PRODUCTIVITY" Style="{StaticResource NavSectionHeader}"
+                                   Visibility="{Binding IsSidebarExpanded, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        <RadioButton Tag="🧍" Content="Standing" IsChecked="{Binding IsStandingSelected}" Command="{Binding StandingViewCommand}" Style="{StaticResource NavTabStyle}"/>
+                        <RadioButton Tag="📝" Content="Notes" IsChecked="{Binding IsNotesSelected}" Command="{Binding NotesViewCommand}" Style="{StaticResource NavTabStyle}"/>
                         
-                        <!-- Utilities Tab -->
-                        <RadioButton x:Name="UtilitiesTab"
-                                     IsChecked="{Binding IsUtilitiesSelected}"
-                                     Command="{Binding UtilitiesViewCommand}"
-                                     GroupName="NavTabs"
-                                     Cursor="Hand">
-                            <RadioButton.Style>
-                                <Style TargetType="RadioButton">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="RadioButton">
-                                                <Border x:Name="NavBorder"
-                                                        Background="Transparent"
-                                                        CornerRadius="8"
-                                                        Padding="8,10"
-                                                        Margin="0,2">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock x:Name="NavIcon" Text="🛠️" FontSize="16" VerticalAlignment="Center" MinWidth="20" TextAlignment="Center" Foreground="{StaticResource AccentLightBrush}"/>
-                                                        <TextBlock x:Name="NavText" 
-                                                                   Text="Utilities" 
-                                                                   FontSize="14" 
-                                                                   FontWeight="SemiBold"
-                                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                                   VerticalAlignment="Center"
-                                                                   Margin="10,0,0,0"
-                                                                   Visibility="{Binding DataContext.IsSidebarExpanded, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                                                    </StackPanel>
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsChecked" Value="True">
-                                                        <Setter TargetName="NavBorder" Property="Background" Value="{StaticResource AccentBrush}"/>
-                                                        <Setter TargetName="NavText" Property="Foreground" Value="{StaticResource TextOnAccentBrush}"/>
-                                                        <Setter TargetName="NavIcon" Property="Foreground" Value="{StaticResource TextOnAccentBrush}"/>
-                                                    </Trigger>
-                                                    <MultiTrigger>
-                                                        <MultiTrigger.Conditions>
-                                                            <Condition Property="IsMouseOver" Value="True"/>
-                                                            <Condition Property="IsChecked" Value="False"/>
-                                                        </MultiTrigger.Conditions>
-                                                        <Setter TargetName="NavBorder" Property="Background" Value="{StaticResource CardInnerBrush}"/>
-                                                        <Setter TargetName="NavText" Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
-                                                    </MultiTrigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </RadioButton.Style>
-                        </RadioButton>
+                        <!-- ═══ MEDIA ═══ -->
+                        <TextBlock Text="MEDIA" Style="{StaticResource NavSectionHeader}"
+                                   Visibility="{Binding IsSidebarExpanded, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        <RadioButton Tag="🎵" Content="Sound" IsChecked="{Binding IsSoundSelected}" Command="{Binding SoundViewCommand}" Style="{StaticResource NavTabStyle}"/>
+                        <RadioButton Tag="🔊" Content="Soundboard" IsChecked="{Binding IsSoundboardSelected}" Command="{Binding SoundboardViewCommand}" Style="{StaticResource NavTabStyle}"/>
                         
-                        <!-- Notes Tab -->
-                        <RadioButton x:Name="NotesTab"
-                                     IsChecked="{Binding IsNotesSelected}"
-                                     Command="{Binding NotesViewCommand}"
-                                     GroupName="NavTabs"
-                                     Cursor="Hand">
-                            <RadioButton.Style>
-                                <Style TargetType="RadioButton">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="RadioButton">
-                                                <Border x:Name="NavBorder"
-                                                        Background="Transparent"
-                                                        CornerRadius="8"
-                                                        Padding="8,10"
-                                                        Margin="0,2">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock x:Name="NavIcon" Text="📝" FontSize="16" VerticalAlignment="Center" MinWidth="20" TextAlignment="Center" Foreground="{StaticResource AccentLightBrush}"/>
-                                                        <TextBlock x:Name="NavText" 
-                                                                   Text="Notes" 
-                                                                   FontSize="14" 
-                                                                   FontWeight="SemiBold"
-                                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                                   VerticalAlignment="Center"
-                                                                   Margin="10,0,0,0"
-                                                                   Visibility="{Binding DataContext.IsSidebarExpanded, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                                                    </StackPanel>
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsChecked" Value="True">
-                                                        <Setter TargetName="NavBorder" Property="Background" Value="{StaticResource AccentBrush}"/>
-                                                        <Setter TargetName="NavText" Property="Foreground" Value="{StaticResource TextOnAccentBrush}"/>
-                                                        <Setter TargetName="NavIcon" Property="Foreground" Value="{StaticResource TextOnAccentBrush}"/>
-                                                    </Trigger>
-                                                    <MultiTrigger>
-                                                        <MultiTrigger.Conditions>
-                                                            <Condition Property="IsMouseOver" Value="True"/>
-                                                            <Condition Property="IsChecked" Value="False"/>
-                                                        </MultiTrigger.Conditions>
-                                                        <Setter TargetName="NavBorder" Property="Background" Value="{StaticResource CardInnerBrush}"/>
-                                                        <Setter TargetName="NavText" Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
-                                                    </MultiTrigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </RadioButton.Style>
-                        </RadioButton>
+                        <!-- ═══ TOOLS ═══ -->
+                        <TextBlock Text="TOOLS" Style="{StaticResource NavSectionHeader}"
+                                   Visibility="{Binding IsSidebarExpanded, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        <RadioButton Tag="🛠️" Content="Utilities" IsChecked="{Binding IsUtilitiesSelected}" Command="{Binding UtilitiesViewCommand}" Style="{StaticResource NavTabStyle}"/>
+                        <RadioButton Tag="🤖" Content="Auto Clicker" IsChecked="{Binding IsAutoClickerSelected}" Command="{Binding AutoClickerViewCommand}" Style="{StaticResource NavTabStyle}"/>
+                        <RadioButton Tag="📋" Content="Clipboard" IsChecked="{Binding IsClipboardSelected}" Command="{Binding ClipboardViewCommand}" Style="{StaticResource NavTabStyle}"/>
                         
-                        <!-- Soundboard Tab -->
-                        <RadioButton x:Name="SoundboardTab"
-                                     IsChecked="{Binding IsSoundboardSelected}"
-                                     Command="{Binding SoundboardViewCommand}"
-                                     GroupName="NavTabs"
-                                     Cursor="Hand">
-                            <RadioButton.Style>
-                                <Style TargetType="RadioButton">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="RadioButton">
-                                                <Border x:Name="NavBorder"
-                                                        Background="Transparent"
-                                                        CornerRadius="8"
-                                                        Padding="8,10"
-                                                        Margin="0,2">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock x:Name="NavIcon" Text="🔊" FontSize="16" VerticalAlignment="Center" MinWidth="20" TextAlignment="Center" Foreground="{StaticResource AccentLightBrush}"/>
-                                                        <TextBlock x:Name="NavText" 
-                                                                   Text="Soundboard" 
-                                                                   FontSize="14" 
-                                                                   FontWeight="SemiBold"
-                                                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                                                   VerticalAlignment="Center"
-                                                                   Margin="10,0,0,0"
-                                                                   Visibility="{Binding DataContext.IsSidebarExpanded, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                                                    </StackPanel>
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsChecked" Value="True">
-                                                        <Setter TargetName="NavBorder" Property="Background" Value="{StaticResource AccentBrush}"/>
-                                                        <Setter TargetName="NavText" Property="Foreground" Value="{StaticResource TextOnAccentBrush}"/>
-                                                        <Setter TargetName="NavIcon" Property="Foreground" Value="{StaticResource TextOnAccentBrush}"/>
-                                                    </Trigger>
-                                                    <MultiTrigger>
-                                                        <MultiTrigger.Conditions>
-                                                            <Condition Property="IsMouseOver" Value="True"/>
-                                                            <Condition Property="IsChecked" Value="False"/>
-                                                        </MultiTrigger.Conditions>
-                                                        <Setter TargetName="NavBorder" Property="Background" Value="{StaticResource CardInnerBrush}"/>
-                                                        <Setter TargetName="NavText" Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
-                                                    </MultiTrigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </RadioButton.Style>
-                        </RadioButton>
+                        <!-- ═══ SETTINGS ═══ -->
+                        <TextBlock Text="SETTINGS" Style="{StaticResource NavSectionHeader}"
+                                   Visibility="{Binding IsSidebarExpanded, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        <RadioButton Tag="⌨️" Content="Hotkeys" IsChecked="{Binding IsHotkeySettingsSelected}" Command="{Binding HotkeySettingsViewCommand}" Style="{StaticResource NavTabStyle}"/>
+                        
                     </StackPanel>
                         
                         <!-- Collapse/Expand Button -->
@@ -437,7 +315,7 @@
                 </Border>
                 
                 <!-- Content Area -->
-                <Grid Grid.Column="1">
+                <Grid Grid.Column="1" MouseDown="ContentArea_MouseDown">
                     <ContentControl Content="{Binding CurrentView}" Margin="0"/>
                     
                     <!-- Toast Container -->

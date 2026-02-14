@@ -1,0 +1,195 @@
+<UserControl x:Class="CenterHubNew.MVVM.View.HotkeySettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:CenterHubNew.MVVM.View"
+             xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+             xmlns:models="clr-namespace:CenterHubNew.MVVM.Models"
+             d:DataContext="{d:DesignInstance Type=viewmodel:HotkeySettingsViewModel}"
+             mc:Ignorable="d" 
+             d:DesignHeight="900" d:DesignWidth="1200"
+             Background="Transparent"
+             FontFamily="Segoe UI"
+             Focusable="True"
+             KeyDown="UserControl_KeyDown">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        
+        <!-- Hotkey button style (the "record" button) -->
+        <Style x:Key="HotkeyButton" TargetType="Button">
+            <Setter Property="MinWidth" Value="140"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="14,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{StaticResource InputBackgroundBrush}"
+                                BorderBrush="{StaticResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Clear button (small X) -->
+        <Style x:Key="ClearButton" TargetType="Button">
+            <Setter Property="Width" Value="30"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource CardInnerBrush}"/>
+                                <Setter Property="Foreground" Value="{StaticResource ErrorBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+    
+    <Grid Margin="20,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header Row -->
+        <Grid Grid.Row="0" Margin="0,0,0,14">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                <TextBlock Text="⌨️" FontSize="20" Margin="0,0,8,0" Foreground="{StaticResource AccentLightBrush}"/>
+                <TextBlock Text="Global Hotkeys" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+            </StackPanel>
+
+            <!-- Master toggle + Reset -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="Enable All" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <CheckBox IsChecked="{Binding HotkeysEnabled}" VerticalAlignment="Center" Margin="0,0,16,0" Cursor="Hand"/>
+                <Button Content="Reset Defaults" Style="{StaticResource SecondaryButton}" Padding="12,6"
+                        Command="{Binding ResetToDefaultsCommand}"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Bindings list grouped by category -->
+        <ScrollViewer Grid.Row="1" Style="{StaticResource ModernScrollViewer}" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding Bindings}">
+                <ItemsControl.GroupStyle>
+                    <GroupStyle>
+                        <GroupStyle.HeaderTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Name}" 
+                                           FontSize="11" FontWeight="Bold" 
+                                           Foreground="{StaticResource TextMutedBrush}" 
+                                           Margin="0,18,0,8"/>
+                            </DataTemplate>
+                        </GroupStyle.HeaderTemplate>
+                    </GroupStyle>
+                </ItemsControl.GroupStyle>
+
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type models:HotkeyBinding}">
+                        <Border Style="{StaticResource CardStyle}" Padding="16,12" Margin="0,0,0,4">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Action name + category label -->
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding DisplayName}" 
+                                               FontSize="13" FontWeight="SemiBold" 
+                                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{Binding Category}" 
+                                               FontSize="10" 
+                                               Foreground="{StaticResource TextMutedBrush}" 
+                                               Margin="0,2,0,0"/>
+                                </StackPanel>
+
+                                <!-- Status indicator for failed registration -->
+                                <TextBlock Grid.Column="1" Text="⚠"
+                                           FontSize="14" Foreground="{StaticResource WarningBrush}"
+                                           VerticalAlignment="Center" Margin="0,0,8,0"
+                                           ToolTip="Could not register — shortcut may be in use by another app"
+                                           Visibility="{Binding HasFailed, Converter={StaticResource BoolToVis}}"/>
+
+                                <!-- Hotkey button -->
+                                <Button Grid.Column="2" Style="{StaticResource HotkeyButton}"
+                                        Command="{Binding DataContext.StartRecordingCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}"
+                                        Margin="0,0,6,0">
+                                    <Button.Content>
+                                        <TextBlock>
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="{Binding DisplayString}"/>
+                                                    <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsRecording}" Value="True">
+                                                            <Setter Property="Text" Value="Press a key..."/>
+                                                            <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+                                                            <Setter Property="FontStyle" Value="Italic"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding IsBound}" Value="False">
+                                                            <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Button.Content>
+                                </Button>
+
+                                <!-- Clear button -->
+                                <Button Grid.Column="3" Style="{StaticResource ClearButton}" Content="✕"
+                                        Command="{Binding DataContext.ClearBindingCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}"
+                                        ToolTip="Clear this hotkey"
+                                        Visibility="{Binding IsBound, Converter={StaticResource BoolToVis}}"/>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

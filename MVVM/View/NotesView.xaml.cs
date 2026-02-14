@@ -1,9 +1,11 @@
 using Microsoft.Win32;
+using System;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
+using CenterHubNew.MVVM.Services;
 
 namespace CenterHubNew.MVVM.View
 {
@@ -220,10 +222,18 @@ namespace CenterHubNew.MVVM.View
 
             if (dialog.ShowDialog() == true)
             {
-                var range = new TextRange(ContentEditor.Document.ContentStart, ContentEditor.Document.ContentEnd);
-                using var stream = new FileStream(dialog.FileName, FileMode.Create);
-                var format = dialog.FileName.EndsWith(".rtf") ? DataFormats.Rtf : DataFormats.Text;
-                range.Save(stream, format);
+                try
+                {
+                    var range = new TextRange(ContentEditor.Document.ContentStart, ContentEditor.Document.ContentEnd);
+                    using var stream = new FileStream(dialog.FileName, FileMode.Create);
+                    var format = dialog.FileName.EndsWith(".rtf") ? DataFormats.Rtf : DataFormats.Text;
+                    range.Save(stream, format);
+                    ToastService.Instance.Success($"Note exported to: {Path.GetFileName(dialog.FileName)}");
+                }
+                catch (Exception ex)
+                {
+                    ToastService.Instance.Error($"Failed to export note: {ex.Message}");
+                }
             }
         }
 
@@ -236,15 +246,23 @@ namespace CenterHubNew.MVVM.View
 
             if (dialog.ShowDialog() == true)
             {
-                using var stream = new FileStream(dialog.FileName, FileMode.Open);
-                var range = new TextRange(ContentEditor.Document.ContentStart, ContentEditor.Document.ContentEnd);
-                var format = dialog.FileName.EndsWith(".rtf") ? DataFormats.Rtf : DataFormats.Text;
-                range.Load(stream, format);
-                
-                // Update the viewmodel with the imported content
-                if (_viewModel != null)
+                try
                 {
-                    _viewModel.CurrentContent = GetEditorContent();
+                    using var stream = new FileStream(dialog.FileName, FileMode.Open);
+                    var range = new TextRange(ContentEditor.Document.ContentStart, ContentEditor.Document.ContentEnd);
+                    var format = dialog.FileName.EndsWith(".rtf") ? DataFormats.Rtf : DataFormats.Text;
+                    range.Load(stream, format);
+                    
+                    // Update the viewmodel with the imported content
+                    if (_viewModel != null)
+                    {
+                        _viewModel.CurrentContent = GetEditorContent();
+                    }
+                    ToastService.Instance.Success($"Note imported from: {Path.GetFileName(dialog.FileName)}");
+                }
+                catch (Exception ex)
+                {
+                    ToastService.Instance.Error($"Failed to import note: {ex.Message}");
                 }
             }
         }

@@ -148,11 +148,9 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Version History
 
-### v2.2.5
-- Implemented dependency injection
-- Added comprehensive logging
-- Improved error handling
-- Enhanced code architecture
-- Added configuration management
-- Updated to .NET 8
-- Implemented proper disposal patterns
+See [RELEASE_NOTES.md](RELEASE_NOTES.md) for detailed release notes.
+
+### Recent Versions
+- **v3.1.4**: Single instance enforcement, improved window sizing for smaller screens
+- **v3.1.3**: Comprehensive confirmation notifications for all features
+- **v2.2.5**: Implemented dependency injection, comprehensive logging, improved error handling

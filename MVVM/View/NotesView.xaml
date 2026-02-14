@@ -11,7 +11,7 @@
              Background="Transparent"
              FontFamily="Segoe UI">
     
-    <Grid Margin="24,20">
+    <Grid Margin="20,16">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="280"/>
             <ColumnDefinition Width="*"/>

@@ -119,6 +119,7 @@ namespace CenterHubNew.MVVM.ViewModel
                 {
                     await device.SetAsDefaultAsync();
                     Logger?.LogInformation("Set {DeviceName} as default playback device", device.FullName);
+                    ToastService.Instance.Success($"Audio device set to: {device.FullName}");
                 }
                 else
                 {
@@ -238,6 +239,7 @@ namespace CenterHubNew.MVVM.ViewModel
                     IsMicrophoneMuted = !IsMicrophoneMuted;
                     defaultDevice.AudioEndpointVolume.Mute = IsMicrophoneMuted;
                     Logger?.LogInformation("Microphone mute toggled: {IsMuted}", IsMicrophoneMuted);
+                    ToastService.Instance.Success(IsMicrophoneMuted ? "Microphone muted" : "Microphone unmuted");
                 }
                 else
                 {

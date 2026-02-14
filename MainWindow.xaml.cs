@@ -33,6 +33,47 @@ namespace CenterHubNew
             _logger?.LogInformation("MainWindow initialized");
         }
 
+        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            // Ensure window is visible on screen
+            EnsureWindowVisible();
+        }
+
+        private void EnsureWindowVisible()
+        {
+            // Get screen dimensions
+            var screenWidth = SystemParameters.PrimaryScreenWidth;
+            var screenHeight = SystemParameters.PrimaryScreenHeight;
+
+            // If window is larger than screen, resize it
+            if (Width > screenWidth)
+            {
+                Width = Math.Max(screenWidth * 0.9, MinWidth);
+            }
+            if (Height > screenHeight)
+            {
+                Height = Math.Max(screenHeight * 0.9, MinHeight);
+            }
+
+            // Ensure window is within screen bounds
+            if (Left + Width > screenWidth)
+            {
+                Left = Math.Max(0, screenWidth - Width);
+            }
+            if (Top + Height > screenHeight)
+            {
+                Top = Math.Max(0, screenHeight - Height);
+            }
+            if (Left < 0)
+            {
+                Left = 0;
+            }
+            if (Top < 0)
+            {
+                Top = 0;
+            }
+        }
+
         private void InitializeNotifyIcon()
         {
             try
@@ -110,6 +151,15 @@ namespace CenterHubNew
         private void Border_MouseDown(object sender, MouseButtonEventArgs e)
         {
             if (e.LeftButton == MouseButtonState.Pressed)
+            {
+                DragMove();
+            }
+        }
+
+        private void ContentArea_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            // Allow dragging from content area, but only if clicking on empty space (not on interactive controls)
+            if (e.LeftButton == MouseButtonState.Pressed && e.OriginalSource is System.Windows.Controls.Grid)
             {
                 DragMove();
             }

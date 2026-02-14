@@ -2,9 +2,9 @@ using System.Windows.Controls;
 
 namespace CenterHubNew.MVVM.View
 {
-    public partial class StandingView : UserControl
+    public partial class AutoClickerView : UserControl
     {
-        public StandingView()
+        public AutoClickerView()
         {
             InitializeComponent();
         }

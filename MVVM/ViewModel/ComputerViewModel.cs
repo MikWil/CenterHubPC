@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Windows;
 using System.Threading.Tasks;
+using CenterHubNew.MVVM.Services;
 
 namespace CenterHubNew.MVVM.ViewModel
 {
@@ -54,6 +55,7 @@ namespace CenterHubNew.MVVM.ViewModel
                 {
                     StatusMessage = "Please select a date and time.";
                     Logger?.LogWarning("Shutdown scheduled attempted without date/time selection");
+                    ToastService.Instance.Warning("Please select a date and time");
                     return Task.CompletedTask;
                 }
 
@@ -65,6 +67,7 @@ namespace CenterHubNew.MVVM.ViewModel
                 {
                     StatusMessage = "Invalid time format. Use HH:mm.";
                     Logger?.LogWarning("Invalid time format entered: {Time}", SelectedTime);
+                    ToastService.Instance.Warning("Invalid time format. Use HH:mm");
                     return Task.CompletedTask;
                 }
 
@@ -75,6 +78,7 @@ namespace CenterHubNew.MVVM.ViewModel
                 {
                     StatusMessage = "Selected time is in the past.";
                     Logger?.LogWarning("Shutdown scheduled for past time: {DateTime}", shutdownDateTime);
+                    ToastService.Instance.Warning("Selected time is in the past");
                     return Task.CompletedTask;
                 }
 
@@ -87,11 +91,13 @@ namespace CenterHubNew.MVVM.ViewModel
                 Process.Start(psi);
                 StatusMessage = $"Shutdown scheduled for {shutdownDateTime}.";
                 Logger?.LogInformation("Shutdown scheduled for {DateTime} ({Seconds} seconds from now)", shutdownDateTime, seconds);
+                ToastService.Instance.Success($"Shutdown scheduled for {shutdownDateTime:MM/dd/yyyy HH:mm}");
             }
             catch (Exception ex)
             {
                 Logger?.LogError(ex, "Failed to schedule shutdown");
                 StatusMessage = $"Failed to schedule shutdown: {ex.Message}";
+                ToastService.Instance.Error($"Failed to schedule shutdown: {ex.Message}");
             }
             
             return Task.CompletedTask;
@@ -113,11 +119,13 @@ namespace CenterHubNew.MVVM.ViewModel
                 Process.Start(psi);
                 StatusMessage = "Shutdown cancelled.";
                 Logger?.LogInformation("Shutdown cancelled");
+                ToastService.Instance.Success("Shutdown cancelled");
             }
             catch (Exception ex)
             {
                 Logger?.LogError(ex, "Failed to cancel shutdown");
                 StatusMessage = $"Failed to cancel shutdown: {ex.Message}";
+                ToastService.Instance.Error($"Failed to cancel shutdown: {ex.Message}");
             }
         }
 

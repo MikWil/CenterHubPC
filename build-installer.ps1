@@ -49,10 +49,29 @@ if ($buildResult -ne 0) {
 
 Write-Host ""
 
-# Step 4: Create ZIP archive
-Write-Host "[4/4] Creating ZIP archive..." -ForegroundColor Yellow
+# Step 4: Extract version number from project file
+Write-Host "[4/5] Extracting version number..." -ForegroundColor Yellow
+$projectFile = "CenterHubNew.csproj"
+if (-not (Test-Path $projectFile)) {
+    Write-Host "ERROR: Project file not found: $projectFile" -ForegroundColor Red
+    exit 1
+}
+
+$projectContent = Get-Content $projectFile -Raw
+$versionMatch = [regex]::Match($projectContent, '<Version>(.*?)</Version>')
+if (-not $versionMatch.Success) {
+    Write-Host "ERROR: Could not find version in project file" -ForegroundColor Red
+    exit 1
+}
+
+$version = $versionMatch.Groups[1].Value
+Write-Host "Version found: $version" -ForegroundColor Green
+Write-Host ""
+
+# Step 5: Create ZIP archive with version number
+Write-Host "[5/5] Creating ZIP archive..." -ForegroundColor Yellow
 $msiPath = (Resolve-Path "installer\bin\x64\$Configuration\CenterHub.msi").Path
-$zipPath = "installer\bin\x64\$Configuration\CenterHub.zip"
+$zipPath = "installer\bin\x64\$Configuration\CenterHub-v$version.zip"
 if (Test-Path $zipPath) {
     Remove-Item $zipPath -Force
 }
