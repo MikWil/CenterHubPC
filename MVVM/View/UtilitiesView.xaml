@@ -95,7 +95,7 @@
             <!-- ═══ JSON STRINGIFY ═══ -->
             <Border Style="{StaticResource CardStyle}">
                 <StackPanel>
-                    <TextBlock Text="JSON STRINGIFY" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,10"/>
+                    <TextBlock Text="JSON STRINGIFY / UNSTRINGIFY" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,10"/>
                     <Grid Margin="0,0,0,8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -118,9 +118,12 @@
                                Foreground="{StaticResource ErrorBrush}" FontSize="11" Margin="0,0,0,4"
                                Visibility="{Binding JsonStringifyViewModel.HasError, Converter={StaticResource BoolToVisibilityConverter}}"
                                TextWrapping="Wrap"/>
-                    <Button Content="Stringify" Style="{StaticResource PrimaryButton}" Padding="20,7"
-                            HorizontalAlignment="Left" Margin="0,4,0,10"
-                            Command="{Binding JsonStringifyViewModel.StringifyCommand}"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,10">
+                        <Button Content="Stringify" Style="{StaticResource PrimaryButton}" Padding="20,7" Margin="0,0,6,0"
+                                Command="{Binding JsonStringifyViewModel.StringifyCommand}"/>
+                        <Button Content="Unstringify" Style="{StaticResource SecondaryButton}" Padding="20,7"
+                                Command="{Binding JsonStringifyViewModel.UnstringifyCommand}"/>
+                    </StackPanel>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>

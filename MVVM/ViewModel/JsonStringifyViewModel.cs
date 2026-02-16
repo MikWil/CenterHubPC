@@ -44,11 +44,7 @@ namespace CenterHubNew.MVVM.ViewModel
 
             try
             {
-                // First validate that the input is valid JSON by parsing it
                 using var doc = JsonDocument.Parse(InputJson);
-
-                // Serialize the JSON string itself as a JSON string value (i.e. stringify it)
-                // This produces a quoted, escaped string like: "{\"key\":\"value\"}"
                 var minified = JsonSerializer.Serialize(doc.RootElement);
                 OutputJson = JsonSerializer.Serialize(minified);
 
@@ -70,6 +66,63 @@ namespace CenterHubNew.MVVM.ViewModel
                 OutputJson = string.Empty;
                 Logger?.LogError(ex, "Failed to stringify JSON");
                 ToastService.Instance.Error($"Failed to stringify: {ex.Message}");
+            }
+        }
+
+        [RelayCommand]
+        private void Unstringify()
+        {
+            HasError = false;
+            ErrorMessage = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(InputJson))
+            {
+                HasError = true;
+                ErrorMessage = "Input is empty";
+                OutputJson = string.Empty;
+                return;
+            }
+
+            try
+            {
+                var input = InputJson.Trim();
+
+                // If the input is a JSON string value (wrapped in quotes with escapes),
+                // deserialize it first to get the inner JSON string
+                string jsonContent;
+                if (input.StartsWith("\"") && input.EndsWith("\""))
+                {
+                    jsonContent = JsonSerializer.Deserialize<string>(input)
+                        ?? throw new JsonException("Deserialized to null");
+                }
+                else
+                {
+                    jsonContent = input;
+                }
+
+                // Parse and pretty-print the JSON
+                using var doc = JsonDocument.Parse(jsonContent);
+                var options = new JsonSerializerOptions { WriteIndented = true };
+                OutputJson = JsonSerializer.Serialize(doc.RootElement, options);
+
+                Logger?.LogDebug("JSON unstringified successfully");
+                ToastService.Instance.Success("JSON formatted successfully");
+            }
+            catch (JsonException ex)
+            {
+                HasError = true;
+                ErrorMessage = $"Invalid JSON: {ex.Message}";
+                OutputJson = string.Empty;
+                Logger?.LogWarning(ex, "Invalid JSON input for unstringify");
+                ToastService.Instance.Error("Invalid JSON input");
+            }
+            catch (Exception ex)
+            {
+                HasError = true;
+                ErrorMessage = $"Error: {ex.Message}";
+                OutputJson = string.Empty;
+                Logger?.LogError(ex, "Failed to unstringify JSON");
+                ToastService.Instance.Error($"Failed to parse: {ex.Message}");
             }
         }
 
