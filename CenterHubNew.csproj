@@ -12,7 +12,7 @@
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <EnableComHosting>true</EnableComHosting>
     <EnableGeneratedComInterfaceComImportInterop>true</EnableGeneratedComInterfaceComImportInterop>
-    <Version>4.0.0</Version>
+    <Version>4.1.0</Version>
     <Authors>CenterHub</Authors>
     <Company>CenterHub</Company>
     <Product>CenterHub</Product>
