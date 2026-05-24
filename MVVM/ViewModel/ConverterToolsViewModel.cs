@@ -5,7 +5,6 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Security.Cryptography;
 using System.Text;
-using System.Windows;
 
 namespace CenterHubNew.MVVM.ViewModel
 {
@@ -269,7 +268,7 @@ namespace CenterHubNew.MVVM.ViewModel
             }
             try
             {
-                Clipboard.SetText(text);
+                System.Windows.Forms.Clipboard.SetText(text);
                 ToastService.Instance.Success($"{label} copied");
             }
             catch (Exception ex)

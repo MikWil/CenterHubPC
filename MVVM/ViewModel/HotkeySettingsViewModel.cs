@@ -1,8 +1,7 @@
+using Avalonia.Input;
+using CenterHubNew.MVVM.Models;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Windows;
-using System.Windows.Input;
-using CenterHubNew.MVVM.Models;
 using CenterHubNew.MVVM.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -80,7 +79,7 @@ namespace CenterHubNew.MVVM.ViewModel
         /// <summary>
         /// Called from the View's KeyDown handler when recording a new key combo.
         /// </summary>
-        public void HandleKeyDown(Key key, ModifierKeys modifiers)
+        public void HandleKeyDown(Key key, KeyModifiers modifiers)
         {
             if (RecordingBinding == null) return;
 
@@ -116,13 +115,13 @@ namespace CenterHubNew.MVVM.ViewModel
             var conflict = _hotkeyService.FindConflict(binding.Action, key, modifiers);
             if (conflict != null)
             {
-                var result = MessageBox.Show(
+                var result = System.Windows.Forms.MessageBox.Show(
                     $"'{conflict.DisplayName}' already uses {conflict.DisplayString}.\n\nReassign to '{binding.DisplayName}'?",
                     "Hotkey Conflict",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
+                    System.Windows.Forms.MessageBoxButtons.YesNo,
+                    System.Windows.Forms.MessageBoxIcon.Question);
 
-                if (result != MessageBoxResult.Yes) return;
+                if (result != System.Windows.Forms.DialogResult.Yes) return;
 
                 // Clear the conflicting binding
                 _hotkeyService.ClearBinding(conflict.Action);
@@ -163,13 +162,13 @@ namespace CenterHubNew.MVVM.ViewModel
         [RelayCommand]
         private void ResetToDefaults()
         {
-            var result = MessageBox.Show(
+            var result = System.Windows.Forms.MessageBox.Show(
                 "Reset all hotkeys to defaults?\n\nOnly Auto Clicker will have hotkeys assigned (Ctrl+K and Ctrl+P). All other bindings will be cleared.",
                 "Reset Hotkeys",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
+                System.Windows.Forms.MessageBoxButtons.YesNo,
+                System.Windows.Forms.MessageBoxIcon.Question);
 
-            if (result != MessageBoxResult.Yes) return;
+            if (result != System.Windows.Forms.DialogResult.Yes) return;
 
             _hotkeyService.ResetToDefaults();
             ToastService.Instance.Success("Hotkeys reset to defaults");

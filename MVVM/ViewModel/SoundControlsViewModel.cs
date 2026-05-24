@@ -1,3 +1,5 @@
+using Avalonia.Media;
+using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NAudio.CoreAudioApi;
@@ -5,8 +7,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
+using System.IO;
 
 namespace CenterHubNew.MVVM.ViewModel
 {
@@ -162,8 +163,8 @@ namespace CenterHubNew.MVVM.ViewModel
             }
         }
 
-        private ImageSource? _appIcon;
-        public ImageSource? AppIcon => _appIcon;
+        private IImage? _appIcon;
+        public IImage? AppIcon => _appIcon;
 
         public AudioSessionViewModel(AudioSessionControl session, ILogger? logger = null) : base(logger)
         {
@@ -173,23 +174,24 @@ namespace CenterHubNew.MVVM.ViewModel
             Logger?.LogDebug("AudioSessionViewModel initialized for session: {DisplayName}", DisplayName);
         }
 
-        private ImageSource? GetAppIcon()
+        private IImage? GetAppIcon()
         {
             try
             {
                 int pid = (int)_session.GetProcessID;
                 if (pid != 0)
                 {
-                    var proc = System.Diagnostics.Process.GetProcessById(pid);
+                    var proc = Process.GetProcessById(pid);
                     if (!string.IsNullOrEmpty(proc.MainModule?.FileName))
                     {
                         var icon = System.Drawing.Icon.ExtractAssociatedIcon(proc.MainModule.FileName);
                         if (icon != null)
                         {
-                            return System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(
-                                icon.Handle,
-                                System.Windows.Int32Rect.Empty,
-                                BitmapSizeOptions.FromWidthAndHeight(24, 24));
+                            using var bmp = icon.ToBitmap();
+                            using var ms = new MemoryStream();
+                            bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                            ms.Position = 0;
+                            return new Bitmap(ms);
                         }
                     }
                 }

@@ -1,0 +1,48 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+             x:Class="CenterHubNew.MVVM.View.ComputerView"
+             x:DataType="viewmodel:ComputerViewModel"
+             mc:Ignorable="d"
+             Background="Transparent">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,16" Background="Transparent">
+        <StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                <TextBlock Text="💻" FontSize="20" Margin="0,0,8,0"
+                           Foreground="{StaticResource AccentLightBrush}" VerticalAlignment="Center"/>
+                <TextBlock Text="Computer Control" FontSize="20" FontWeight="Bold"
+                           Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <Border Classes="card" BorderThickness="1" BorderBrush="{StaticResource BorderBrush}">
+                <StackPanel>
+                    <TextBlock Text="SHUTDOWN SCHEDULER" FontSize="10" FontWeight="Bold"
+                               Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,12"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                        <TextBlock Text="Date" VerticalAlignment="Center" FontSize="12"
+                                   Margin="0,0,8,0" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <TextBox Text="{Binding SelectedDateText, Mode=TwoWay}"
+                                 Classes="input" Width="120"/>
+                        <TextBlock Text="Time" VerticalAlignment="Center" FontSize="12"
+                                   Margin="16,0,8,0" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <TextBox Text="{Binding SelectedTime, Mode=TwoWay}"
+                                 Classes="input" Width="80"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Schedule Shutdown" Classes="primary" Padding="20,8"
+                                Command="{Binding ScheduleShutdownCommand}" Margin="0,0,8,0"/>
+                        <Button Content="Cancel Shutdown" Classes="secondary" Padding="20,8"
+                                Command="{Binding CancelShutdownCommand}"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding StatusMessage}"
+                               FontSize="12" TextWrapping="Wrap"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Margin="0,12,0,0"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

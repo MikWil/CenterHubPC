@@ -1,0 +1,12 @@
+using Avalonia.Controls;
+
+namespace CenterHubNew.MVVM.View
+{
+    public partial class AutoClickerView : UserControl
+    {
+        public AutoClickerView()
+        {
+            InitializeComponent();
+        }
+    }
+}

@@ -1,0 +1,38 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+             x:Class="CenterHubNew.MVVM.View.NameInputView"
+             x:DataType="viewmodel:NameInputViewModel"
+             mc:Ignorable="d"
+             Background="Transparent">
+
+    <Grid>
+        <Border Classes="card" BorderThickness="1" BorderBrush="{StaticResource BorderBrush}"
+                Width="340" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <StackPanel>
+                <TextBlock Text="Name Input" FontSize="20" FontWeight="Bold"
+                           Foreground="{StaticResource TextPrimaryBrush}"
+                           HorizontalAlignment="Center" Margin="0,0,0,12"/>
+
+                <TextBlock Text="{Binding DisplayMessage}"
+                           FontSize="14" TextWrapping="Wrap"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           HorizontalAlignment="Center" Margin="0,0,0,16"/>
+
+                <TextBlock Text="Name:" FontSize="12"
+                           Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,6"/>
+                <TextBox Text="{Binding Name, Mode=TwoWay}"
+                         Classes="input" Margin="0,0,0,20"/>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Button Content="Save Name" Classes="primary" Padding="20,8"
+                            Margin="0,0,8,0" Command="{Binding SaveNameCommand}"/>
+                    <Button Content="Clear" Classes="danger" Padding="20,8"
+                            Command="{Binding ClearNameCommand}"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

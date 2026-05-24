@@ -1,0 +1,112 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+             xmlns:models="clr-namespace:CenterHubNew.MVVM.Models"
+             x:Class="CenterHubNew.MVVM.View.HotkeySettingsView"
+             x:DataType="viewmodel:HotkeySettingsViewModel"
+             mc:Ignorable="d"
+             Background="Transparent"
+             Focusable="True"
+             KeyDown="UserControl_KeyDown">
+
+    <UserControl.Styles>
+        <Style Selector="Border.hotkey-btn">
+            <Setter Property="Background"       Value="{StaticResource InputBackgroundBrush}"/>
+            <Setter Property="BorderBrush"      Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderThickness"  Value="1"/>
+            <Setter Property="CornerRadius"     Value="8"/>
+            <Setter Property="Padding"          Value="14,0"/>
+            <Setter Property="MinWidth"         Value="140"/>
+            <Setter Property="Height"           Value="34"/>
+        </Style>
+        <Style Selector="Border.hotkey-btn:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid Margin="24,20" RowDefinitions="Auto,*">
+
+        <!-- HEADER -->
+        <Grid Grid.Row="0" Margin="0,0,0,16" ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="Global Hotkeys"
+                           FontSize="22" FontWeight="Bold"
+                           Foreground="{StaticResource TextPrimaryBrush}"/>
+                <TextBlock Text="System-wide keyboard shortcuts"
+                           FontSize="12"
+                           Foreground="{StaticResource TextMutedBrush}"
+                           Margin="0,2,0,0"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <TextBlock Text="Enable All" FontSize="12"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           VerticalAlignment="Center"/>
+                <CheckBox IsChecked="{Binding HotkeysEnabled, Mode=TwoWay}"
+                          VerticalAlignment="Center"/>
+                <Button Content="Reset Defaults" Classes="secondary" Padding="12,7"
+                        Command="{Binding ResetToDefaultsCommand}"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- BINDINGS LIST -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding Bindings}" x:Name="BindingsList">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="models:HotkeyBinding">
+                        <Border Classes="card" Padding="16,11" Margin="0,0,0,4">
+                            <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+
+                                <!-- Action name + category -->
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding DisplayName}"
+                                               FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{Binding Category}"
+                                               FontSize="10" LetterSpacing="0.5"
+                                               Foreground="{StaticResource TextMutedBrush}"
+                                               Margin="0,2,0,0"/>
+                                </StackPanel>
+
+                                <!-- Warning indicator -->
+                                <Border Grid.Column="1"
+                                        Background="{StaticResource WarningSubtleBrush}"
+                                        CornerRadius="5" Padding="8,3"
+                                        Margin="0,0,10,0" VerticalAlignment="Center"
+                                        IsVisible="{Binding HasFailed}"
+                                        ToolTip.Tip="Could not register — shortcut may be in use by another app">
+                                    <TextBlock Text="In use" FontSize="10" FontWeight="Bold"
+                                               Foreground="{StaticResource WarningBrush}"/>
+                                </Border>
+
+                                <!-- Hotkey record button -->
+                                <Button Grid.Column="2" Margin="0,0,6,0"
+                                        Classes="secondary"
+                                        Command="{Binding DataContext.StartRecordingCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+                                        CommandParameter="{Binding}"
+                                        MinWidth="140" Height="34" Padding="14,0">
+                                    <TextBlock FontSize="12" Text="{Binding DisplayString}"/>
+                                </Button>
+
+                                <!-- Clear button -->
+                                <Button Grid.Column="3"
+                                        Classes="ghost"
+                                        Width="30" Height="30"
+                                        Padding="0"
+                                        IsVisible="{Binding IsBound}"
+                                        ToolTip.Tip="Clear this hotkey"
+                                        Command="{Binding DataContext.ClearBindingCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+                                        CommandParameter="{Binding}">
+                                    <TextBlock Text="&#xD7;" FontSize="14"
+                                               Foreground="{StaticResource TextMutedBrush}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Button>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

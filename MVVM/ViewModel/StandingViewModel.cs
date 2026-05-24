@@ -1,11 +1,9 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using CommunityToolkit.WinUI.Notifications;
+using CenterHubNew.MVVM.Services;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Timers;
-using System.Windows;
-using CenterHubNew.MVVM.Services;
 
 namespace CenterHubNew.MVVM.ViewModel
 {
@@ -146,20 +144,20 @@ namespace CenterHubNew.MVVM.ViewModel
                     else
                     {
                         Logger?.LogWarning("Attempted to start timers while already running");
-                        MessageBox.Show("Timers are already running.");
+                        ToastService.Instance.Warning("Timers are already running.");
                     }
                 }
                 else
                 {
                     Logger?.LogWarning("Invalid timer values entered - Sitting: {SittingMinutes}, Standing: {StandingMinutes}", SittingMinutes, StandingMinutes);
                     ToastService.Instance.Warning("Please enter valid numbers for sitting and standing time");
-                    MessageBox.Show("Please enter valid numbers for sitting and standing time.");
+                    ToastService.Instance.Error("Please enter valid numbers for sitting and standing time.");
                 }
             }
             catch (Exception ex)
             {
                 Logger?.LogError(ex, "Error starting timers");
-                MessageBox.Show($"Error starting timers: {ex.Message}");
+                ToastService.Instance.Error($"Error starting timers: {ex.Message}");
             }
         }
 
@@ -190,10 +188,7 @@ namespace CenterHubNew.MVVM.ViewModel
         {
             try
             {
-                new ToastContentBuilder()
-                    .AddText("Stand Up!")
-                    .AddText("It's time to stand up and stretch!")
-                    .Show();
+                ToastService.Instance.Info("Stand Up! It's time to stand up and stretch!");
                 Logger?.LogInformation("Stand up notification sent");
             }
             catch (Exception ex)
@@ -206,10 +201,7 @@ namespace CenterHubNew.MVVM.ViewModel
         {
             try
             {
-                new ToastContentBuilder()
-                    .AddText("Sit Down!")
-                    .AddText("Time to sit down and focus on work!")
-                    .Show();
+                ToastService.Instance.Info("Sit Down! Time to focus on work.");
                 Logger?.LogInformation("Sit down notification sent");
             }
             catch (Exception ex)
@@ -222,10 +214,7 @@ namespace CenterHubNew.MVVM.ViewModel
         {
             try
             {
-                new ToastContentBuilder()
-                    .AddText("Timers Started")
-                    .AddText($"Stand for {StandingMinutes} minutes, then sit for {SittingMinutes} minutes.")
-                    .Show();
+                ToastService.Instance.Success($"Timers started — stand {StandingMinutes} min / sit {SittingMinutes} min");
                 Logger?.LogInformation("Start notification sent");
             }
             catch (Exception ex)
@@ -238,10 +227,7 @@ namespace CenterHubNew.MVVM.ViewModel
         {
             try
             {
-                new ToastContentBuilder()
-                    .AddText("Timers Stopped")
-                    .AddText("The sitting and standing cycle has been stopped.")
-                    .Show();
+                ToastService.Instance.Info("Standing timers stopped.");
                 Logger?.LogInformation("Stop notification sent");
             }
             catch (Exception ex)

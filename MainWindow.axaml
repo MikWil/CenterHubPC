@@ -1,0 +1,210 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:view="clr-namespace:CenterHubNew.MVVM.View"
+        xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+        x:Class="CenterHubNew.MainWindow"
+        x:DataType="viewmodel:MainViewModel"
+        mc:Ignorable="d"
+        Height="880" Width="1360"
+        MinHeight="500" MinWidth="820"
+        SystemDecorations="None"
+        TransparencyLevelHint="Mica,AcrylicBlur,Transparent"
+        Background="Transparent"
+        WindowStartupLocation="CenterScreen"
+        CanResize="True"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome">
+
+    <Border Background="Transparent"
+            BorderThickness="1"
+            BorderBrush="{StaticResource BorderHairline}"
+            CornerRadius="8">
+        <Grid RowDefinitions="Auto,*">
+
+            <!-- ===== TITLE BAR ===== -->
+            <Border Grid.Row="0"
+                    Background="{StaticResource TitleBarBackgroundBrush}"
+                    BorderThickness="0,0,0,1"
+                    BorderBrush="{StaticResource BorderHairline}"
+                    CornerRadius="8,8,0,0"
+                    PointerPressed="TitleBar_PointerPressed">
+                <Grid ColumnDefinitions="*,Auto" Height="46">
+
+                    <!-- App identity -->
+                    <StackPanel Grid.Column="0"
+                                Orientation="Horizontal"
+                                VerticalAlignment="Center"
+                                Margin="20,0,0,0"
+                                Spacing="10">
+                        <!-- Dot logo -->
+                        <Border Width="22" Height="22" CornerRadius="11"
+                                Background="{StaticResource AccentBrush}"
+                                VerticalAlignment="Center">
+                            <Border Width="8" Height="8" CornerRadius="4"
+                                    Background="{StaticResource TextOnAccentBrush}"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="CenterHub"
+                                   FontSize="15" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding AppVersion}"
+                                   FontSize="11"
+                                   Foreground="{StaticResource TextMutedBrush}"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Window controls -->
+                    <StackPanel Grid.Column="1"
+                                Orientation="Horizontal"
+                                VerticalAlignment="Center"
+                                Margin="0,0,6,0"
+                                Spacing="2">
+                        <Button Classes="chrome"
+                                FontSize="14"
+                                Foreground="{StaticResource TextMutedBrush}"
+                                Click="FavoritesButton_Click"
+                                ToolTip.Tip="Favorites Panel">
+                            <TextBlock Text="&#x2605;" FontSize="14" Foreground="{StaticResource TextMutedBrush}"/>
+                        </Button>
+                        <Button Classes="chrome"
+                                Click="MinimizeButton_Click"
+                                ToolTip.Tip="Minimize to tray">
+                            <TextBlock Text="&#x2212;" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- ===== MAIN LAYOUT: sidebar + content ===== -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="{Binding SidebarWidth}"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- SIDEBAR -->
+                <Border Grid.Column="0"
+                        Background="{StaticResource SidebarBackgroundBrush}"
+                        BorderThickness="0,0,1,0"
+                        BorderBrush="{StaticResource BorderHairline}">
+                    <Grid RowDefinitions="*,Auto">
+
+                        <ScrollViewer Grid.Row="0"
+                                      VerticalScrollBarVisibility="Hidden"
+                                      Padding="0,12,0,0">
+                            <StackPanel>
+
+                                <!-- DASHBOARD -->
+                                <TextBlock Text="DASHBOARD"
+                                           FontSize="9" FontWeight="Bold" LetterSpacing="1.5"
+                                           Foreground="{StaticResource TextMutedBrush}"
+                                           Margin="18,0,0,6"
+                                           IsVisible="{Binding IsSidebarExpanded}"/>
+                                <RadioButton Classes="navtab"
+                                             Content="Monitoring"
+                                             IsChecked="{Binding IsMonitoringSelected}"
+                                             Command="{Binding MonitoringViewCommand}"
+                                             GroupName="Nav"/>
+
+                                <!-- PRODUCTIVITY -->
+                                <TextBlock Text="PRODUCTIVITY"
+                                           FontSize="9" FontWeight="Bold" LetterSpacing="1.5"
+                                           Foreground="{StaticResource TextMutedBrush}"
+                                           Margin="18,16,0,6"
+                                           IsVisible="{Binding IsSidebarExpanded}"/>
+                                <RadioButton Classes="navtab"
+                                             Content="Standing"
+                                             IsChecked="{Binding IsStandingSelected}"
+                                             Command="{Binding StandingViewCommand}"
+                                             GroupName="Nav"/>
+                                <RadioButton Classes="navtab"
+                                             Content="Notes"
+                                             IsChecked="{Binding IsNotesSelected}"
+                                             Command="{Binding NotesViewCommand}"
+                                             GroupName="Nav"/>
+
+                                <!-- MEDIA -->
+                                <TextBlock Text="MEDIA"
+                                           FontSize="9" FontWeight="Bold" LetterSpacing="1.5"
+                                           Foreground="{StaticResource TextMutedBrush}"
+                                           Margin="18,16,0,6"
+                                           IsVisible="{Binding IsSidebarExpanded}"/>
+                                <RadioButton Classes="navtab"
+                                             Content="Sound"
+                                             IsChecked="{Binding IsSoundSelected}"
+                                             Command="{Binding SoundViewCommand}"
+                                             GroupName="Nav"/>
+                                <RadioButton Classes="navtab"
+                                             Content="Soundboard"
+                                             IsChecked="{Binding IsSoundboardSelected}"
+                                             Command="{Binding SoundboardViewCommand}"
+                                             GroupName="Nav"/>
+
+                                <!-- TOOLS -->
+                                <TextBlock Text="TOOLS"
+                                           FontSize="9" FontWeight="Bold" LetterSpacing="1.5"
+                                           Foreground="{StaticResource TextMutedBrush}"
+                                           Margin="18,16,0,6"
+                                           IsVisible="{Binding IsSidebarExpanded}"/>
+                                <RadioButton Classes="navtab"
+                                             Content="Utilities"
+                                             IsChecked="{Binding IsUtilitiesSelected}"
+                                             Command="{Binding UtilitiesViewCommand}"
+                                             GroupName="Nav"/>
+                                <RadioButton Classes="navtab"
+                                             Content="Auto Clicker"
+                                             IsChecked="{Binding IsAutoClickerSelected}"
+                                             Command="{Binding AutoClickerViewCommand}"
+                                             GroupName="Nav"/>
+                                <RadioButton Classes="navtab"
+                                             Content="Clipboard"
+                                             IsChecked="{Binding IsClipboardSelected}"
+                                             Command="{Binding ClipboardViewCommand}"
+                                             GroupName="Nav"/>
+
+                                <!-- SYSTEM -->
+                                <TextBlock Text="SYSTEM"
+                                           FontSize="9" FontWeight="Bold" LetterSpacing="1.5"
+                                           Foreground="{StaticResource TextMutedBrush}"
+                                           Margin="18,16,0,6"
+                                           IsVisible="{Binding IsSidebarExpanded}"/>
+                                <RadioButton Classes="navtab"
+                                             Content="Hotkeys"
+                                             IsChecked="{Binding IsHotkeySettingsSelected}"
+                                             Command="{Binding HotkeySettingsViewCommand}"
+                                             GroupName="Nav"/>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <!-- Collapse / expand button -->
+                        <Button Grid.Row="1"
+                                Command="{Binding ToggleSidebarCommand}"
+                                Cursor="Hand"
+                                Margin="8,0,8,16"
+                                Classes="secondary"
+                                Padding="8,7"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center">
+                            <TextBlock Text="{Binding SidebarToggleIcon}"
+                                       FontSize="13"
+                                       Foreground="{StaticResource TextMutedBrush}"
+                                       HorizontalAlignment="Center"/>
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <!-- CONTENT AREA (Mica shows through) -->
+                <Grid Grid.Column="1" Background="Transparent">
+                    <ContentControl Content="{Binding CurrentView}"/>
+                    <view:ToastContainer HorizontalAlignment="Right"
+                                         VerticalAlignment="Top"
+                                         Margin="0,16,16,0"/>
+                </Grid>
+            </Grid>
+
+        </Grid>
+    </Border>
+</Window>

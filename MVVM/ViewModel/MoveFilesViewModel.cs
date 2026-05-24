@@ -1,11 +1,9 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
-using Microsoft.Win32;
 using System;
 using System.IO;
 using System.Linq;
-using System.Windows;
 using CenterHubNew.MVVM.Services;
 
 namespace CenterHubNew.MVVM.ViewModel
@@ -136,9 +134,10 @@ namespace CenterHubNew.MVVM.ViewModel
 
                         if (File.Exists(targetPath))
                         {
-                            var result = MessageBox.Show($"File {fileName} already exists in target. Overwrite?", 
-                                "File exists", MessageBoxButton.YesNo);
-                            if (result != MessageBoxResult.Yes)
+                            var result = System.Windows.Forms.MessageBox.Show(
+                                $"File {fileName} already exists in target. Overwrite?",
+                                "File exists", System.Windows.Forms.MessageBoxButtons.YesNo);
+                            if (result != System.Windows.Forms.DialogResult.Yes)
                             {
                                 skippedFiles++;
                                 Logger?.LogDebug("Skipped file due to user choice: {FileName}", fileName);

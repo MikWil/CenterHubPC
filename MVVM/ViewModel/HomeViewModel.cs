@@ -1,7 +1,7 @@
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Windows.Threading;
 using System.Diagnostics;
 using CenterHubNew.MVVM.Services;
 using System.Threading.Tasks;
@@ -178,33 +178,37 @@ namespace CenterHubNew.MVVM.ViewModel
             UpdateClock();
         }
 
-        private async void SystemMonitorTimer_Tick(object? sender, EventArgs e)
+        private void SystemMonitorTimer_Tick(object? sender, EventArgs e)
         {
-            await UpdateSystemInfoAsync();
+            _ = UpdateSystemInfoAsync();
         }
 
         private async Task UpdateSystemInfoAsync()
         {
             if (IsDisposed) return;
-
             try
             {
-                var systemInfo = await _systemMonitorService.GetSystemInfoAsync();
-                
-                CpuUsage = systemInfo.CpuUsage;
-                CpuTemperature = systemInfo.CpuTemperature;
-                CpuMaxTemperature = systemInfo.CpuMaxTemperature;
-                GpuName = systemInfo.GpuInfo.Name;
-                GpuUsage = systemInfo.GpuInfo.Usage;
-                GpuDriverVersion = systemInfo.GpuInfo.DriverVersion;
-                GpuMemory = systemInfo.GpuInfo.VideoMemory;
-                GpuTemperature = systemInfo.GpuInfo.GpuTemperature;
-                GpuMaxTemperature = systemInfo.GpuInfo.GpuMaxTemperature;
-                TotalMemory = systemInfo.MemoryInfo.TotalPhysicalMemory;
-                UsedMemory = systemInfo.MemoryInfo.UsedPhysicalMemory;
-                Disks = systemInfo.Disks;
-                MemoryUsagePercent = TotalMemory > 0 ? (float)UsedMemory / TotalMemory * 100 : 0;
+                var systemInfo = await _systemMonitorService.GetSystemInfoAsync().ConfigureAwait(false);
+                if (IsDisposed) return;
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    if (IsDisposed) return;
+                    CpuUsage = systemInfo.CpuUsage;
+                    CpuTemperature = systemInfo.CpuTemperature;
+                    CpuMaxTemperature = systemInfo.CpuMaxTemperature;
+                    GpuName = systemInfo.GpuInfo.Name;
+                    GpuUsage = systemInfo.GpuInfo.Usage;
+                    GpuDriverVersion = systemInfo.GpuInfo.DriverVersion;
+                    GpuMemory = systemInfo.GpuInfo.VideoMemory;
+                    GpuTemperature = systemInfo.GpuInfo.GpuTemperature;
+                    GpuMaxTemperature = systemInfo.GpuInfo.GpuMaxTemperature;
+                    TotalMemory = systemInfo.MemoryInfo.TotalPhysicalMemory;
+                    UsedMemory = systemInfo.MemoryInfo.UsedPhysicalMemory;
+                    Disks = systemInfo.Disks;
+                    MemoryUsagePercent = TotalMemory > 0 ? (float)UsedMemory / TotalMemory * 100 : 0;
+                });
             }
+            catch (InvalidOperationException) { /* dispatcher shut down — app is closing */ }
             catch (Exception ex)
             {
                 Logger?.LogError(ex, "Error updating system info");

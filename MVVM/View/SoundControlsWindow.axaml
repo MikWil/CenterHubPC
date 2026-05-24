@@ -1,0 +1,122 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+        x:Class="CenterHubNew.MVVM.View.SoundControlsWindow"
+        x:DataType="viewmodel:SoundControlsViewModel"
+        mc:Ignorable="d"
+        Title="Sound Controls"
+        Width="420" Height="540"
+        SystemDecorations="None"
+        TransparencyLevelHint="Mica,AcrylicBlur,Transparent"
+        ExtendClientAreaToDecorationsHint="True"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        Background="Transparent">
+
+    <Border Background="Transparent"
+            CornerRadius="8"
+            BorderThickness="1"
+            BorderBrush="{StaticResource BorderHairline}">
+        <Grid RowDefinitions="46,*">
+
+            <!-- TITLE BAR -->
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto"
+                  PointerPressed="TitleBar_PointerPressed">
+                <Border Grid.ColumnSpan="2" Background="{StaticResource TitleBarBackgroundBrush}"
+                        CornerRadius="8,8,0,0"/>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal"
+                            VerticalAlignment="Center" Margin="16,0,0,0" Spacing="8">
+                    <Border Width="22" Height="22" CornerRadius="4"
+                            Background="{StaticResource AccentSubtleBrush}" VerticalAlignment="Center">
+                        <TextBlock Text="VOL" FontSize="7" FontWeight="Bold"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="{StaticResource AccentBrush}"/>
+                    </Border>
+                    <TextBlock Text="App Sound Controls" FontWeight="SemiBold" FontSize="14"
+                               Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <Button Grid.Column="1" Classes="chrome"
+                        Width="32" Height="32" Margin="0,0,8,0"
+                        Click="CloseButton_Click" ToolTip.Tip="Close">
+                    <TextBlock Text="&#xD7;" FontSize="15"
+                               Foreground="{StaticResource TextMutedBrush}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Button>
+            </Grid>
+
+            <!-- CONTENT -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding Devices}" Margin="0,8,0,16">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{StaticResource CardBackgroundBrush}"
+                                    CornerRadius="10" Padding="16,12"
+                                    Margin="12,4,12,4"
+                                    BorderThickness="1" BorderBrush="{StaticResource BorderSubtleBrush}">
+                                <StackPanel>
+                                    <!-- Device header -->
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8" Spacing="8">
+                                        <Border Width="5" Height="14" CornerRadius="3"
+                                                Background="{StaticResource AccentBrush}"
+                                                VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding DeviceName}" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                   FontSize="13"/>
+                                    </StackPanel>
+
+                                    <!-- Device volume -->
+                                    <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,10">
+                                        <TextBlock Grid.Column="0" Text="MASTER" FontSize="9" FontWeight="Bold"
+                                                   LetterSpacing="0.5"
+                                                   Foreground="{StaticResource TextMutedBrush}"
+                                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <Slider Grid.Column="1" Minimum="0" Maximum="1"
+                                                Value="{Binding Volume, Mode=TwoWay}"
+                                                VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="2"
+                                                   Text="{Binding Volume, StringFormat='{}{0:P0}'}"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" FontSize="12"
+                                                   FontWeight="SemiBold"
+                                                   VerticalAlignment="Center"
+                                                   HorizontalAlignment="Right" MinWidth="36"/>
+                                    </Grid>
+
+                                    <Border Height="1" Background="{StaticResource BorderSubtleBrush}"
+                                            Margin="0,0,0,8"/>
+
+                                    <!-- Per-app sessions -->
+                                    <ItemsControl ItemsSource="{Binding Sessions}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid ColumnDefinitions="*,100,40" Margin="0,3,0,3"
+                                                      VerticalAlignment="Center">
+                                                    <TextBlock Grid.Column="0" Text="{Binding DisplayName}"
+                                                               Margin="0,0,6,0"
+                                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                                               VerticalAlignment="Center" FontSize="12"
+                                                               TextTrimming="CharacterEllipsis"/>
+                                                    <Slider Grid.Column="1" Minimum="0" Maximum="1"
+                                                            Value="{Binding Volume, Mode=TwoWay}"/>
+                                                    <TextBlock Grid.Column="2"
+                                                               Text="{Binding Volume, StringFormat='{}{0:P0}'}"
+                                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                                               FontSize="11"
+                                                               VerticalAlignment="Center"
+                                                               HorizontalAlignment="Right"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+    </Border>
+</Window>

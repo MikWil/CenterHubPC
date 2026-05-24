@@ -1,3 +1,4 @@
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using NAudio.CoreAudioApi;
@@ -6,7 +7,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Windows;
 using AudioSwitcher.AudioApi.CoreAudio;
 using CenterHubNew.MVVM.Models;
 using CenterHubNew.MVVM.Services;
@@ -75,9 +75,7 @@ namespace CenterHubNew.MVVM.ViewModel
         private void LoadSoundDevices()
         {
             if (IsDisposed) return;
-
-            // Run on UI thread to avoid COM threading issues
-            App.Current.Dispatcher.Invoke(() =>
+            try { Dispatcher.UIThread.Post(() =>
             {
                 try
                 {
@@ -99,7 +97,7 @@ namespace CenterHubNew.MVVM.ViewModel
                     ActiveSoundSource = new List<string> { $"Error loading devices: {ex.Message}" };
                     allSoundDevices = null;
                 }
-            });
+            }); } catch (InvalidOperationException) { }
         }
 
         [RelayCommand(CanExecute = nameof(CanExecuteDeviceCommand))]
@@ -171,9 +169,7 @@ namespace CenterHubNew.MVVM.ViewModel
         private void LoadMicrophoneDevice()
         {
             if (IsDisposed) return;
-
-            // Run on UI thread to avoid COM threading issues
-            App.Current.Dispatcher.Invoke(() =>
+            try { Dispatcher.UIThread.Post(() =>
             {
                 try
                 {
@@ -182,23 +178,18 @@ namespace CenterHubNew.MVVM.ViewModel
                     if (defaultDevice != null)
                     {
                         IsMicrophoneMuted = defaultDevice.AudioEndpointVolume.Mute;
-                        Logger?.LogInformation("Loaded default microphone device: {DeviceName}, Muted: {IsMuted}", 
+                        Logger?.LogInformation("Loaded default microphone device: {DeviceName}, Muted: {IsMuted}",
                             defaultDevice.FriendlyName, IsMicrophoneMuted);
                     }
                 }
-                catch (Exception ex)
-                {
-                    Logger?.LogError(ex, "Error loading microphone device");
-                }
-            });
+                catch (Exception ex) { Logger?.LogError(ex, "Error loading microphone device"); }
+            }); } catch (InvalidOperationException) { }
         }
 
         private void LoadOutputDevice()
         {
             if (IsDisposed) return;
-
-            // Run on UI thread to avoid COM threading issues
-            App.Current.Dispatcher.Invoke(() =>
+            try { Dispatcher.UIThread.Post(() =>
             {
                 try
                 {
@@ -210,15 +201,12 @@ namespace CenterHubNew.MVVM.ViewModel
                         OutputVolume = defaultDevice.AudioEndpointVolume.MasterVolumeLevelScalar;
                         IsOutputMuted = defaultDevice.AudioEndpointVolume.Mute;
                         _isUpdatingVolumeFromDevice = false;
-                        Logger?.LogInformation("Loaded default output device: {DeviceName}, Volume: {Volume}, Muted: {IsMuted}", 
+                        Logger?.LogInformation("Loaded default output device: {DeviceName}, Volume: {Volume}, Muted: {IsMuted}",
                             defaultDevice.FriendlyName, OutputVolume, IsOutputMuted);
                     }
                 }
-                catch (Exception ex)
-                {
-                    Logger?.LogError(ex, "Error loading output device");
-                }
-            });
+                catch (Exception ex) { Logger?.LogError(ex, "Error loading output device"); }
+            }); } catch (InvalidOperationException) { }
         }
 
         [RelayCommand]
@@ -350,12 +338,8 @@ namespace CenterHubNew.MVVM.ViewModel
                 var profiles = _profileService.LoadProfiles();
                 if (profiles.Count >= 3)
                 {
-                    App.Current.Dispatcher.Invoke(() =>
-                    {
-                        Profile1 = profiles[0];
-                        Profile2 = profiles[1];
-                        Profile3 = profiles[2];
-                    });
+                    try { Dispatcher.UIThread.Post(() => { Profile1 = profiles[0]; Profile2 = profiles[1]; Profile3 = profiles[2]; }); }
+                    catch (InvalidOperationException) { }
                     Logger?.LogInformation("Loaded sound profiles");
                 }
             }
@@ -508,7 +492,7 @@ namespace CenterHubNew.MVVM.ViewModel
                 // Apply volume
                 if (profile.Volume >= 0 && profile.Volume <= 1)
                 {
-                    App.Current.Dispatcher.Invoke(() =>
+                    Dispatcher.UIThread.Post(() =>
                     {
                         _isUpdatingVolumeFromDevice = true;
                         OutputVolume = profile.Volume;

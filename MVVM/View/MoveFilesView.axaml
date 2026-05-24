@@ -1,0 +1,59 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+             x:Class="CenterHubNew.MVVM.View.MoveFilesView"
+             x:DataType="viewmodel:MoveFilesViewModel"
+             mc:Ignorable="d"
+             Background="Transparent">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,16" Background="Transparent">
+        <StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                <TextBlock Text="📁" FontSize="20" Margin="0,0,8,0"
+                           Foreground="{StaticResource AccentLightBrush}" VerticalAlignment="Center"/>
+                <TextBlock Text="File Manager" FontSize="20" FontWeight="Bold"
+                           Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <Border Classes="card" BorderThickness="1" BorderBrush="{StaticResource BorderBrush}">
+                <StackPanel>
+                    <TextBlock Text="SOURCE LOCATION" FontSize="10" FontWeight="Bold"
+                               Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,8"/>
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+                        <TextBox Grid.Column="0" Text="{Binding SourceLocation, Mode=TwoWay}"
+                                 Classes="input"/>
+                        <Button Grid.Column="1" Content="Browse" Classes="secondary"
+                                Padding="12,8" Margin="8,0,0,0"
+                                Command="{Binding BrowseSourceCommand}"/>
+                    </Grid>
+
+                    <TextBlock Text="TARGET LOCATION" FontSize="10" FontWeight="Bold"
+                               Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,8"/>
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+                        <TextBox Grid.Column="0" Text="{Binding TargetLocation, Mode=TwoWay}"
+                                 Classes="input"/>
+                        <Button Grid.Column="1" Content="Browse" Classes="secondary"
+                                Padding="12,8" Margin="8,0,0,0"
+                                Command="{Binding BrowseTargetCommand}"/>
+                    </Grid>
+
+                    <CheckBox Content="Copy instead of move"
+                              IsChecked="{Binding IsCopy, Mode=TwoWay}"
+                              Foreground="{StaticResource TextSecondaryBrush}"
+                              FontSize="12" Margin="0,0,0,16"/>
+
+                    <Button Content="Execute" Classes="primary" Padding="24,8"
+                            HorizontalAlignment="Left"
+                            Command="{Binding MoveFilesCommand}"/>
+
+                    <TextBlock Text="{Binding StatusMessage}"
+                               FontSize="12" TextWrapping="Wrap"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Margin="0,12,0,0"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

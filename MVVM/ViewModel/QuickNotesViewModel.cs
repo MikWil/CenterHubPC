@@ -5,7 +5,6 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Windows;
 
 namespace CenterHubNew.MVVM.ViewModel
 {
@@ -143,13 +142,13 @@ namespace CenterHubNew.MVVM.ViewModel
             var note = noteToDelete ?? SelectedNote;
             if (note == null) return;
 
-            var result = MessageBox.Show(
+            var result = System.Windows.Forms.MessageBox.Show(
                 $"Delete note '{note.Title}'?",
                 "Confirm Delete",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
+                System.Windows.Forms.MessageBoxButtons.YesNo,
+                System.Windows.Forms.MessageBoxIcon.Question);
 
-            if (result == MessageBoxResult.Yes)
+            if (result == System.Windows.Forms.DialogResult.Yes)
             {
                 var noteId = note.Id;
                 var noteTitle = note.Title;

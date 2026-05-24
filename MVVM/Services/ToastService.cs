@@ -1,6 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
-using System.Windows.Threading;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace CenterHubNew.MVVM.Services;
@@ -31,11 +31,10 @@ public class ToastService
     public void Show(string message, ToastType type = ToastType.Info, int durationMs = 3000)
     {
         var toast = new ToastMessage { Message = message, Type = type };
-        
-        App.Current.Dispatcher.Invoke(() =>
+
+        void ShowOnUiThread()
         {
             Toasts.Add(toast);
-            
             var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(durationMs) };
             timer.Tick += (s, e) =>
             {
@@ -44,7 +43,15 @@ public class ToastService
                 Toasts.Remove(toast);
             };
             timer.Start();
-        });
+        }
+
+        if (Dispatcher.UIThread.CheckAccess())
+            ShowOnUiThread();
+        else
+        {
+            try { Dispatcher.UIThread.Post(ShowOnUiThread); }
+            catch (InvalidOperationException) { /* dispatcher already shut down */ }
+        }
     }
     
     public void Success(string message) => Show(message, ToastType.Success);

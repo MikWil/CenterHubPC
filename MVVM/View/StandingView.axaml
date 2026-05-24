@@ -1,0 +1,60 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+             x:Class="CenterHubNew.MVVM.View.StandingView"
+             x:DataType="viewmodel:StandingViewModel"
+             mc:Ignorable="d"
+             Background="Transparent">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24,20" Background="Transparent">
+        <StackPanel Spacing="0">
+
+            <!-- PAGE HEADER -->
+            <StackPanel Margin="0,0,0,20">
+                <TextBlock Text="Standing Timer"
+                           FontSize="22" FontWeight="Bold"
+                           Foreground="{StaticResource TextPrimaryBrush}"/>
+                <TextBlock Text="Alternate sitting and standing reminders"
+                           FontSize="12"
+                           Foreground="{StaticResource TextMutedBrush}"
+                           Margin="0,2,0,0"/>
+            </StackPanel>
+
+            <Border Classes="card">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,14" Spacing="8">
+                        <Border Width="3" Height="16" CornerRadius="2"
+                                Background="{StaticResource SuccessBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Timer Configuration"
+                                   FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,18" Spacing="8">
+                        <TextBlock Text="Sit for" FontSize="13" VerticalAlignment="Center"
+                                   Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <TextBox Text="{Binding SittingMinutes, Mode=TwoWay}"
+                                 Classes="input" Width="80"/>
+                        <TextBlock Text="min, then stand for" FontSize="13" VerticalAlignment="Center"
+                                   Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <TextBox Text="{Binding StandingMinutes, Mode=TwoWay}"
+                                 Classes="input" Width="80"/>
+                        <TextBlock Text="min" FontSize="13" VerticalAlignment="Center"
+                                   Foreground="{StaticResource TextMutedBrush}"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Start" Classes="primary" Padding="28,9"
+                                Command="{Binding StartTimersCommand}"
+                                IsEnabled="{Binding IsStartButtonEnabled}"/>
+                        <Button Content="Stop" Classes="secondary" Padding="28,9"
+                                Command="{Binding StopTimersCommand}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -1,0 +1,94 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+             xmlns:local="clr-namespace:CenterHubNew.MVVM.View"
+             x:Class="CenterHubNew.MVVM.View.ClipboardView"
+             x:DataType="viewmodel:ClipboardViewModel"
+             mc:Ignorable="d"
+             Background="Transparent">
+
+    <UserControl.Resources>
+        <local:BoolToMonitoringTextConverter x:Key="BoolToMonitoringTextConverter"/>
+        <local:BoolToPinBorderConverter x:Key="BoolToPinBorderConverter"/>
+    </UserControl.Resources>
+
+    <Grid Margin="24,20" RowDefinitions="Auto,*">
+
+        <!-- HEADER ROW -->
+        <Grid Grid.Row="0" Margin="0,0,0,16" ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="Clipboard History"
+                           FontSize="22" FontWeight="Bold"
+                           Foreground="{StaticResource TextPrimaryBrush}"/>
+                <TextBlock Text="Captured text entries"
+                           FontSize="12"
+                           Foreground="{StaticResource TextMutedBrush}"
+                           Margin="0,2,0,0"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button Content="{Binding IsMonitoring, Converter={StaticResource BoolToMonitoringTextConverter}}"
+                        Classes="secondary" Padding="12,7" FontSize="12"
+                        Command="{Binding ToggleMonitoringCommand}"/>
+                <Button Content="Clear All" Classes="danger" Padding="12,7" FontSize="12"
+                        Command="{Binding ClearHistoryCommand}"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- HISTORY LIST -->
+        <Border Grid.Row="1" Classes="card" Padding="12">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding ClipboardHistory}" x:Name="ClipboardList">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{StaticResource CardInnerBrush}"
+                                    CornerRadius="7" Padding="12,9" Margin="0,0,0,4"
+                                    BorderBrush="{Binding IsPinned, Converter={StaticResource BoolToPinBorderConverter}}"
+                                    BorderThickness="1">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Preview}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   FontSize="13"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"/>
+                                        <TextBlock FontSize="10"
+                                                   Foreground="{StaticResource TextMutedBrush}"
+                                                   Margin="0,3,0,0">
+                                            <Run Text="{Binding Timestamp, StringFormat='{}{0:HH:mm}', Mode=OneWay}"/>
+                                            <Run Text=" · "/>
+                                            <Run Text="{Binding Content.Length, StringFormat='{}{0} chars', Mode=OneWay}"/>
+                                        </TextBlock>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+                                        <Button Classes="ghost" Padding="7,4"
+                                                ToolTip.Tip="Pin this entry"
+                                                Command="{Binding DataContext.TogglePinCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+                                                CommandParameter="{Binding}">
+                                            <TextBlock Text="Pin" FontSize="11"
+                                                       Foreground="{StaticResource AccentBrush}"/>
+                                        </Button>
+                                        <Button Classes="ghost" Padding="7,4"
+                                                ToolTip.Tip="Copy to clipboard"
+                                                Command="{Binding DataContext.CopyToClipboardCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+                                                CommandParameter="{Binding}">
+                                            <TextBlock Text="Copy" FontSize="11"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                                        </Button>
+                                        <Button Classes="ghost" Padding="7,4"
+                                                ToolTip.Tip="Delete entry"
+                                                Command="{Binding DataContext.DeleteItemCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+                                                CommandParameter="{Binding}">
+                                            <TextBlock Text="&#xD7;" FontSize="13"
+                                                       Foreground="{StaticResource ErrorBrush}"/>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</UserControl>

@@ -1,9 +1,8 @@
+using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Windows;
-using CenterHubNew.MVVM.View;
 
 namespace CenterHubNew.MVVM.ViewModel
 {

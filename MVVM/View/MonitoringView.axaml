@@ -1,0 +1,231 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+             xmlns:conv="clr-namespace:CenterHubNew.MVVM.Converters"
+             x:Class="CenterHubNew.MVVM.View.MonitoringView"
+             x:DataType="viewmodel:MonitoringViewModel"
+             mc:Ignorable="d"
+             Background="Transparent">
+
+    <UserControl.Resources>
+        <conv:TempToDisplayConverter x:Key="TempToDisplayConverter"/>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24,20" Background="Transparent">
+        <StackPanel Spacing="0">
+
+            <!-- PAGE HEADER -->
+            <StackPanel Margin="0,0,0,20">
+                <TextBlock Text="Monitoring"
+                           FontSize="22" FontWeight="Bold"
+                           Foreground="{StaticResource TextPrimaryBrush}"/>
+                <TextBlock Text="Real-time hardware performance"
+                           FontSize="12"
+                           Foreground="{StaticResource TextMutedBrush}"
+                           Margin="0,2,0,0"/>
+            </StackPanel>
+
+            <!-- ROW 1: CPU + GPU side by side -->
+            <Grid ColumnDefinitions="*,12,*" Margin="0,0,0,12">
+
+                <!-- CPU Card -->
+                <Border Grid.Column="0"
+                        Background="{StaticResource CardBackgroundBrush}"
+                        CornerRadius="10" Padding="0"
+                        BorderThickness="1" BorderBrush="{StaticResource BorderSubtleBrush}"
+                        ClipToBounds="True">
+                    <StackPanel>
+                        <Border Height="3" Background="{StaticResource CpuBrush}"/>
+                        <StackPanel Margin="20,16,20,18">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Spacing="8">
+                                <Border Width="7" Height="7" CornerRadius="4"
+                                        Background="{StaticResource CpuBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="CPU"
+                                           FontSize="10" FontWeight="Bold" LetterSpacing="1.5"
+                                           Foreground="{StaticResource TextMutedBrush}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <TextBlock Text="{Binding CpuUsage, StringFormat='{}{0:F1}%'}"
+                                       FontSize="44" FontWeight="Bold"
+                                       HorizontalAlignment="Center"
+                                       Foreground="{StaticResource CpuBrush}"/>
+
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"
+                                        Margin="0,8,0,0" Spacing="6">
+                                <Border Background="{StaticResource CardInnerBrush}" CornerRadius="6" Padding="10,4">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <TextBlock Text="NOW" FontSize="9" FontWeight="Bold" LetterSpacing="0.5"
+                                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding CpuTemperature, Converter={StaticResource TempToDisplayConverter}}"
+                                                   FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="{StaticResource AccentSubtleBrush}" CornerRadius="6" Padding="10,4">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <TextBlock Text="MAX" FontSize="9" FontWeight="Bold" LetterSpacing="0.5"
+                                                   Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding CpuMaxTemperature, Converter={StaticResource TempToDisplayConverter}, ConverterParameter=Max}"
+                                                   FontSize="11" FontWeight="Bold"
+                                                   Foreground="{StaticResource AccentBrush}"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <ProgressBar Classes="cpu" Value="{Binding CpuUsage}" Maximum="100"
+                                         Height="6" Margin="0,14,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- GPU Card -->
+                <Border Grid.Column="2"
+                        Background="{StaticResource CardBackgroundBrush}"
+                        CornerRadius="10" Padding="0"
+                        BorderThickness="1" BorderBrush="{StaticResource BorderSubtleBrush}"
+                        ClipToBounds="True">
+                    <StackPanel>
+                        <Border Height="3" Background="{StaticResource GpuBrush}"/>
+                        <StackPanel Margin="20,16,20,18">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Spacing="8">
+                                <Border Width="7" Height="7" CornerRadius="4"
+                                        Background="{StaticResource GpuBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="GPU"
+                                           FontSize="10" FontWeight="Bold" LetterSpacing="1.5"
+                                           Foreground="{StaticResource TextMutedBrush}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <TextBlock Text="{Binding GpuUsage, StringFormat='{}{0:F1}%'}"
+                                       FontSize="44" FontWeight="Bold"
+                                       HorizontalAlignment="Center"
+                                       Foreground="{StaticResource GpuBrush}"/>
+
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"
+                                        Margin="0,8,0,0" Spacing="6">
+                                <Border Background="{StaticResource CardInnerBrush}" CornerRadius="6" Padding="10,4">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <TextBlock Text="NOW" FontSize="9" FontWeight="Bold" LetterSpacing="0.5"
+                                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding GpuTemperature, Converter={StaticResource TempToDisplayConverter}}"
+                                                   FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="{StaticResource CardInnerBrush}" CornerRadius="6" Padding="10,4">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <TextBlock Text="MAX" FontSize="9" FontWeight="Bold" LetterSpacing="0.5"
+                                                   Foreground="{StaticResource GpuBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding GpuMaxTemperature, Converter={StaticResource TempToDisplayConverter}, ConverterParameter=Max}"
+                                                   FontSize="11" FontWeight="Bold"
+                                                   Foreground="{StaticResource GpuBrush}"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <TextBlock Text="{Binding GpuName}"
+                                       FontSize="10" Foreground="{StaticResource TextMutedBrush}"
+                                       HorizontalAlignment="Center" Margin="0,6,0,0"
+                                       TextTrimming="CharacterEllipsis"/>
+                            <ProgressBar Classes="gpu" Value="{Binding GpuUsage}" Maximum="100"
+                                         Height="6" Margin="0,12,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- ROW 2: MEMORY -->
+            <Border Background="{StaticResource CardBackgroundBrush}"
+                    CornerRadius="10" Padding="0"
+                    BorderThickness="1" BorderBrush="{StaticResource BorderSubtleBrush}"
+                    Margin="0,0,0,12"
+                    ClipToBounds="True">
+                <StackPanel>
+                    <Border Height="3" Background="{StaticResource RamBrush}"/>
+                    <Border Padding="20,14,20,14">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Border Width="7" Height="7" CornerRadius="4"
+                                    Background="{StaticResource RamBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="MEMORY"
+                                       FontSize="10" FontWeight="Bold" LetterSpacing="1.5"
+                                       Foreground="{StaticResource TextMutedBrush}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <ProgressBar Grid.Column="1" Classes="ram"
+                                     Value="{Binding MemoryUsagePercent}"
+                                     Maximum="100" Height="8"
+                                     Margin="24,0" VerticalAlignment="Center"/>
+
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding MemoryUsagePercent, StringFormat='{}{0:F1}%'}"
+                                       FontSize="22" FontWeight="Bold"
+                                       Foreground="{StaticResource RamBrush}"
+                                       VerticalAlignment="Center"/>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="{Binding UsedMemory, StringFormat='{}{0:F1} GB used'}"
+                                           FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                <TextBlock Text="{Binding TotalMemory, StringFormat='of {0:F1} GB total'}"
+                                           FontSize="10" Foreground="{StaticResource TextMutedBrush}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- ROW 3: DISK SPACE -->
+            <Border Background="{StaticResource CardBackgroundBrush}"
+                    CornerRadius="10" Padding="0"
+                    BorderThickness="1" BorderBrush="{StaticResource BorderSubtleBrush}"
+                    ClipToBounds="True">
+                <StackPanel>
+                    <Border Height="3" Background="{StaticResource DiskBrush}"/>
+                    <StackPanel Margin="20,14,20,16">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14" Spacing="8">
+                            <Border Width="7" Height="7" CornerRadius="4"
+                                    Background="{StaticResource DiskBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="STORAGE"
+                                       FontSize="10" FontWeight="Bold" LetterSpacing="1.5"
+                                       Foreground="{StaticResource TextMutedBrush}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <ItemsControl ItemsSource="{Binding Disks}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{StaticResource CardInnerBrush}" CornerRadius="8"
+                                            Padding="14,12" Margin="0,0,8,8" Width="124">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding DriveLetter}" FontWeight="Bold"
+                                                       FontSize="15" HorizontalAlignment="Center"
+                                                       Foreground="{StaticResource DiskBrush}"/>
+                                            <TextBlock Text="{Binding UsedSpace, StringFormat='{}{0:F1} GB'}"
+                                                       FontSize="11" Margin="0,5,0,0" HorizontalAlignment="Center"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="{Binding TotalSize, StringFormat='of {0:F1} GB'}"
+                                                       FontSize="10" HorizontalAlignment="Center"
+                                                       Foreground="{StaticResource TextMutedBrush}"/>
+                                            <ProgressBar Classes="disk"
+                                                         Value="{Binding UsedSpace}" Maximum="{Binding TotalSize}"
+                                                         Height="4" Margin="0,8,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

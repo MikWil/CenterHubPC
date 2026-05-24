@@ -6,8 +6,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Windows;
-using System.Windows.Threading;
+using Avalonia.Threading;
 
 namespace CenterHubNew.MVVM.ViewModel
 {
@@ -53,9 +52,9 @@ namespace CenterHubNew.MVVM.ViewModel
 
             try
             {
-                if (Clipboard.ContainsText())
+                if (System.Windows.Forms.Clipboard.ContainsText())
                 {
-                    var currentContent = Clipboard.GetText();
+                    var currentContent = System.Windows.Forms.Clipboard.GetText();
                     if (!string.IsNullOrEmpty(currentContent) && currentContent != _lastClipboardContent)
                     {
                         _lastClipboardContent = currentContent;
@@ -88,7 +87,7 @@ namespace CenterHubNew.MVVM.ViewModel
             try
             {
                 _lastClipboardContent = item.Content; // Prevent re-adding
-                Clipboard.SetText(item.Content);
+                System.Windows.Forms.Clipboard.SetText(item.Content);
                 Logger?.LogDebug("Copied item to clipboard");
                 var preview = item.Content.Length > 30 ? item.Content.Substring(0, 30) + "..." : item.Content;
                 ToastService.Instance.Success($"Copied to clipboard: {preview}");
@@ -121,13 +120,13 @@ namespace CenterHubNew.MVVM.ViewModel
         [RelayCommand]
         private void ClearHistory()
         {
-            var result = MessageBox.Show(
+            var result = System.Windows.Forms.MessageBox.Show(
                 "Clear all clipboard history? Pinned items will be kept.",
                 "Confirm Clear",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
+                System.Windows.Forms.MessageBoxButtons.YesNo,
+                System.Windows.Forms.MessageBoxIcon.Question);
 
-            if (result == MessageBoxResult.Yes)
+            if (result == System.Windows.Forms.DialogResult.Yes)
             {
                 _clipboardService.ClearHistory(keepPinned: true);
                 RefreshHistory();

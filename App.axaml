@@ -1,0 +1,45 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+             xmlns:view="clr-namespace:CenterHubNew.MVVM.View"
+             x:Class="CenterHubNew.App">
+
+    <Application.DataTemplates>
+        <DataTemplate DataType="{x:Type viewmodel:MonitoringViewModel}">
+            <view:MonitoringView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodel:SoundViewModel}">
+            <view:SoundView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodel:StandingViewModel}">
+            <view:StandingView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodel:MoveFilesViewModel}">
+            <view:MoveFilesView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodel:UtilitiesViewModel}">
+            <view:UtilitiesView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodel:QuickNotesViewModel}">
+            <view:NotesView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodel:SoundboardViewModel}">
+            <view:SoundboardView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodel:AutoClickerViewModel}">
+            <view:AutoClickerView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodel:ClipboardViewModel}">
+            <view:ClipboardView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodel:HotkeySettingsViewModel}">
+            <view:HotkeySettingsView/>
+        </DataTemplate>
+    </Application.DataTemplates>
+
+    <Application.Styles>
+        <FluentTheme/>
+        <StyleInclude Source="avares://CenterHubNew/Resources/Styles/Theme.axaml"/>
+    </Application.Styles>
+
+</Application>

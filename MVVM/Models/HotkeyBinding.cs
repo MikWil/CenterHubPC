@@ -1,5 +1,5 @@
+using Avalonia.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
-using System.Windows.Input;
 
 namespace CenterHubNew.MVVM.Models
 {
@@ -51,7 +51,7 @@ namespace CenterHubNew.MVVM.Models
         private Key _key = Key.None;
 
         [ObservableProperty]
-        private ModifierKeys _modifiers = ModifierKeys.None;
+        private KeyModifiers _modifiers = KeyModifiers.None;
 
         /// <summary>True when the OS registration succeeded.</summary>
         [ObservableProperty]
@@ -78,10 +78,10 @@ namespace CenterHubNew.MVVM.Models
                 if (Key == Key.None) return "Not Set";
 
                 var parts = new System.Collections.Generic.List<string>();
-                if (Modifiers.HasFlag(ModifierKeys.Control)) parts.Add("Ctrl");
-                if (Modifiers.HasFlag(ModifierKeys.Alt)) parts.Add("Alt");
-                if (Modifiers.HasFlag(ModifierKeys.Shift)) parts.Add("Shift");
-                if (Modifiers.HasFlag(ModifierKeys.Windows)) parts.Add("Win");
+                if (Modifiers.HasFlag(KeyModifiers.Control)) parts.Add("Ctrl");
+                if (Modifiers.HasFlag(KeyModifiers.Alt)) parts.Add("Alt");
+                if (Modifiers.HasFlag(KeyModifiers.Shift)) parts.Add("Shift");
+                if (Modifiers.HasFlag(KeyModifiers.Meta)) parts.Add("Win");
                 parts.Add(KeyToString(Key));
                 return string.Join(" + ", parts);
             }
@@ -93,7 +93,7 @@ namespace CenterHubNew.MVVM.Models
             OnPropertyChanged(nameof(DisplayString));
         }
 
-        partial void OnModifiersChanged(ModifierKeys value)
+        partial void OnModifiersChanged(KeyModifiers value)
         {
             OnPropertyChanged(nameof(DisplayString));
         }

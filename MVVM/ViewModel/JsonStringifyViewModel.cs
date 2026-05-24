@@ -4,7 +4,6 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Text.Json;
-using System.Windows;
 
 namespace CenterHubNew.MVVM.ViewModel
 {
@@ -137,7 +136,7 @@ namespace CenterHubNew.MVVM.ViewModel
 
             try
             {
-                Clipboard.SetText(OutputJson);
+                System.Windows.Forms.Clipboard.SetText(OutputJson);
                 ToastService.Instance.Success("Stringified JSON copied to clipboard");
             }
             catch (Exception ex)
@@ -161,9 +160,9 @@ namespace CenterHubNew.MVVM.ViewModel
         {
             try
             {
-                if (Clipboard.ContainsText())
+                if (System.Windows.Forms.Clipboard.ContainsText())
                 {
-                    InputJson = Clipboard.GetText();
+                    InputJson = System.Windows.Forms.Clipboard.GetText();
                     ToastService.Instance.Success("Pasted from clipboard");
                 }
             }

@@ -1,0 +1,97 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+             xmlns:local="clr-namespace:CenterHubNew.MVVM.View"
+             x:Class="CenterHubNew.MVVM.View.AutoClickerView"
+             x:DataType="viewmodel:AutoClickerViewModel"
+             mc:Ignorable="d"
+             Background="Transparent">
+
+    <UserControl.Resources>
+        <local:BoolToRunningTextConverter x:Key="BoolToRunningTextConverter"/>
+        <local:BoolToRunningBrushConverter x:Key="BoolToRunningBrushConverter"/>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24,20" Background="Transparent">
+        <StackPanel Spacing="0">
+
+            <!-- PAGE HEADER -->
+            <Grid Margin="0,0,0,20" ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Auto Clicker"
+                               FontSize="22" FontWeight="Bold"
+                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                    <TextBlock Text="Automated mouse click at a position"
+                               FontSize="12"
+                               Foreground="{StaticResource TextMutedBrush}"
+                               Margin="0,2,0,0"/>
+                </StackPanel>
+                <!-- Status badge -->
+                <Border Grid.Column="1" VerticalAlignment="Center"
+                        Background="{Binding IsRunning, Converter={StaticResource BoolToRunningBrushConverter}}"
+                        CornerRadius="5" Padding="10,4">
+                    <TextBlock Text="{Binding IsRunning, Converter={StaticResource BoolToRunningTextConverter}}"
+                               FontSize="10" FontWeight="Bold" LetterSpacing="0.5"
+                               Foreground="White"/>
+                </Border>
+            </Grid>
+
+            <Border Classes="card">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,14" Spacing="8">
+                        <Border Width="3" Height="16" CornerRadius="2"
+                                Background="{StaticResource InfoBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Configuration"
+                                   FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Coordinate and interval inputs -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,16" Spacing="8">
+                        <TextBlock Text="X" FontSize="12" VerticalAlignment="Center"
+                                   Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <TextBox Text="{Binding ClickX, Mode=TwoWay}"
+                                 Classes="input" Width="100"/>
+                        <TextBlock Text="Y" FontSize="12" VerticalAlignment="Center"
+                                   Margin="12,0,0,0"
+                                   Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <TextBox Text="{Binding ClickY, Mode=TwoWay}"
+                                 Classes="input" Width="80"/>
+                        <TextBlock Text="Interval" FontSize="12" VerticalAlignment="Center"
+                                   Margin="16,0,0,0"
+                                   Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <TextBox Text="{Binding IntervalSeconds, Mode=TwoWay}"
+                                 Classes="input" Width="70"/>
+                        <TextBlock Text="sec" FontSize="12" VerticalAlignment="Center"
+                                   Foreground="{StaticResource TextMutedBrush}"/>
+                    </StackPanel>
+
+                    <!-- Control buttons -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12" Spacing="8">
+                        <Button Content="Start" Classes="primary" Padding="28,9"
+                                Command="{Binding StartCommand}"
+                                IsEnabled="{Binding !IsRunning}"/>
+                        <Button Content="Stop" Classes="secondary" Padding="28,9"
+                                Command="{Binding StopCommand}"
+                                IsEnabled="{Binding IsRunning}"/>
+                        <Button Content="Set Position" Classes="secondary" Padding="14,9"
+                                ToolTip.Tip="Ctrl+P — set from current cursor"
+                                Command="{Binding GetCurrentPositionCommand}"
+                                Margin="12,0,0,0"/>
+                        <Button Content="Capture (3s)" Classes="secondary" Padding="14,9"
+                                ToolTip.Tip="Captures cursor position after 3 second delay"
+                                Command="{Binding CapturePositionCommand}"
+                                IsEnabled="{Binding !IsCapturingPosition}"/>
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding StatusMessage}"
+                               FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

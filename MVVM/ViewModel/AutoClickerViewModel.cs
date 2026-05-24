@@ -3,8 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Windows;
-using System.Windows.Threading;
+using Avalonia.Threading;
 
 namespace CenterHubNew.MVVM.ViewModel
 {

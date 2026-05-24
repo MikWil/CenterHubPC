@@ -1,0 +1,420 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+             xmlns:conv="clr-namespace:CenterHubNew.MVVM.Converters"
+             x:Class="CenterHubNew.MVVM.View.HomeView"
+             x:DataType="viewmodel:HomeViewModel"
+             mc:Ignorable="d"
+             Background="Transparent">
+
+    <UserControl.Resources>
+        <conv:TempToDisplayConverter x:Key="TempToDisplayConverter"/>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled"
+                  Padding="24,20"
+                  Background="Transparent">
+        <StackPanel Spacing="0">
+
+            <!-- ===== PAGE HEADER ===== -->
+            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,20">
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Dashboard"
+                               FontSize="22" FontWeight="Bold"
+                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                    <TextBlock Text="System overview at a glance"
+                               FontSize="12"
+                               Foreground="{StaticResource TextMutedBrush}"
+                               Margin="0,2,0,0"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- ===== ROW 1: SYSTEM METRICS (3 cards) ===== -->
+            <Grid ColumnDefinitions="*,10,*,10,*" Margin="0,0,0,10">
+
+                <!-- CPU Card -->
+                <Border Grid.Column="0"
+                        Background="{StaticResource CardBackgroundBrush}"
+                        CornerRadius="10" Padding="0"
+                        BorderThickness="1" BorderBrush="{StaticResource BorderSubtleBrush}"
+                        ClipToBounds="True">
+                    <StackPanel>
+                        <!-- Colored top stripe -->
+                        <Border Height="3" Background="{StaticResource CpuBrush}"/>
+                        <StackPanel Margin="18,14,18,16">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <Border Width="7" Height="7" CornerRadius="4"
+                                        Background="{StaticResource CpuBrush}"
+                                        VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="CPU"
+                                           FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                           Foreground="{StaticResource TextMutedBrush}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="{Binding CpuUsage, StringFormat='{}{0:F1}%'}"
+                                       FontSize="38" FontWeight="Bold"
+                                       HorizontalAlignment="Center"
+                                       Foreground="{StaticResource CpuBrush}"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,6,0,0" Spacing="6">
+                                <Border Background="{StaticResource CardInnerBrush}" CornerRadius="6" Padding="8,3">
+                                    <TextBlock Text="{Binding CpuTemperature, Converter={StaticResource TempToDisplayConverter}}"
+                                               FontSize="10" FontWeight="SemiBold"
+                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                </Border>
+                                <Border Background="{StaticResource AccentSubtleBrush}" CornerRadius="6" Padding="8,3">
+                                    <TextBlock Text="{Binding CpuMaxTemperature, Converter={StaticResource TempToDisplayConverter}, ConverterParameter=Max}"
+                                               FontSize="10" FontWeight="Bold"
+                                               Foreground="{StaticResource AccentBrush}"/>
+                                </Border>
+                            </StackPanel>
+                            <ProgressBar Classes="cpu" Value="{Binding CpuUsage}" Maximum="100" Margin="0,12,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- GPU Card -->
+                <Border Grid.Column="2"
+                        Background="{StaticResource CardBackgroundBrush}"
+                        CornerRadius="10" Padding="0"
+                        BorderThickness="1" BorderBrush="{StaticResource BorderSubtleBrush}"
+                        ClipToBounds="True">
+                    <StackPanel>
+                        <Border Height="3" Background="{StaticResource GpuBrush}"/>
+                        <StackPanel Margin="18,14,18,16">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <Border Width="7" Height="7" CornerRadius="4"
+                                        Background="{StaticResource GpuBrush}"
+                                        VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="GPU"
+                                           FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                           Foreground="{StaticResource TextMutedBrush}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="{Binding GpuUsage, StringFormat='{}{0:F1}%'}"
+                                       FontSize="38" FontWeight="Bold"
+                                       HorizontalAlignment="Center"
+                                       Foreground="{StaticResource GpuBrush}"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,6,0,0" Spacing="6">
+                                <Border Background="{StaticResource CardInnerBrush}" CornerRadius="6" Padding="8,3">
+                                    <TextBlock Text="{Binding GpuTemperature, Converter={StaticResource TempToDisplayConverter}}"
+                                               FontSize="10" FontWeight="SemiBold"
+                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                </Border>
+                                <Border Background="{StaticResource CardInnerBrush}" CornerRadius="6" Padding="8,3">
+                                    <TextBlock Text="{Binding GpuMaxTemperature, Converter={StaticResource TempToDisplayConverter}, ConverterParameter=Max}"
+                                               FontSize="10" FontWeight="Bold"
+                                               Foreground="{StaticResource GpuBrush}"/>
+                                </Border>
+                            </StackPanel>
+                            <TextBlock Text="{Binding GpuName}"
+                                       FontSize="10" Foreground="{StaticResource TextMutedBrush}"
+                                       HorizontalAlignment="Center" Margin="0,4,0,0"
+                                       TextTrimming="CharacterEllipsis"/>
+                            <ProgressBar Classes="gpu" Value="{Binding GpuUsage}" Maximum="100" Margin="0,10,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Memory Card -->
+                <Border Grid.Column="4"
+                        Background="{StaticResource CardBackgroundBrush}"
+                        CornerRadius="10" Padding="0"
+                        BorderThickness="1" BorderBrush="{StaticResource BorderSubtleBrush}"
+                        ClipToBounds="True">
+                    <StackPanel>
+                        <Border Height="3" Background="{StaticResource RamBrush}"/>
+                        <StackPanel Margin="18,14,18,16">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <Border Width="7" Height="7" CornerRadius="4"
+                                        Background="{StaticResource RamBrush}"
+                                        VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="MEMORY"
+                                           FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                           Foreground="{StaticResource TextMutedBrush}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="{Binding MemoryUsagePercent, StringFormat='{}{0:F1}%'}"
+                                       FontSize="38" FontWeight="Bold"
+                                       HorizontalAlignment="Center"
+                                       Foreground="{StaticResource RamBrush}"/>
+                            <TextBlock Text="{Binding UsedMemory, StringFormat='{}{0:F1} GB used'}"
+                                       FontSize="12" HorizontalAlignment="Center"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Margin="0,6,0,2"/>
+                            <TextBlock Text="{Binding TotalMemory, StringFormat='of {0:F1} GB'}"
+                                       FontSize="11" HorizontalAlignment="Center"
+                                       Foreground="{StaticResource TextMutedBrush}"/>
+                            <ProgressBar Classes="ram" Value="{Binding MemoryUsagePercent}" Maximum="100" Margin="0,10,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- ===== ROW 2: SOUND PROFILES ===== -->
+            <Border Classes="card" Margin="0,0,0,10">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,14" Spacing="8">
+                        <Border Width="3" Height="16" CornerRadius="2" Background="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Sound Profiles"
+                                   FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <Grid ColumnDefinitions="*,8,*,8,*">
+                        <Border Grid.Column="0" Classes="card-inner">
+                            <StackPanel>
+                                <TextBox Text="{Binding SoundViewModel.Profile1.Name, Mode=TwoWay}"
+                                         FontSize="13" FontWeight="SemiBold" Background="Transparent"
+                                         BorderThickness="0" Foreground="{StaticResource TextPrimaryBrush}"
+                                         Padding="0" Margin="0,0,0,4"/>
+                                <TextBlock Text="{Binding SoundViewModel.Profile1.AudioDevice, FallbackValue='No device'}"
+                                           FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                           TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding SoundViewModel.Profile1.Volume, StringFormat='Vol: {0:P0}'}"
+                                           FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,10"/>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Button Content="Apply" Classes="primary" Padding="10,5" FontSize="11"
+                                            Command="{Binding SoundViewModel.ApplyProfileCommand}" CommandParameter="0"/>
+                                    <Button Content="Save" Classes="secondary" Padding="10,5" FontSize="11"
+                                            Command="{Binding SoundViewModel.SaveCurrentProfileCommand}" CommandParameter="0"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="2" Classes="card-inner">
+                            <StackPanel>
+                                <TextBox Text="{Binding SoundViewModel.Profile2.Name, Mode=TwoWay}"
+                                         FontSize="13" FontWeight="SemiBold" Background="Transparent"
+                                         BorderThickness="0" Foreground="{StaticResource TextPrimaryBrush}"
+                                         Padding="0" Margin="0,0,0,4"/>
+                                <TextBlock Text="{Binding SoundViewModel.Profile2.AudioDevice, FallbackValue='No device'}"
+                                           FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                           TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding SoundViewModel.Profile2.Volume, StringFormat='Vol: {0:P0}'}"
+                                           FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,10"/>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Button Content="Apply" Classes="primary" Padding="10,5" FontSize="11"
+                                            Command="{Binding SoundViewModel.ApplyProfileCommand}" CommandParameter="1"/>
+                                    <Button Content="Save" Classes="secondary" Padding="10,5" FontSize="11"
+                                            Command="{Binding SoundViewModel.SaveCurrentProfileCommand}" CommandParameter="1"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="4" Classes="card-inner">
+                            <StackPanel>
+                                <TextBox Text="{Binding SoundViewModel.Profile3.Name, Mode=TwoWay}"
+                                         FontSize="13" FontWeight="SemiBold" Background="Transparent"
+                                         BorderThickness="0" Foreground="{StaticResource TextPrimaryBrush}"
+                                         Padding="0" Margin="0,0,0,4"/>
+                                <TextBlock Text="{Binding SoundViewModel.Profile3.AudioDevice, FallbackValue='No device'}"
+                                           FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                           TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding SoundViewModel.Profile3.Volume, StringFormat='Vol: {0:P0}'}"
+                                           FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,10"/>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Button Content="Apply" Classes="primary" Padding="10,5" FontSize="11"
+                                            Command="{Binding SoundViewModel.ApplyProfileCommand}" CommandParameter="2"/>
+                                    <Button Content="Save" Classes="secondary" Padding="10,5" FontSize="11"
+                                            Command="{Binding SoundViewModel.SaveCurrentProfileCommand}" CommandParameter="2"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- ===== ROW 3: SOUND QUICK CONTROLS ===== -->
+            <Border Classes="card" Margin="0,0,0,10">
+                <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+                    <!-- Mic -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <TextBlock Text="MIC" FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                        <Button Content="{Binding SoundViewModel.MicrophoneMuteButtonText}"
+                                Classes="secondary"
+                                Command="{Binding SoundViewModel.ToggleMicrophoneMuteCommand}"
+                                Padding="12,6"/>
+                    </StackPanel>
+                    <!-- Volume -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                HorizontalAlignment="Center" Spacing="10" VerticalAlignment="Center">
+                        <TextBlock Text="VOL" FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                        <Slider Minimum="0" Maximum="1" Width="140"
+                                Value="{Binding SoundViewModel.OutputVolume, Mode=TwoWay}"
+                                VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding SoundViewModel.OutputVolume, StringFormat='{}{0:P0}'}"
+                                   FontSize="12" FontWeight="SemiBold"
+                                   VerticalAlignment="Center" MinWidth="38"
+                                   Foreground="{StaticResource TextPrimaryBrush}"/>
+                    </StackPanel>
+                    <!-- Output device -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <ComboBox ItemsSource="{Binding SoundViewModel.ActiveSoundSource}"
+                                  SelectedItem="{Binding SoundViewModel.SelectedSoundSource}"
+                                  Width="170"/>
+                        <Button Content="Set Audio" Classes="primary" Padding="10,6"
+                                Command="{Binding SoundViewModel.SetDefaultPlaybackDeviceCommand}"/>
+                        <Button Content="Set Comm" Classes="secondary" Padding="10,6"
+                                Command="{Binding SoundViewModel.SetDefaultCommunicationDeviceCommand}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- ===== ROW 4: STANDING + FILE MANAGER ===== -->
+            <Grid ColumnDefinitions="*,10,*" Margin="0,0,0,10">
+                <!-- Standing Timer -->
+                <Border Grid.Column="0" Classes="card">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14" Spacing="8">
+                            <Border Width="3" Height="16" CornerRadius="2" Background="{StaticResource SuccessBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="Standing Timer"
+                                       FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Margin="0,0,0,14">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Sitting"
+                                       FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"
+                                       VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBox Grid.Row="0" Grid.Column="1"
+                                     Text="{Binding StandingViewModel.SittingMinutes, Mode=TwoWay}"
+                                     Classes="input"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Standing"
+                                       FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"
+                                       VerticalAlignment="Center" Margin="0,8,10,0"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" Margin="0,8,0,0"
+                                     Text="{Binding StandingViewModel.StandingMinutes, Mode=TwoWay}"
+                                     Classes="input"/>
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Start" Classes="primary" Padding="24,8"
+                                    Command="{Binding StandingViewModel.StartTimersCommand}"
+                                    IsEnabled="{Binding StandingViewModel.IsStartButtonEnabled}"/>
+                            <Button Content="Stop" Classes="secondary" Padding="24,8"
+                                    Command="{Binding StandingViewModel.StopTimersCommand}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- File Manager -->
+                <Border Grid.Column="2" Classes="card">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14" Spacing="8">
+                            <Border Width="3" Height="16" CornerRadius="2" Background="{StaticResource DiskBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="File Manager"
+                                       FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock Text="Source" FontSize="11" FontWeight="Bold" LetterSpacing="0.5"
+                                   Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,5"/>
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+                            <TextBox Grid.Column="0"
+                                     Text="{Binding MoveFilesViewModel.SourceLocation, Mode=TwoWay}"
+                                     Classes="input"/>
+                            <Button Grid.Column="1" Content="..." Classes="secondary" Padding="10,6"
+                                    Margin="6,0,0,0"
+                                    Command="{Binding MoveFilesViewModel.BrowseSourceCommand}"/>
+                        </Grid>
+                        <TextBlock Text="Target" FontSize="11" FontWeight="Bold" LetterSpacing="0.5"
+                                   Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,5"/>
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+                            <TextBox Grid.Column="0"
+                                     Text="{Binding MoveFilesViewModel.TargetLocation, Mode=TwoWay}"
+                                     Classes="input"/>
+                            <Button Grid.Column="1" Content="..." Classes="secondary" Padding="10,6"
+                                    Margin="6,0,0,0"
+                                    Command="{Binding MoveFilesViewModel.BrowseTargetCommand}"/>
+                        </Grid>
+                        <CheckBox Content="Copy instead of move"
+                                  IsChecked="{Binding MoveFilesViewModel.IsCopy, Mode=TwoWay}"
+                                  FontSize="12" Margin="0,0,0,10"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Execute" Classes="primary" Padding="20,8"
+                                    Command="{Binding MoveFilesViewModel.MoveFilesCommand}"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding MoveFilesViewModel.StatusMessage}"
+                                   FontSize="11" TextWrapping="Wrap"
+                                   Foreground="{StaticResource TextSecondaryBrush}" Margin="0,8,0,0"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- ===== ROW 5: COMPUTER CONTROL ===== -->
+            <Border Classes="card" Margin="0,0,0,10">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <Border Width="3" Height="16" CornerRadius="2" Background="{StaticResource ErrorBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Scheduled Shutdown"
+                                   FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                                HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="Date:" FontSize="12"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   VerticalAlignment="Center"/>
+                        <TextBox Text="{Binding ComputerViewModel.SelectedDateText, Mode=TwoWay}"
+                                 Classes="input" Width="120"/>
+                        <TextBlock Text="at" FontSize="12"
+                                   Foreground="{StaticResource TextMutedBrush}"
+                                   VerticalAlignment="Center"/>
+                        <TextBox Text="{Binding ComputerViewModel.SelectedTime, Mode=TwoWay}"
+                                 Classes="input" Width="80"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                        <Button Content="Schedule" Classes="primary" Padding="16,8"
+                                Command="{Binding ComputerViewModel.ScheduleShutdownCommand}"/>
+                        <Button Content="Cancel" Classes="secondary" Padding="16,8"
+                                Command="{Binding ComputerViewModel.CancelShutdownCommand}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- ===== ROW 6: DISK SPACE ===== -->
+            <Border Classes="card" Margin="0,0,0,0">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,14" Spacing="8">
+                        <Border Width="3" Height="16" CornerRadius="2" Background="{StaticResource DiskBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Storage"
+                                   FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <ItemsControl ItemsSource="{Binding Disks}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{StaticResource CardInnerBrush}" CornerRadius="8"
+                                        Padding="14,12" Margin="0,0,8,8" Width="116">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding DriveLetter}" FontWeight="Bold"
+                                                   FontSize="14" HorizontalAlignment="Center"
+                                                   Foreground="{StaticResource DiskBrush}"/>
+                                        <TextBlock Text="{Binding UsedSpace, StringFormat='{}{0:F1} GB'}"
+                                                   FontSize="11" Margin="0,4,0,0" HorizontalAlignment="Center"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{Binding TotalSize, StringFormat='of {0:F1} GB'}"
+                                                   FontSize="10" HorizontalAlignment="Center"
+                                                   Foreground="{StaticResource TextMutedBrush}"/>
+                                        <ProgressBar Classes="disk" Value="{Binding UsedSpace}"
+                                                     Maximum="{Binding TotalSize}"
+                                                     Height="4" Margin="0,8,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Diagnostics;
 using System.Globalization;
-using System.Windows;
 using System.Threading.Tasks;
 using CenterHubNew.MVVM.Services;
 

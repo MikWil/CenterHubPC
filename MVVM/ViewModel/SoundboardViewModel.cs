@@ -3,11 +3,9 @@ using CenterHubNew.MVVM.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
-using Microsoft.Win32;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
-using System.Windows;
 
 namespace CenterHubNew.MVVM.ViewModel
 {
@@ -152,14 +150,14 @@ namespace CenterHubNew.MVVM.ViewModel
         [RelayCommand]
         private void AddSound()
         {
-            var dialog = new OpenFileDialog
+            var dialog = new System.Windows.Forms.OpenFileDialog
             {
                 Filter = "Audio Files (*.mp3;*.wav;*.ogg;*.flac)|*.mp3;*.wav;*.ogg;*.flac|All Files (*.*)|*.*",
                 Title = "Select Sound File",
                 Multiselect = true
             };
 
-            if (dialog.ShowDialog() == true)
+            if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
             {
                 foreach (var filePath in dialog.FileNames)
                 {
@@ -175,13 +173,13 @@ namespace CenterHubNew.MVVM.ViewModel
         {
             if (sound == null) return;
 
-            var result = MessageBox.Show(
+            var result = System.Windows.Forms.MessageBox.Show(
                 $"Remove sound '{sound.Name}'?",
                 "Confirm Remove",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
+                System.Windows.Forms.MessageBoxButtons.YesNo,
+                System.Windows.Forms.MessageBoxIcon.Question);
 
-            if (result == MessageBoxResult.Yes)
+            if (result == System.Windows.Forms.DialogResult.Yes)
             {
                 _soundboardService.RemoveSound(sound.Id);
                 Sounds.Remove(sound);
@@ -215,13 +213,13 @@ namespace CenterHubNew.MVVM.ViewModel
         {
             if (SelectedSound == null) return;
 
-            var dialog = new OpenFileDialog
+            var dialog = new System.Windows.Forms.OpenFileDialog
             {
                 Filter = "Audio Files (*.mp3;*.wav;*.ogg;*.flac)|*.mp3;*.wav;*.ogg;*.flac|All Files (*.*)|*.*",
                 Title = "Select Sound File"
             };
 
-            if (dialog.ShowDialog() == true)
+            if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
             {
                 SelectedSound.FilePath = dialog.FileName;
             }
