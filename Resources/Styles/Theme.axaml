@@ -10,15 +10,19 @@
                  our "background" colors use alpha so the tint shows.
             ===================================================== -->
 
-            <!-- === Surface tints (semi-transparent over Mica) === -->
-            <Color x:Key="SurfaceBase">#00000000</Color>           <!-- fully transparent: Mica only -->
-            <Color x:Key="SidebarTint">#66101018</Color>           <!-- ~40% tint over Mica -->
-            <Color x:Key="TitleBarTint">#55101018</Color>          <!-- ~33% tint -->
-            <Color x:Key="CardSurface">#A01D1D2A</Color>           <!-- ~63% opacity card -->
-            <Color x:Key="CardSurfaceElevated">#C0252535</Color>   <!-- ~75% for inner/elevated -->
-            <Color x:Key="CardSurfaceHover">#D02D2D40</Color>      <!-- ~82% on hover -->
-            <Color x:Key="InputSurface">#A01A1A26</Color>          <!-- input bg -->
-            <Color x:Key="InputSurfaceFocus">#D01D1D2A</Color>
+            <!-- === Surface tints ===
+                 Mica needs the window to be transparent at the *OS* layer,
+                 but our content should NOT be see-through to other windows
+                 behind us. So we paint a high-alpha dark tint everywhere —
+                 Mica still shows through subtly, but other apps don't. -->
+            <Color x:Key="SurfaceBase">#D80F0F16</Color>           <!-- ~85% — root content surface -->
+            <Color x:Key="SidebarTint">#EE0B0B12</Color>           <!-- ~93% — sidebar most solid -->
+            <Color x:Key="TitleBarTint">#E80B0B12</Color>          <!-- ~91% — title bar nearly solid -->
+            <Color x:Key="CardSurface">#E81B1B28</Color>           <!-- ~91% — cards are solid for readability -->
+            <Color x:Key="CardSurfaceElevated">#F0252535</Color>   <!-- ~94% — inner/elevated -->
+            <Color x:Key="CardSurfaceHover">#FA2D2D40</Color>      <!-- ~98% on hover -->
+            <Color x:Key="InputSurface">#E81A1A26</Color>
+            <Color x:Key="InputSurfaceFocus">#F01D1D2A</Color>
 
             <!-- === Borders / hairlines === -->
             <Color x:Key="BorderHairline">#33FFFFFF</Color>         <!-- light hairline at low alpha -->
@@ -103,7 +107,7 @@
         <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
         <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI, $default"/>
         <Setter Property="FontSize"   Value="13"/>
-        <Setter Property="LineHeight" Value="20"/>
+        <!-- LineHeight intentionally not set globally — was clipping large metric numbers -->
     </Style>
 
     <!-- =========================================================
@@ -141,6 +145,8 @@
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="BorderBrush"  Value="#33FFFFFF"/>
         <Setter Property="Cursor"       Value="Hand"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment"   Value="Center"/>
         <Setter Property="Transitions">
             <Transitions>
                 <BrushTransition Property="Background" Duration="0:0:0.12"/>
@@ -154,7 +160,15 @@
                         BorderThickness="{TemplateBinding BorderThickness}"
                         CornerRadius="{TemplateBinding CornerRadius}"
                         Padding="{TemplateBinding Padding}">
-                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <ContentPresenter x:Name="PART_ContentPresenter"
+                                      Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      Foreground="{TemplateBinding Foreground}"
+                                      FontSize="{TemplateBinding FontSize}"
+                                      FontWeight="{TemplateBinding FontWeight}"
+                                      HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
             </ControlTemplate>
         </Setter>
@@ -179,6 +193,8 @@
         <Setter Property="BorderThickness"  Value="1"/>
         <Setter Property="BorderBrush"      Value="{StaticResource BorderHairline}"/>
         <Setter Property="Cursor"           Value="Hand"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment"   Value="Center"/>
         <Setter Property="Transitions">
             <Transitions>
                 <BrushTransition Property="Background" Duration="0:0:0.12"/>
@@ -192,7 +208,15 @@
                         BorderThickness="{TemplateBinding BorderThickness}"
                         CornerRadius="{TemplateBinding CornerRadius}"
                         Padding="{TemplateBinding Padding}">
-                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <ContentPresenter x:Name="PART_ContentPresenter"
+                                      Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      Foreground="{TemplateBinding Foreground}"
+                                      FontSize="{TemplateBinding FontSize}"
+                                      FontWeight="{TemplateBinding FontWeight}"
+                                      HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
             </ControlTemplate>
         </Setter>
@@ -219,6 +243,8 @@
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="BorderBrush"  Value="{StaticResource ErrorBrush}"/>
         <Setter Property="Cursor"       Value="Hand"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment"   Value="Center"/>
         <Setter Property="Template">
             <ControlTemplate>
                 <Border x:Name="Bg"
@@ -227,7 +253,15 @@
                         BorderThickness="{TemplateBinding BorderThickness}"
                         CornerRadius="{TemplateBinding CornerRadius}"
                         Padding="{TemplateBinding Padding}">
-                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <ContentPresenter x:Name="PART_ContentPresenter"
+                                      Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      Foreground="{TemplateBinding Foreground}"
+                                      FontSize="{TemplateBinding FontSize}"
+                                      FontWeight="{TemplateBinding FontWeight}"
+                                      HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
             </ControlTemplate>
         </Setter>
@@ -246,13 +280,23 @@
         <Setter Property="Foreground"       Value="{StaticResource TextMutedBrush}"/>
         <Setter Property="Cursor"           Value="Hand"/>
         <Setter Property="CornerRadius"     Value="6"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment"   Value="Center"/>
         <Setter Property="Template">
             <ControlTemplate>
                 <Border x:Name="Bg"
                         Background="{TemplateBinding Background}"
                         CornerRadius="{TemplateBinding CornerRadius}"
                         Padding="{TemplateBinding Padding}">
-                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <ContentPresenter x:Name="PART_ContentPresenter"
+                                      Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      Foreground="{TemplateBinding Foreground}"
+                                      FontSize="{TemplateBinding FontSize}"
+                                      FontWeight="{TemplateBinding FontWeight}"
+                                      HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
             </ControlTemplate>
         </Setter>
@@ -273,16 +317,34 @@
         <Setter Property="Height"           Value="32"/>
         <Setter Property="Padding"          Value="0"/>
         <Setter Property="Cursor"           Value="Hand"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment"   Value="Center"/>
         <Setter Property="Template">
             <ControlTemplate>
                 <Border x:Name="Bg" Background="{TemplateBinding Background}" CornerRadius="6">
-                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <ContentPresenter x:Name="PART_ContentPresenter"
+                                      Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      Foreground="{TemplateBinding Foreground}"
+                                      FontSize="{TemplateBinding FontSize}"
+                                      FontWeight="{TemplateBinding FontWeight}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
             </ControlTemplate>
         </Setter>
     </Style>
     <Style Selector="Button.chrome:pointerover /template/ Border#Bg">
         <Setter Property="Background" Value="{StaticResource CardInnerBrush}"/>
+    </Style>
+    <!-- Close button: red on hover (Win11 convention) -->
+    <Style Selector="Button.chrome.close:pointerover /template/ Border#Bg">
+        <Setter Property="Background" Value="#E81123"/>
+    </Style>
+    <Style Selector="Button.chrome.close:pointerover">
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+    <Style Selector="Button.chrome.close:pressed /template/ Border#Bg">
+        <Setter Property="Background" Value="#B7090E"/>
     </Style>
 
     <!-- =========================================================
@@ -389,7 +451,9 @@
     </Style>
 
     <!-- =========================================================
-         NAVIGATION TABS — pill highlight with left accent
+         NAVIGATION TABS — icon + label, pill highlight with left accent
+         Icon glyph comes from Segoe Fluent Icons (Win11 native).
+         Pass the codepoint via the RadioButton's Tag, e.g. Tag="&#xEC4A;"
     ========================================================= -->
     <Style Selector="RadioButton.navtab">
         <Setter Property="Cursor"               Value="Hand"/>
@@ -416,12 +480,24 @@
                             Background="{TemplateBinding Background}"
                             CornerRadius="6"
                             Padding="{TemplateBinding Padding}">
-                        <TextBlock x:Name="NavText"
-                                   Text="{TemplateBinding Content}"
-                                   FontSize="13"
-                                   FontWeight="Normal"
-                                   Foreground="{TemplateBinding Foreground}"
-                                   VerticalAlignment="Center"/>
+                        <Grid ColumnDefinitions="22,*" >
+                            <TextBlock x:Name="NavIcon"
+                                       Grid.Column="0"
+                                       Text="{TemplateBinding Tag}"
+                                       FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"
+                                       FontSize="16"
+                                       Foreground="{TemplateBinding Foreground}"
+                                       HorizontalAlignment="Left"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock x:Name="NavText"
+                                       Grid.Column="1"
+                                       Text="{TemplateBinding Content}"
+                                       FontSize="13"
+                                       FontWeight="Normal"
+                                       Foreground="{TemplateBinding Foreground}"
+                                       VerticalAlignment="Center"
+                                       Margin="6,0,0,0"/>
+                        </Grid>
                     </Border>
                 </Grid>
             </ControlTemplate>
@@ -437,10 +513,16 @@
         <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
     </Style>
+    <Style Selector="RadioButton.navtab:checked /template/ TextBlock#NavIcon">
+        <Setter Property="Foreground" Value="{StaticResource AccentHoverBrush}"/>
+    </Style>
     <Style Selector="RadioButton.navtab:pointerover /template/ Border#NavBorder">
         <Setter Property="Background" Value="#14FFFFFF"/>
     </Style>
     <Style Selector="RadioButton.navtab:pointerover /template/ TextBlock#NavText">
+        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+    </Style>
+    <Style Selector="RadioButton.navtab:pointerover /template/ TextBlock#NavIcon">
         <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
     </Style>
 

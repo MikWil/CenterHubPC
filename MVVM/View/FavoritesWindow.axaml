@@ -8,10 +8,10 @@
         x:DataType="viewmodel:FavoritesViewModel"
         mc:Ignorable="d"
         Title="Favorites"
-        Width="360" Height="520"
-        MinWidth="300" MinHeight="420"
+        Width="380" Height="640"
+        MinWidth="320" MinHeight="500"
         SystemDecorations="None"
-        TransparencyLevelHint="Mica,AcrylicBlur,Transparent"
+        TransparencyLevelHint="Mica,AcrylicBlur"
         ExtendClientAreaToDecorationsHint="True"
         Topmost="True"
         WindowStartupLocation="Manual"
@@ -21,12 +21,12 @@
         <conv:TempToDisplayConverter x:Key="TempToDisplay"/>
     </Window.Resources>
 
-    <!-- Outer frame (Mica visible through) -->
-    <Border Background="Transparent"
+    <!-- Outer frame (Mica subtly visible through) -->
+    <Border Background="{StaticResource BackgroundDarkBrush}"
             CornerRadius="8"
             BorderThickness="1"
             BorderBrush="{StaticResource BorderHairline}">
-        <Grid RowDefinitions="46,*">
+        <Grid RowDefinitions="46,*" ClipToBounds="True">
 
             <!-- TITLE BAR -->
             <Grid Grid.Row="0" ColumnDefinitions="*,Auto"
@@ -61,8 +61,11 @@
             </Grid>
 
             <!-- CONTENT -->
-            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="12,10">
-                <StackPanel Spacing="8">
+            <ScrollViewer Grid.Row="1"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          Padding="12,12,12,24">
+                <StackPanel Spacing="8" Margin="0,0,0,16">
 
                     <!-- CPU -->
                     <Border Background="{StaticResource CardBackgroundBrush}"

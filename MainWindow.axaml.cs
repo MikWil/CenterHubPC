@@ -18,6 +18,7 @@ namespace CenterHubNew
         private readonly MainViewModel _viewModel;
         private readonly ILogger<MainWindow>? _logger;
         private NotifyIcon? _notifyIcon;
+        private bool _exitConfirmed;
 
         public MainWindow(
             MainViewModel viewModel,
@@ -30,6 +31,35 @@ namespace CenterHubNew
 
             Opened += MainWindow_Opened;
             Closing += MainWindow_Closing;
+            KeyDown += MainWindow_KeyDown;
+        }
+
+        private void MainWindow_KeyDown(object? sender, Avalonia.Input.KeyEventArgs e)
+        {
+            // Escape dismisses the exit dialog if open
+            if (e.Key == Avalonia.Input.Key.Escape && ExitOverlay.IsVisible)
+            {
+                ExitOverlay.IsVisible = false;
+                e.Handled = true;
+            }
+        }
+
+        private void CloseButton_Click(object? sender, RoutedEventArgs e)
+        {
+            // Triggers Closing — which will show the confirmation overlay
+            Close();
+        }
+
+        private void ConfirmExit_Click(object? sender, RoutedEventArgs e)
+        {
+            _exitConfirmed = true;
+            ExitOverlay.IsVisible = false;
+            Close();
+        }
+
+        private void CancelExit_Click(object? sender, RoutedEventArgs e)
+        {
+            ExitOverlay.IsVisible = false;
         }
 
         private void MainWindow_Opened(object? sender, EventArgs e)
@@ -163,6 +193,20 @@ namespace CenterHubNew
 
         private void MainWindow_Closing(object? sender, WindowClosingEventArgs e)
         {
+            // Skip confirmation for OS shutdown / app-wide shutdown reasons —
+            // those are not user-initiated cancellable events.
+            var isOsShutdown =
+                e.CloseReason == WindowCloseReason.OSShutdown ||
+                e.CloseReason == WindowCloseReason.ApplicationShutdown;
+
+            if (!_exitConfirmed && !isOsShutdown)
+            {
+                e.Cancel = true;
+                ExitOverlay.IsVisible = true;
+                Activate();
+                return;
+            }
+
             try
             {
                 _notifyIcon?.Dispose();

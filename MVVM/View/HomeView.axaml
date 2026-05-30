@@ -65,7 +65,7 @@
                                                Foreground="{StaticResource TextSecondaryBrush}"/>
                                 </Border>
                                 <Border Background="{StaticResource AccentSubtleBrush}" CornerRadius="6" Padding="8,3">
-                                    <TextBlock Text="{Binding CpuMaxTemperature, Converter={StaticResource TempToDisplayConverter}, ConverterParameter=Max}"
+                                    <TextBlock Text="{Binding CpuMaxTemperature, Converter={StaticResource TempToDisplayConverter}}"
                                                FontSize="10" FontWeight="Bold"
                                                Foreground="{StaticResource AccentBrush}"/>
                                 </Border>
@@ -104,7 +104,7 @@
                                                Foreground="{StaticResource TextSecondaryBrush}"/>
                                 </Border>
                                 <Border Background="{StaticResource CardInnerBrush}" CornerRadius="6" Padding="8,3">
-                                    <TextBlock Text="{Binding GpuMaxTemperature, Converter={StaticResource TempToDisplayConverter}, ConverterParameter=Max}"
+                                    <TextBlock Text="{Binding GpuMaxTemperature, Converter={StaticResource TempToDisplayConverter}}"
                                                FontSize="10" FontWeight="Bold"
                                                Foreground="{StaticResource GpuBrush}"/>
                                 </Border>
@@ -393,7 +393,9 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <Border Background="{StaticResource CardInnerBrush}" CornerRadius="8"
-                                        Padding="14,12" Margin="0,0,8,8" Width="116">
+                                        Padding="14,12" Margin="0,0,8,8" Width="116"
+                                        BorderThickness="1" BorderBrush="{StaticResource BorderSubtleBrush}"
+                                        ClipToBounds="True">
                                     <StackPanel>
                                         <TextBlock Text="{Binding DriveLetter}" FontWeight="Bold"
                                                    FontSize="14" HorizontalAlignment="Center"
@@ -406,7 +408,8 @@
                                                    Foreground="{StaticResource TextMutedBrush}"/>
                                         <ProgressBar Classes="disk" Value="{Binding UsedSpace}"
                                                      Maximum="{Binding TotalSize}"
-                                                     Height="4" Margin="0,8,0,0"/>
+                                                     Height="4" Margin="0,8,0,0"
+                                                     HorizontalAlignment="Stretch"/>
                                     </StackPanel>
                                 </Border>
                             </DataTemplate>

@@ -68,7 +68,7 @@
                                     <StackPanel Orientation="Horizontal" Spacing="4">
                                         <TextBlock Text="MAX" FontSize="9" FontWeight="Bold" LetterSpacing="0.5"
                                                    Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{Binding CpuMaxTemperature, Converter={StaticResource TempToDisplayConverter}, ConverterParameter=Max}"
+                                        <TextBlock Text="{Binding CpuMaxTemperature, Converter={StaticResource TempToDisplayConverter}}"
                                                    FontSize="11" FontWeight="Bold"
                                                    Foreground="{StaticResource AccentBrush}"/>
                                     </StackPanel>
@@ -119,7 +119,7 @@
                                     <StackPanel Orientation="Horizontal" Spacing="4">
                                         <TextBlock Text="MAX" FontSize="9" FontWeight="Bold" LetterSpacing="0.5"
                                                    Foreground="{StaticResource GpuBrush}" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{Binding GpuMaxTemperature, Converter={StaticResource TempToDisplayConverter}, ConverterParameter=Max}"
+                                        <TextBlock Text="{Binding GpuMaxTemperature, Converter={StaticResource TempToDisplayConverter}}"
                                                    FontSize="11" FontWeight="Bold"
                                                    Foreground="{StaticResource GpuBrush}"/>
                                     </StackPanel>
@@ -203,7 +203,9 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Border Background="{StaticResource CardInnerBrush}" CornerRadius="8"
-                                            Padding="14,12" Margin="0,0,8,8" Width="124">
+                                            Padding="14,12" Margin="0,0,8,8" Width="124"
+                                            BorderThickness="1" BorderBrush="{StaticResource BorderSubtleBrush}"
+                                            ClipToBounds="True">
                                         <StackPanel>
                                             <TextBlock Text="{Binding DriveLetter}" FontWeight="Bold"
                                                        FontSize="15" HorizontalAlignment="Center"
@@ -216,7 +218,8 @@
                                                        Foreground="{StaticResource TextMutedBrush}"/>
                                             <ProgressBar Classes="disk"
                                                          Value="{Binding UsedSpace}" Maximum="{Binding TotalSize}"
-                                                         Height="4" Margin="0,8,0,0"/>
+                                                         Height="4" Margin="0,8,0,0"
+                                                         HorizontalAlignment="Stretch"/>
                                         </StackPanel>
                                     </Border>
                                 </DataTemplate>

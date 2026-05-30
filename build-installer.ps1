@@ -22,9 +22,17 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "Application build completed successfully!" -ForegroundColor Green
 Write-Host ""
 
-# Step 2: Publish the application (self-contained)
+# Step 2: Publish the application (framework-dependent)
 Write-Host "[2/6] Publishing CenterHub application..." -ForegroundColor Yellow
-dotnet publish CenterHubNew.csproj -c $Configuration -r win-x64 --self-contained false -o ".\publish\$Configuration"
+
+# Clean stale publish output so the WiX <Files> harvest doesn't pick up old dependencies
+$publishDir = ".\publish\$Configuration"
+if (Test-Path $publishDir) {
+    Write-Host "  Cleaning stale publish directory..." -ForegroundColor Gray
+    Remove-Item $publishDir -Recurse -Force
+}
+
+dotnet publish CenterHubNew.csproj -c $Configuration -r win-x64 --self-contained false -o $publishDir
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Failed to publish the application" -ForegroundColor Red
     exit 1
@@ -69,7 +77,20 @@ if (-not $signtool) {
 Write-Host ""
 
 # Step 4: Build the MSI installer
-Write-Host "[4/6] Building MSI installer..." -ForegroundColor Yellow
+# Sync the WiX manifest version with csproj
+$projectContent = Get-Content "CenterHubNew.csproj" -Raw
+$versionMatch = [regex]::Match($projectContent, '<Version>(.*?)</Version>')
+$msiVersion = if ($versionMatch.Success) { $versionMatch.Groups[1].Value } else { "1.0.0" }
+
+$wxsPath = "installer\Package.wxs"
+$wxsContent = Get-Content $wxsPath -Raw
+$newWxsContent = [regex]::Replace($wxsContent, '<\?define Version = "[^"]*" \?>', "<?define Version = `"$msiVersion`" ?>")
+if ($newWxsContent -ne $wxsContent) {
+    Set-Content -Path $wxsPath -Value $newWxsContent -Encoding UTF8 -NoNewline
+    Write-Host "  Stamped Package.wxs with version $msiVersion" -ForegroundColor Gray
+}
+
+Write-Host "[4/6] Building MSI installer (v$msiVersion)..." -ForegroundColor Yellow
 Push-Location installer
 dotnet build CenterHub.wixproj -c $Configuration
 $buildResult = $LASTEXITCODE

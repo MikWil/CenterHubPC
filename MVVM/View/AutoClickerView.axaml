@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
              xmlns:local="clr-namespace:CenterHubNew.MVVM.View"
+             xmlns:conv="clr-namespace:CenterHubNew.MVVM.Converters"
              x:Class="CenterHubNew.MVVM.View.AutoClickerView"
              x:DataType="viewmodel:AutoClickerViewModel"
              mc:Ignorable="d"
@@ -12,23 +13,24 @@
     <UserControl.Resources>
         <local:BoolToRunningTextConverter x:Key="BoolToRunningTextConverter"/>
         <local:BoolToRunningBrushConverter x:Key="BoolToRunningBrushConverter"/>
+        <conv:FlexibleDoubleConverter x:Key="FlexDouble"/>
+        <conv:FlexibleIntConverter x:Key="FlexInt"/>
     </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24,20" Background="Transparent">
-        <StackPanel Spacing="0">
+        <StackPanel Spacing="0" MaxWidth="900" HorizontalAlignment="Stretch">
 
-            <!-- PAGE HEADER -->
+            <!-- ===== PAGE HEADER ===== -->
             <Grid Margin="0,0,0,20" ColumnDefinitions="*,Auto">
                 <StackPanel Grid.Column="0">
                     <TextBlock Text="Auto Clicker"
                                FontSize="22" FontWeight="Bold"
                                Foreground="{StaticResource TextPrimaryBrush}"/>
-                    <TextBlock Text="Automated mouse click at a position"
+                    <TextBlock Text="Send clicks at an interval — without fighting your cursor"
                                FontSize="12"
                                Foreground="{StaticResource TextMutedBrush}"
                                Margin="0,2,0,0"/>
                 </StackPanel>
-                <!-- Status badge -->
                 <Border Grid.Column="1" VerticalAlignment="Center"
                         Background="{Binding IsRunning, Converter={StaticResource BoolToRunningBrushConverter}}"
                         CornerRadius="5" Padding="10,4">
@@ -38,57 +40,206 @@
                 </Border>
             </Grid>
 
-            <Border Classes="card">
+            <!-- ===== LIVE STATUS PANEL (visible while arming or running) ===== -->
+            <Border Classes="card" Margin="0,0,0,10"
+                    IsVisible="{Binding IsRunning}">
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                    <!-- Big arm countdown OR live counter -->
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="ARMING"
+                                   FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                   Foreground="{StaticResource WarningBrush}"
+                                   IsVisible="{Binding IsArming}"/>
+                        <TextBlock Text="ACTIVE"
+                                   FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                   Foreground="{StaticResource SuccessBrush}"
+                                   IsVisible="{Binding !IsArming}"/>
+                        <TextBlock Text="{Binding ArmSecondsRemaining, StringFormat='{}{0}s'}"
+                                   FontSize="38" FontWeight="Bold"
+                                   Foreground="{StaticResource WarningBrush}"
+                                   IsVisible="{Binding IsArming}"/>
+                        <TextBlock Text="{Binding ClicksDelivered}"
+                                   FontSize="38" FontWeight="Bold"
+                                   Foreground="{StaticResource SuccessBrush}"
+                                   IsVisible="{Binding !IsArming}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="20,0,0,0">
+                        <TextBlock Text="{Binding StatusMessage}"
+                                   FontSize="13"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   TextWrapping="Wrap"/>
+                        <TextBlock Text="Move cursor to top-left corner to abort"
+                                   FontSize="11"
+                                   Foreground="{StaticResource TextMutedBrush}"
+                                   Margin="0,4,0,0"
+                                   IsVisible="{Binding FailsafeEnabled}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="20,0,16,0">
+                        <TextBlock Text="ELAPSED"
+                                   FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                   Foreground="{StaticResource TextMutedBrush}"/>
+                        <TextBlock Text="{Binding ElapsedDisplay}"
+                                   FontSize="20" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"/>
+                    </StackPanel>
+
+                    <Button Grid.Column="3" Content="Stop" Classes="danger"
+                            Padding="22,10"
+                            VerticalAlignment="Center"
+                            Command="{Binding StopCommand}"/>
+                </Grid>
+            </Border>
+
+            <!-- ===== TARGET + INTERVAL ===== -->
+            <Border Classes="card" Margin="0,0,0,10">
                 <StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,14" Spacing="8">
-                        <Border Width="3" Height="16" CornerRadius="2"
+                        <Border Width="3" Height="14" CornerRadius="2"
+                                Background="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="TARGET" FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*" RowDefinitions="Auto"
+                          Margin="0,0,0,14">
+                        <TextBlock Grid.Column="0" Text="X" FontSize="12" VerticalAlignment="Center"
+                                   Margin="0,0,8,0" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <TextBox  Grid.Column="1"
+                                  Text="{Binding ClickX, Mode=TwoWay, Converter={StaticResource FlexInt}}"
+                                  Classes="input" Width="100"/>
+                        <TextBlock Grid.Column="2" Text="Y" FontSize="12" VerticalAlignment="Center"
+                                   Margin="14,0,8,0" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <TextBox  Grid.Column="3"
+                                  Text="{Binding ClickY, Mode=TwoWay, Converter={StaticResource FlexInt}}"
+                                  Classes="input" Width="100"/>
+                        <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6" Margin="16,0,0,0">
+                            <Button Content="Use Cursor Now" Classes="secondary"
+                                    Padding="12,8"
+                                    ToolTip.Tip="Set X/Y to where your cursor is right now"
+                                    Command="{Binding GetCurrentPositionCommand}"/>
+                            <Button Content="Capture in 3s" Classes="secondary"
+                                    Padding="12,8"
+                                    ToolTip.Tip="3-second countdown, then capture cursor position"
+                                    Command="{Binding CapturePositionCommand}"
+                                    IsEnabled="{Binding !IsCapturingPosition}"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Mode selector -->
+                    <TextBlock Text="MODE"
+                               FontSize="10" FontWeight="Bold" LetterSpacing="0.5"
+                               Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,6"/>
+                    <ComboBox ItemsSource="{Binding ModeOptions}"
+                              SelectedIndex="{Binding SelectedModeIndex, Mode=TwoWay}"
+                              HorizontalAlignment="Stretch" Margin="0,0,0,14"/>
+
+                    <!-- Mouse button + interval + arm delay row -->
+                    <Grid ColumnDefinitions="*,*,*,*" Margin="0,0,0,0">
+                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                            <TextBlock Text="BUTTON" FontSize="10" FontWeight="Bold" LetterSpacing="0.5"
+                                       Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,6"/>
+                            <ComboBox ItemsSource="{Binding ButtonOptions}"
+                                      SelectedIndex="{Binding SelectedButtonIndex, Mode=TwoWay}"
+                                      HorizontalAlignment="Stretch"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="4,0,4,0">
+                            <TextBlock Text="INTERVAL (s)" FontSize="10" FontWeight="Bold" LetterSpacing="0.5"
+                                       Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,6"/>
+                            <TextBox Text="{Binding IntervalSeconds, Mode=TwoWay, Converter={StaticResource FlexDouble}}"
+                                     Classes="input"
+                                     ToolTip.Tip="Seconds between clicks. Accepts 0.05 or 0,05 (50ms)"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Margin="4,0,4,0">
+                            <TextBlock Text="ARM DELAY (s)" FontSize="10" FontWeight="Bold" LetterSpacing="0.5"
+                                       Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,6"/>
+                            <TextBox Text="{Binding ArmDelaySeconds, Mode=TwoWay, Converter={StaticResource FlexDouble}}"
+                                     Classes="input"
+                                     ToolTip.Tip="Head-start countdown before clicking begins. Accepts 3 or 2.5"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="3" Margin="8,0,0,0">
+                            <TextBlock Text="MAX CLICKS" FontSize="10" FontWeight="Bold" LetterSpacing="0.5"
+                                       Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,6"/>
+                            <TextBox Text="{Binding MaxClicks, Mode=TwoWay, Converter={StaticResource FlexInt}}"
+                                     Classes="input"
+                                     ToolTip.Tip="Stop after N clicks (0 = unlimited)"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- ===== ADVANCED ===== -->
+            <Border Classes="card" Margin="0,0,0,10">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,14" Spacing="8">
+                        <Border Width="3" Height="14" CornerRadius="2"
                                 Background="{StaticResource InfoBrush}" VerticalAlignment="Center"/>
-                        <TextBlock Text="Configuration"
-                                   FontSize="13" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextPrimaryBrush}"
-                                   VerticalAlignment="Center"/>
+                        <TextBlock Text="ADVANCED" FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
                     </StackPanel>
 
-                    <!-- Coordinate and interval inputs -->
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,16" Spacing="8">
-                        <TextBlock Text="X" FontSize="12" VerticalAlignment="Center"
-                                   Foreground="{StaticResource TextSecondaryBrush}"/>
-                        <TextBox Text="{Binding ClickX, Mode=TwoWay}"
-                                 Classes="input" Width="100"/>
-                        <TextBlock Text="Y" FontSize="12" VerticalAlignment="Center"
-                                   Margin="12,0,0,0"
-                                   Foreground="{StaticResource TextSecondaryBrush}"/>
-                        <TextBox Text="{Binding ClickY, Mode=TwoWay}"
-                                 Classes="input" Width="80"/>
-                        <TextBlock Text="Interval" FontSize="12" VerticalAlignment="Center"
-                                   Margin="16,0,0,0"
-                                   Foreground="{StaticResource TextSecondaryBrush}"/>
-                        <TextBox Text="{Binding IntervalSeconds, Mode=TwoWay}"
-                                 Classes="input" Width="70"/>
-                        <TextBlock Text="sec" FontSize="12" VerticalAlignment="Center"
-                                   Foreground="{StaticResource TextMutedBrush}"/>
-                    </StackPanel>
+                    <Grid ColumnDefinitions="*,*" Margin="0,0,0,0">
+                        <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                            <TextBlock Text="JITTER (±px)" FontSize="10" FontWeight="Bold" LetterSpacing="0.5"
+                                       Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,6"/>
+                            <TextBox Text="{Binding JitterPixels, Mode=TwoWay, Converter={StaticResource FlexInt}}"
+                                     Classes="input"
+                                     ToolTip.Tip="Random ±N px offset around target — helps avoid detection"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Bottom">
+                            <CheckBox Content="Failsafe — abort when cursor reaches top-left corner"
+                                      IsChecked="{Binding FailsafeEnabled, Mode=TwoWay}"
+                                      FontSize="12"
+                                      ToolTip.Tip="Slam your mouse to the top-left corner to instantly stop the clicker"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
 
-                    <!-- Control buttons -->
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12" Spacing="8">
-                        <Button Content="Start" Classes="primary" Padding="28,9"
-                                Command="{Binding StartCommand}"
-                                IsEnabled="{Binding !IsRunning}"/>
-                        <Button Content="Stop" Classes="secondary" Padding="28,9"
-                                Command="{Binding StopCommand}"
-                                IsEnabled="{Binding IsRunning}"/>
-                        <Button Content="Set Position" Classes="secondary" Padding="14,9"
-                                ToolTip.Tip="Ctrl+P — set from current cursor"
-                                Command="{Binding GetCurrentPositionCommand}"
-                                Margin="12,0,0,0"/>
-                        <Button Content="Capture (3s)" Classes="secondary" Padding="14,9"
-                                ToolTip.Tip="Captures cursor position after 3 second delay"
-                                Command="{Binding CapturePositionCommand}"
-                                IsEnabled="{Binding !IsCapturingPosition}"/>
-                    </StackPanel>
+            <!-- ===== ACTIONS ===== -->
+            <Border Classes="card" Margin="0,0,0,10">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Button Content="Start" Classes="primary" Padding="36,10"
+                            FontSize="14"
+                            Command="{Binding StartCommand}"
+                            IsEnabled="{Binding !IsRunning}"/>
+                    <Button Content="Stop" Classes="secondary" Padding="28,10"
+                            FontSize="14"
+                            Command="{Binding StopCommand}"
+                            IsEnabled="{Binding IsRunning}"/>
+                    <TextBlock VerticalAlignment="Center" Margin="12,0,0,0"
+                               Text="{Binding StatusMessage}"
+                               FontSize="12"
+                               Foreground="{StaticResource TextMutedBrush}"
+                               TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+            </Border>
 
-                    <TextBlock Text="{Binding StatusMessage}"
-                               FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+            <!-- ===== HOW IT WORKS ===== -->
+            <Border Classes="card" Margin="0,0,0,0">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Spacing="8">
+                        <Border Width="3" Height="14" CornerRadius="2"
+                                Background="{StaticResource SuccessBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="HOW IT WORKS" FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}"
+                               FontSize="12" TextWrapping="Wrap">
+                        <Run Text="Silent" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"/>
+                        <Run Text="sends click messages to the window under the target point — your cursor never moves. Best for most apps. "/>
+                        <LineBreak/>
+                        <Run Text="Teleport" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"/>
+                        <Run Text="actually moves the cursor and clicks — needed for games and apps that ignore synthetic messages. "/>
+                        <LineBreak/>
+                        <Run Text="Follow" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"/>
+                        <Run Text="clicks wherever your cursor is at each tick, never teleports."/>
+                        <LineBreak/>
+                        <LineBreak/>
+                        <Run Text="Failsafe:" FontWeight="SemiBold" Foreground="{StaticResource WarningBrush}"/>
+                        <Run Text="if you ever lose control, slam the mouse to the top-left corner of your primary screen — the clicker stops immediately."/>
+                    </TextBlock>
                 </StackPanel>
             </Border>
 

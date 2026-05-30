@@ -9,13 +9,13 @@
         Title="Sound Controls"
         Width="420" Height="540"
         SystemDecorations="None"
-        TransparencyLevelHint="Mica,AcrylicBlur,Transparent"
+        TransparencyLevelHint="Mica,AcrylicBlur"
         ExtendClientAreaToDecorationsHint="True"
         CanResize="False"
         WindowStartupLocation="CenterScreen"
         Background="Transparent">
 
-    <Border Background="Transparent"
+    <Border Background="{StaticResource BackgroundDarkBrush}"
             CornerRadius="8"
             BorderThickness="1"
             BorderBrush="{StaticResource BorderHairline}">

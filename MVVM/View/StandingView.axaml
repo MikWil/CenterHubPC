@@ -3,58 +3,339 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+             xmlns:conv="clr-namespace:CenterHubNew.MVVM.Converters"
              x:Class="CenterHubNew.MVVM.View.StandingView"
              x:DataType="viewmodel:StandingViewModel"
              mc:Ignorable="d"
              Background="Transparent">
 
+    <UserControl.Resources>
+        <conv:FlexibleIntConverter x:Key="FlexInt"/>
+    </UserControl.Resources>
+
     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24,20" Background="Transparent">
-        <StackPanel Spacing="0">
+        <StackPanel Spacing="0" MaxWidth="980" HorizontalAlignment="Stretch">
 
-            <!-- PAGE HEADER -->
-            <StackPanel Margin="0,0,0,20">
-                <TextBlock Text="Standing Timer"
-                           FontSize="22" FontWeight="Bold"
-                           Foreground="{StaticResource TextPrimaryBrush}"/>
-                <TextBlock Text="Alternate sitting and standing reminders"
-                           FontSize="12"
-                           Foreground="{StaticResource TextMutedBrush}"
-                           Margin="0,2,0,0"/>
-            </StackPanel>
+            <!-- ===== PAGE HEADER ===== -->
+            <Grid Margin="0,0,0,20" ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Standing Timer"
+                               FontSize="22" FontWeight="Bold"
+                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                    <TextBlock Text="Alternate sitting and standing throughout the day"
+                               FontSize="12"
+                               Foreground="{StaticResource TextMutedBrush}"
+                               Margin="0,2,0,0"/>
+                </StackPanel>
+                <!-- Live status pill -->
+                <Border Grid.Column="1" VerticalAlignment="Center"
+                        CornerRadius="6" Padding="10,5"
+                        IsVisible="{Binding IsRunning}">
+                    <Border.Styles>
+                        <Style Selector="Border">
+                            <Setter Property="Background" Value="{StaticResource SuccessBrush}"/>
+                        </Style>
+                    </Border.Styles>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="6" Height="6" CornerRadius="3"
+                                Background="White" VerticalAlignment="Center"/>
+                        <TextBlock Text="LIVE" FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                   Foreground="White" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
 
-            <Border Classes="card">
+            <!-- ===== HERO PANEL (running) ===== -->
+            <Border Margin="0,0,0,12"
+                    CornerRadius="14" Padding="0"
+                    BorderThickness="1" BorderBrush="{StaticResource BorderHairline}"
+                    ClipToBounds="True"
+                    IsVisible="{Binding IsRunning}">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Color="#221B1B28" Offset="0"/>
+                        <GradientStop Color="#88141422" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+                <Grid RowDefinitions="4,*">
+
+                    <!-- Top colored stripe (changes per phase via Style) -->
+                    <Border Grid.Row="0">
+                        <Border.Styles>
+                            <Style Selector="Border">
+                                <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+                            </Style>
+                        </Border.Styles>
+                    </Border>
+
+                    <Grid Grid.Row="1" Margin="32,28,32,26" ColumnDefinitions="*,Auto">
+
+                        <!-- LEFT: phase + big countdown -->
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                            <!-- Phase label with colored dot -->
+                            <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,0,0,4">
+                                <Border Width="10" Height="10" CornerRadius="5"
+                                        Background="{StaticResource AccentBrush}"
+                                        VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding PhaseLabel}"
+                                           FontSize="12" FontWeight="Bold" LetterSpacing="3"
+                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <TextBlock Text="{Binding TimeRemainingDisplay}"
+                                       FontSize="92" FontWeight="Bold"
+                                       LineHeight="100"
+                                       FontFamily="Segoe UI Variable Display, Segoe UI, $default"
+                                       Foreground="{StaticResource TextPrimaryBrush}"/>
+
+                            <TextBlock Text="{Binding PhaseGuidance}"
+                                       FontSize="13"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Margin="0,4,0,12"/>
+
+                            <ProgressBar Value="{Binding PhaseProgress}"
+                                         Maximum="1" Minimum="0"
+                                         Height="6"
+                                         HorizontalAlignment="Stretch"
+                                         Foreground="{StaticResource AccentBrush}"
+                                         Margin="0,0,0,14"/>
+
+                            <StackPanel Orientation="Horizontal" Spacing="20">
+                                <StackPanel>
+                                    <TextBlock Text="NEXT SWITCH"
+                                               FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                               Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock Text="{Binding NextSwitchAtDisplay}"
+                                               FontSize="16" FontWeight="SemiBold"
+                                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="SESSION"
+                                               FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                               Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock Text="{Binding SessionElapsedDisplay}"
+                                               FontSize="16" FontWeight="SemiBold"
+                                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="CYCLES"
+                                               FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                               Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock Text="{Binding CyclesCompleted}"
+                                               FontSize="16" FontWeight="SemiBold"
+                                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- RIGHT: actions -->
+                        <StackPanel Grid.Column="1" Spacing="10" VerticalAlignment="Center" Margin="20,0,0,0">
+                            <Button Content="Skip Phase" Classes="secondary"
+                                    Padding="20,10" FontSize="13"
+                                    HorizontalContentAlignment="Center"
+                                    Command="{Binding SkipPhaseCommand}"/>
+                            <Button Content="Stop" Classes="danger"
+                                    Padding="20,10" FontSize="13"
+                                    HorizontalContentAlignment="Center"
+                                    Command="{Binding StopTimersCommand}"/>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <!-- ===== IDLE BANNER (not running) ===== -->
+            <Border Classes="card" Margin="0,0,0,12"
+                    IsVisible="{Binding !IsRunning}">
+                <Grid ColumnDefinitions="Auto,*">
+                    <Border Grid.Column="0"
+                            Width="56" Height="56" CornerRadius="12"
+                            Background="{StaticResource AccentSubtleBrush}"
+                            BorderThickness="1" BorderBrush="{StaticResource AccentBrush}"
+                            VerticalAlignment="Center">
+                        <TextBlock Text="ST" FontSize="14" FontWeight="Bold"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="{StaticResource AccentBrush}"/>
+                    </Border>
+                    <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="Ready to start"
+                                   FontSize="16" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"/>
+                        <TextBlock Text="{Binding PhaseGuidance}"
+                                   FontSize="12"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   Margin="0,2,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- ===== PRESETS ===== -->
+            <Border Classes="card" Margin="0,0,0,12">
                 <StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,14" Spacing="8">
-                        <Border Width="3" Height="16" CornerRadius="2"
+                        <Border Width="3" Height="14" CornerRadius="2"
+                                Background="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="PRESETS" FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <ItemsControl ItemsSource="{Binding Presets}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="4" Rows="1"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="viewmodel:StandingPreset">
+                                <Button Background="Transparent" BorderThickness="0" Padding="0"
+                                        Margin="0,0,8,0" Cursor="Hand"
+                                        HorizontalContentAlignment="Stretch"
+                                        Command="{Binding $parent[ItemsControl].((viewmodel:StandingViewModel)DataContext).ApplyPresetCommand}"
+                                        CommandParameter="{Binding}">
+                                    <Border Background="{StaticResource CardInnerBrush}"
+                                            CornerRadius="10" Padding="14,12"
+                                            BorderThickness="1" BorderBrush="{StaticResource BorderHairline}">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Name}"
+                                                       FontSize="13" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="{Binding Subtitle}"
+                                                       FontSize="11"
+                                                       Foreground="{StaticResource TextMutedBrush}"
+                                                       Margin="0,3,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- ===== CONFIGURATION ===== -->
+            <Border Classes="card" Margin="0,0,0,12">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,14" Spacing="8">
+                        <Border Width="3" Height="14" CornerRadius="2"
                                 Background="{StaticResource SuccessBrush}" VerticalAlignment="Center"/>
-                        <TextBlock Text="Timer Configuration"
-                                   FontSize="13" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextPrimaryBrush}"
-                                   VerticalAlignment="Center"/>
+                        <TextBlock Text="CONFIGURATION" FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
                     </StackPanel>
 
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,18" Spacing="8">
-                        <TextBlock Text="Sit for" FontSize="13" VerticalAlignment="Center"
-                                   Foreground="{StaticResource TextSecondaryBrush}"/>
-                        <TextBox Text="{Binding SittingMinutes, Mode=TwoWay}"
-                                 Classes="input" Width="80"/>
-                        <TextBlock Text="min, then stand for" FontSize="13" VerticalAlignment="Center"
-                                   Foreground="{StaticResource TextSecondaryBrush}"/>
-                        <TextBox Text="{Binding StandingMinutes, Mode=TwoWay}"
-                                 Classes="input" Width="80"/>
-                        <TextBlock Text="min" FontSize="13" VerticalAlignment="Center"
-                                   Foreground="{StaticResource TextMutedBrush}"/>
-                    </StackPanel>
+                    <Grid ColumnDefinitions="*,12,*" Margin="0,0,0,16">
+                        <Border Grid.Column="0" Classes="card-inner">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="SIT FOR" FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                               Foreground="{StaticResource InfoBrush}"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
+                                        <TextBox Text="{Binding SittingMinutes, Mode=TwoWay, Converter={StaticResource FlexInt}}"
+                                                 Classes="input" Width="80" FontSize="20" FontWeight="SemiBold"/>
+                                        <TextBlock Text="min" FontSize="12" VerticalAlignment="Center"
+                                                   Foreground="{StaticResource TextMutedBrush}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <Border Grid.Column="1" Width="40" Height="40" CornerRadius="20"
+                                        Background="{StaticResource AccentSubtleBrush}"
+                                        VerticalAlignment="Center">
+                                    <TextBlock Text="Sit" FontSize="11" FontWeight="Bold"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Foreground="{StaticResource AccentBrush}"/>
+                                </Border>
+                            </Grid>
+                        </Border>
 
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button Content="Start" Classes="primary" Padding="28,9"
+                        <Border Grid.Column="2" Classes="card-inner">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="THEN STAND FOR" FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                               Foreground="{StaticResource SuccessBrush}"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
+                                        <TextBox Text="{Binding StandingMinutes, Mode=TwoWay, Converter={StaticResource FlexInt}}"
+                                                 Classes="input" Width="80" FontSize="20" FontWeight="SemiBold"/>
+                                        <TextBlock Text="min" FontSize="12" VerticalAlignment="Center"
+                                                   Foreground="{StaticResource TextMutedBrush}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <Border Grid.Column="1" Width="40" Height="40" CornerRadius="20"
+                                        Background="{StaticResource SuccessSubtleBrush}"
+                                        VerticalAlignment="Center">
+                                    <TextBlock Text="Up" FontSize="11" FontWeight="Bold"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Foreground="{StaticResource SuccessBrush}"/>
+                                </Border>
+                            </Grid>
+                        </Border>
+                    </Grid>
+
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Content="Start Session" Classes="primary" Padding="32,11"
+                                FontSize="14"
                                 Command="{Binding StartTimersCommand}"
                                 IsEnabled="{Binding IsStartButtonEnabled}"/>
-                        <Button Content="Stop" Classes="secondary" Padding="28,9"
-                                Command="{Binding StopTimersCommand}"/>
+                        <Button Content="Stop" Classes="secondary" Padding="24,11"
+                                FontSize="13"
+                                Command="{Binding StopTimersCommand}"
+                                IsEnabled="{Binding IsRunning}"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
+
+            <!-- ===== SESSION STATS ===== -->
+            <Border Classes="card" Margin="0,0,0,0">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,14" Spacing="8">
+                        <Border Width="3" Height="14" CornerRadius="2"
+                                Background="{StaticResource InfoBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="SESSION STATS" FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <UniformGrid Columns="4" Rows="1">
+                        <Border Margin="0,0,8,0" Classes="card-inner">
+                            <StackPanel>
+                                <TextBlock Text="CYCLES" FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                           Foreground="{StaticResource TextMutedBrush}"/>
+                                <TextBlock Text="{Binding CyclesCompleted}"
+                                           FontSize="24" FontWeight="Bold"
+                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                           Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Margin="4,0,4,0" Classes="card-inner">
+                            <StackPanel>
+                                <TextBlock Text="STAND TIME" FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                           Foreground="{StaticResource SuccessBrush}"/>
+                                <TextBlock Text="{Binding TotalStandingDisplay}"
+                                           FontSize="22" FontWeight="Bold"
+                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                           Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Margin="4,0,4,0" Classes="card-inner">
+                            <StackPanel>
+                                <TextBlock Text="SIT TIME" FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                           Foreground="{StaticResource InfoBrush}"/>
+                                <TextBlock Text="{Binding TotalSittingDisplay}"
+                                           FontSize="22" FontWeight="Bold"
+                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                           Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Margin="8,0,0,0" Classes="card-inner">
+                            <StackPanel>
+                                <TextBlock Text="SESSION" FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                           Foreground="{StaticResource TextMutedBrush}"/>
+                                <TextBlock Text="{Binding SessionElapsedDisplay}"
+                                           FontSize="22" FontWeight="Bold"
+                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                           Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+                </StackPanel>
+            </Border>
+
         </StackPanel>
     </ScrollViewer>
 </UserControl>

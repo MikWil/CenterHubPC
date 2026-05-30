@@ -10,14 +10,14 @@
         Height="880" Width="1360"
         MinHeight="500" MinWidth="820"
         SystemDecorations="None"
-        TransparencyLevelHint="Mica,AcrylicBlur,Transparent"
+        TransparencyLevelHint="Mica,AcrylicBlur"
         Background="Transparent"
         WindowStartupLocation="CenterScreen"
         CanResize="True"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome">
 
-    <Border Background="Transparent"
+    <Border Background="{StaticResource BackgroundDarkBrush}"
             BorderThickness="1"
             BorderBrush="{StaticResource BorderHairline}"
             CornerRadius="8">
@@ -67,12 +67,19 @@
                                 Foreground="{StaticResource TextMutedBrush}"
                                 Click="FavoritesButton_Click"
                                 ToolTip.Tip="Favorites Panel">
-                            <TextBlock Text="&#x2605;" FontSize="14" Foreground="{StaticResource TextMutedBrush}"/>
+                            <TextBlock Text="&#x2605;" FontSize="14"/>
                         </Button>
                         <Button Classes="chrome"
+                                Foreground="{StaticResource TextMutedBrush}"
                                 Click="MinimizeButton_Click"
                                 ToolTip.Tip="Minimize to tray">
-                            <TextBlock Text="&#x2212;" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
+                            <TextBlock Text="&#x2212;" FontSize="16" FontWeight="Bold"/>
+                        </Button>
+                        <Button Classes="chrome close"
+                                Foreground="{StaticResource TextMutedBrush}"
+                                Click="CloseButton_Click"
+                                ToolTip.Tip="Close">
+                            <TextBlock Text="&#xD7;" FontSize="16" FontWeight="Bold"/>
                         </Button>
                     </StackPanel>
                 </Grid>
@@ -104,7 +111,9 @@
                                            Margin="18,0,0,6"
                                            IsVisible="{Binding IsSidebarExpanded}"/>
                                 <RadioButton Classes="navtab"
+                                             Tag="&#xEC4A;"
                                              Content="Monitoring"
+                                             ToolTip.Tip="Real-time hardware monitoring"
                                              IsChecked="{Binding IsMonitoringSelected}"
                                              Command="{Binding MonitoringViewCommand}"
                                              GroupName="Nav"/>
@@ -116,12 +125,16 @@
                                            Margin="18,16,0,6"
                                            IsVisible="{Binding IsSidebarExpanded}"/>
                                 <RadioButton Classes="navtab"
+                                             Tag="&#xE916;"
                                              Content="Standing"
+                                             ToolTip.Tip="Sit/Stand timer"
                                              IsChecked="{Binding IsStandingSelected}"
                                              Command="{Binding StandingViewCommand}"
                                              GroupName="Nav"/>
                                 <RadioButton Classes="navtab"
+                                             Tag="&#xE70B;"
                                              Content="Notes"
+                                             ToolTip.Tip="Quick notes"
                                              IsChecked="{Binding IsNotesSelected}"
                                              Command="{Binding NotesViewCommand}"
                                              GroupName="Nav"/>
@@ -133,12 +146,16 @@
                                            Margin="18,16,0,6"
                                            IsVisible="{Binding IsSidebarExpanded}"/>
                                 <RadioButton Classes="navtab"
+                                             Tag="&#xE767;"
                                              Content="Sound"
+                                             ToolTip.Tip="Audio profiles and devices"
                                              IsChecked="{Binding IsSoundSelected}"
                                              Command="{Binding SoundViewCommand}"
                                              GroupName="Nav"/>
                                 <RadioButton Classes="navtab"
+                                             Tag="&#xE955;"
                                              Content="Soundboard"
+                                             ToolTip.Tip="Trigger sound clips"
                                              IsChecked="{Binding IsSoundboardSelected}"
                                              Command="{Binding SoundboardViewCommand}"
                                              GroupName="Nav"/>
@@ -150,17 +167,23 @@
                                            Margin="18,16,0,6"
                                            IsVisible="{Binding IsSidebarExpanded}"/>
                                 <RadioButton Classes="navtab"
+                                             Tag="&#xEC7A;"
                                              Content="Utilities"
+                                             ToolTip.Tip="Encoders, converters, generators"
                                              IsChecked="{Binding IsUtilitiesSelected}"
                                              Command="{Binding UtilitiesViewCommand}"
                                              GroupName="Nav"/>
                                 <RadioButton Classes="navtab"
+                                             Tag="&#xF272;"
                                              Content="Auto Clicker"
+                                             ToolTip.Tip="Automated mouse clicks"
                                              IsChecked="{Binding IsAutoClickerSelected}"
                                              Command="{Binding AutoClickerViewCommand}"
                                              GroupName="Nav"/>
                                 <RadioButton Classes="navtab"
+                                             Tag="&#xF0E3;"
                                              Content="Clipboard"
+                                             ToolTip.Tip="Clipboard history"
                                              IsChecked="{Binding IsClipboardSelected}"
                                              Command="{Binding ClipboardViewCommand}"
                                              GroupName="Nav"/>
@@ -172,7 +195,9 @@
                                            Margin="18,16,0,6"
                                            IsVisible="{Binding IsSidebarExpanded}"/>
                                 <RadioButton Classes="navtab"
+                                             Tag="&#xE92E;"
                                              Content="Hotkeys"
+                                             ToolTip.Tip="Global keyboard shortcuts"
                                              IsChecked="{Binding IsHotkeySettingsSelected}"
                                              Command="{Binding HotkeySettingsViewCommand}"
                                              GroupName="Nav"/>
@@ -204,6 +229,62 @@
                                          Margin="0,16,16,0"/>
                 </Grid>
             </Grid>
+
+            <!-- ===== EXIT CONFIRMATION OVERLAY ===== -->
+            <Border x:Name="ExitOverlay"
+                    Grid.RowSpan="2"
+                    Background="#A8000000"
+                    IsVisible="False"
+                    ZIndex="1000">
+                <Border Width="420"
+                        Background="{StaticResource CardBackgroundBrush}"
+                        BorderThickness="1" BorderBrush="{StaticResource BorderHairline}"
+                        CornerRadius="12"
+                        Padding="28,24"
+                        VerticalAlignment="Center"
+                        HorizontalAlignment="Center"
+                        BoxShadow="0 12 40 0 #80000000">
+                    <StackPanel Spacing="0">
+                        <!-- Icon + title -->
+                        <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,0,12">
+                            <Border Width="36" Height="36" CornerRadius="18"
+                                    Background="{StaticResource ErrorSubtleBrush}"
+                                    BorderThickness="1" BorderBrush="{StaticResource ErrorBrush}"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="!" FontSize="20" FontWeight="Bold"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Foreground="{StaticResource ErrorBrush}"/>
+                            </Border>
+                            <TextBlock Text="Exit CenterHub?"
+                                       FontSize="18" FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <TextBlock TextWrapping="Wrap"
+                                   FontSize="13"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   Margin="0,0,0,8">
+                            <Run Text="This will stop all running services — hotkeys, auto-clicker, standing timer, and clipboard monitor."/>
+                        </TextBlock>
+                        <TextBlock TextWrapping="Wrap"
+                                   FontSize="12"
+                                   Foreground="{StaticResource TextMutedBrush}"
+                                   Margin="0,0,0,22">
+                            <Run Text="Tip: use the minimize button if you just want to hide the window — CenterHub will keep running in the system tray."/>
+                        </TextBlock>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+                            <Button Content="Cancel" Classes="secondary"
+                                    Padding="22,10"
+                                    Click="CancelExit_Click"/>
+                            <Button Content="Exit" Classes="danger"
+                                    Padding="22,10"
+                                    Click="ConfirmExit_Click"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Border>
 
         </Grid>
     </Border>
