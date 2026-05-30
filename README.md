@@ -9,6 +9,14 @@ A modern Windows desktop application built with WPF and .NET 8, providing system
 - **File Management**: Move or copy files between directories
 - **Productivity Tools**: Standing/sitting timer with notifications
 - **System Controls**: Schedule computer shutdown
+  <img width="1864" height="941" alt="image" src="https://github.com/user-attachments/assets/2d11f060-e50d-4273-a421-f6c67e2f1ef1" />
+<img width="1361" height="870" alt="image" src="https://github.com/user-attachments/assets/dd9a2651-6436-4fc1-8c0f-6e1e8517bc84" />
+<img width="1369" height="878" alt="image" src="https://github.com/user-attachments/assets/9f493e09-fcd7-461d-a27e-e89ca7d8ee6d" />
+<img width="1361" height="877" alt="image" src="https://github.com/user-attachments/assets/ca271814-582f-4549-94e3-34c1be5ef8dd" />
+<img width="1359" height="880" alt="image" src="https://github.com/user-attachments/assets/f0cf4724-3f9b-44f9-a8c5-13f89dac080a" />
+<img width="1359" height="878" alt="image" src="https://github.com/user-attachments/assets/aab0555a-0e52-4002-babe-21e4792c0f64" />
+<img width="1371" height="872" alt="image" src="https://github.com/user-attachments/assets/eb791011-6126-4268-bd9e-df5d5cb93ea9" />
+
 
 ## Architecture
 
