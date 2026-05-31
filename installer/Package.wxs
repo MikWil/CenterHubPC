@@ -1,9 +1,9 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
 
   <!-- Version is overridden at build time via -d Version=x.y.z
        Default value below mirrors the current csproj version. -->
-  <?define Version = "5.0.0" ?>
+  <?define Version = "5.1.0" ?>
   <?define PublishDir = "..\publish\Release" ?>
 
   <Package Name="CenterHub"
@@ -41,7 +41,7 @@
 
     <!-- ===== Files: auto-harvest the entire publish directory ===== -->
     <!-- The Files element scans the publish output and generates one Component per file.
-         Add new dependencies?  Re-publish and rebuild the MSI — no manifest edits needed. -->
+         Add new dependencies?  Re-publish and rebuild the MSI â€” no manifest edits needed. -->
     <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
       <Files Include="$(var.PublishDir)\**">
         <!-- Skip debug symbols and XML doc files to keep the MSI lean -->

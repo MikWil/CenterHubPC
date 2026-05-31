@@ -2,21 +2,28 @@
 
 ## Project Overview
 
-CenterHub is a Windows desktop productivity app (system monitoring, audio controls, file management, productivity tools). Built with **Avalonia UI 11** + **.NET 8** following the MVVM pattern.
+CenterHub is a Windows desktop productivity app (system monitoring, audio controls, file management, productivity tools). Built with **Avalonia UI 11** + **.NET 10 LTS** following the MVVM pattern. Windows 11 native look-and-feel via Mica backdrop, with Acrylic fallback on older Windows.
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| UI Framework | Avalonia UI 11.x (migrated from WPF) |
-| MVVM Toolkit | CommunityToolkit.Mvvm 8.x |
-| DI Container | Microsoft.Extensions.DependencyInjection |
-| Logging | Microsoft.Extensions.Logging |
-| Audio | NAudio, AudioSwitcher.AudioApi.CoreAudio |
-| Hardware Monitor | LibreHardwareMonitorLib |
-| Config | Microsoft.Extensions.Configuration (JSON) |
-| Notifications | Custom Avalonia toast stack |
-| Serialization | Newtonsoft.Json |
+| Layer | Technology | Version |
+|-------|-----------|---------|
+| Runtime | .NET (LTS) | **10.0** |
+| Target framework | `net10.0-windows10.0.22621.0` | Win11 22H2+ |
+| UI Framework | Avalonia UI | 11.2.3 |
+| MVVM Toolkit | CommunityToolkit.Mvvm | 8.4.2 |
+| DI Container | Microsoft.Extensions.DependencyInjection | 10.0.8 |
+| Logging | Microsoft.Extensions.Logging | 10.0.8 |
+| Hosting | Microsoft.Extensions.Hosting | 10.0.8 |
+| Config | Microsoft.Extensions.Configuration (JSON) | 10.0.8 |
+| Audio | NAudio + AudioSwitcher.AudioApi.CoreAudio | 2.3.0 / 3.0.3 |
+| Hardware Monitor | LibreHardwareMonitorLib | 0.9.6 |
+| Serialization | Newtonsoft.Json | 13.0.4 |
+| WMI | System.Management | 10.0.8 |
+| WinForms interop | `UseWindowsForms` (for NotifyIcon) | implicit |
+| Icons | Segoe Fluent Icons (system font) | Win11 |
+| Notifications | Custom Avalonia toast stack | n/a |
+| Installer | WiX Toolset | 6.x |
 
 ## Project Structure
 
