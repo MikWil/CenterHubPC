@@ -53,7 +53,7 @@ Built with **Avalonia UI 11** on **.NET 10 LTS**.
 - **Skip-phase** command if you want to flip early
 - **Real Windows toast notifications** (v5.3.0+) — phase transitions raise an Action Center notification with `Reminder` priority. **Breaks through Focus Assist and Game Mode** so you actually see them while gaming. Same-group tagging means a "Sit down" toast replaces an in-flight "Stand up" toast instead of stacking up while you're AFK.
 
-<img width="1361" height="877" alt="Standing Timer — hero panel with countdown, progress, stats" src="https://github.com/user-attachments/assets/ca271814-582f-4549-94e3-34c1be5ef8dd" />
+<img alt="Standing Timer — presets, configuration, session stats" src="docs/screenshots/standing-timer.png" />
 
 ---
 

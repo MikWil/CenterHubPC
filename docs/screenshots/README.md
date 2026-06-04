@@ -9,6 +9,7 @@ image refs resolve:
 |---|---|
 | `window-layouts.png` | Window Layouts page with at least one saved layout card visible (Apply / 🔄 / ✏ / 🗑 actions) |
 | `update-banner.png` | The sky-blue update banner under the title bar — "Update available — vN.N.N is ready to install" |
+| `standing-timer.png` | Standing Timer landing state — Presets row, Configuration with sit/stand inputs, Session Stats |
 
 Recommended capture:
 
