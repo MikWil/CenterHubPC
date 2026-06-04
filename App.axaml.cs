@@ -226,6 +226,7 @@ namespace CenterHubNew
                     services.AddSingleton<GlobalHotkeyService>();
                     services.AddSingleton<WindowLayoutService>();
                     services.AddSingleton<UpdateService>();
+                    services.AddSingleton<WindowsNotificationService>();
 
                     services.AddTransient<MainViewModel>();
                     services.AddTransient<HomeViewModel>();

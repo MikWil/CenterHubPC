@@ -38,7 +38,7 @@ namespace CenterHubNew.MVVM.Services
     /// </summary>
     public sealed class UpdateService : IDisposable
     {
-        private const string GitHubRepo = "MikWil/WilkonCenterHub";
+        private const string GitHubRepo = "MikWil/CenterHubPC";
         private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(6);
 
         private readonly ILogger<UpdateService>? _logger;

@@ -65,7 +65,7 @@ Built with **Avalonia UI 11** on **.NET 10 LTS**.
 ## 📦 Install
 
 ### MSI installer (recommended)
-Download **`CenterHub.msi`** from the [latest release](https://github.com/MikWil/WilkonCenterHub/releases/latest) and run it. Code-signed, installs to `%LOCALAPPDATA%\CenterHub`, creates Start-Menu + Desktop shortcuts, no admin needed. Upgrading from an earlier version is automatic — MSI MajorUpgrade removes the old install first.
+Download **`CenterHub.msi`** from the [latest release](https://github.com/MikWil/CenterHubPC/releases/latest) and run it. Code-signed, installs to `%LOCALAPPDATA%\CenterHub`, creates Start-Menu + Desktop shortcuts, no admin needed. Upgrading from an earlier version is automatic — MSI MajorUpgrade removes the old install first.
 
 ### Portable
 Grab `CenterHub-vX.Y.Z-Portable.zip`, extract anywhere, run `CenterHubNew.exe`. Settings live in `appsettings.json` next to the binary.
@@ -186,7 +186,7 @@ Sound profiles, hotkey bindings, soundboard entries, and clipboard pins are pers
 
 ## 🚀 Releases
 
-See the [Releases page](https://github.com/MikWil/WilkonCenterHub/releases) for changelogs and downloadable installers.
+See the [Releases page](https://github.com/MikWil/CenterHubPC/releases) for changelogs and downloadable installers.
 
 Latest highlights:
 - **v5.1.0** — .NET 10 LTS runtime, Microsoft.Extensions 10.0.8, package refresh

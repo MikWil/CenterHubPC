@@ -57,7 +57,11 @@
                         <GradientStop Color="#88141422" Offset="1"/>
                     </LinearGradientBrush>
                 </Border.Background>
-                <Grid RowDefinitions="4,*">
+                <!-- RowDefinitions MUST use Auto, not *, for the content row.
+                     Inside a ScrollViewer, * asks for "all remaining space" during the
+                     infinite-height measure pass, which makes this Border consume the
+                     whole viewport and breaks vertical scrolling for everything below. -->
+                <Grid RowDefinitions="4,Auto">
 
                     <!-- Top colored stripe (changes per phase via Style) -->
                     <Border Grid.Row="0">

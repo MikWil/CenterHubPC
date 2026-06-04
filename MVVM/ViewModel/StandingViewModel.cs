@@ -68,8 +68,13 @@ namespace CenterHubNew.MVVM.ViewModel
         private TimeSpan _totalStanding;
         private TimeSpan _totalSitting;
 
-        public StandingViewModel(ILogger<StandingViewModel>? logger = null) : base(logger)
+        private readonly WindowsNotificationService? _winNotify;
+
+        public StandingViewModel(
+            WindowsNotificationService? winNotify = null,
+            ILogger<StandingViewModel>? logger = null) : base(logger)
         {
+            _winNotify = winNotify;
             Logger?.LogInformation("StandingViewModel initialized");
         }
 
@@ -207,10 +212,34 @@ namespace CenterHubNew.MVVM.ViewModel
 
             if (notify)
             {
+                // In-app toast (visible only while CenterHub is foreground)
                 if (next == StandingPhase.Standing)
                     ToastService.Instance.Success("Stand up! Time to stretch your back.");
                 else
                     ToastService.Instance.Info("Sit down — focus time.");
+
+                // Real Windows Action Center toast — survives minimize/hide,
+                // breaks through Focus Assist and Game Mode at Reminder priority.
+                // Same Group/Tag for both phase transitions so a "Stand up" toast
+                // replaces an in-flight "Sit down" toast instead of stacking.
+                if (next == StandingPhase.Standing)
+                {
+                    _winNotify?.Show(
+                        title: "Stand up!",
+                        body: $"You've been sitting for {_sitMinutes} min. Stretch your back, walk for a moment.",
+                        priority: WindowsNotificationPriority.Reminder,
+                        subtitleTag: "CenterHub · Standing Timer",
+                        group: "standing-timer");
+                }
+                else
+                {
+                    _winNotify?.Show(
+                        title: "Sit down.",
+                        body: $"You've been standing for {_standMinutes} min. Focus time — sit and get back to work.",
+                        priority: WindowsNotificationPriority.Reminder,
+                        subtitleTag: "CenterHub · Standing Timer",
+                        group: "standing-timer");
+                }
             }
         }
 
