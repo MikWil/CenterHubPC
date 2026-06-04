@@ -31,6 +31,11 @@ namespace CenterHubNew.MVVM.Models
 
         // Standing Timer
         StandingTimerStartStop,
+
+        // Window Layouts (apply slot N)
+        ApplyLayout1,
+        ApplyLayout2,
+        ApplyLayout3,
     }
 
     /// <summary>

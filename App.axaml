@@ -35,6 +35,9 @@
         <DataTemplate DataType="{x:Type viewmodel:HotkeySettingsViewModel}">
             <view:HotkeySettingsView/>
         </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodel:WindowLayoutsViewModel}">
+            <view:WindowLayoutsView/>
+        </DataTemplate>
     </Application.DataTemplates>
 
     <Application.Styles>

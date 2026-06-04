@@ -54,10 +54,12 @@ namespace CenterHubNew
                     mainWindow.Show();
 
                     InitializeGlobalHotkeys(mainWindow);
+                    ScheduleUpdateCheck();
 
                     lifetime.Exit += (_, _) =>
                     {
                         try { _host.Services.GetService<GlobalHotkeyService>()?.Dispose(); } catch { }
+                        try { _host.Services.GetService<UpdateService>()?.Dispose(); } catch { }
                         _mutex?.ReleaseMutex();
                         _mutex?.Dispose();
                         try { _host.StopAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult(); } catch { }
@@ -142,6 +144,11 @@ namespace CenterHubNew
                     var vm = Services.GetService<StandingViewModel>();
                     if (vm != null) { if (vm.IsStartButtonEnabled) vm.StartTimers(); else vm.StopTimers(); }
                 }));
+
+                // ── Window layouts: apply slot N directly via the singleton service
+                hotkeyService.SetCallback(HotkeyAction.ApplyLayout1, () => ApplyLayoutSlot(0));
+                hotkeyService.SetCallback(HotkeyAction.ApplyLayout2, () => ApplyLayoutSlot(1));
+                hotkeyService.SetCallback(HotkeyAction.ApplyLayout3, () => ApplyLayoutSlot(2));
             }
             catch (Exception ex)
             {
@@ -150,12 +157,53 @@ namespace CenterHubNew
             }
         }
 
+        /// <summary>
+        /// Fire-and-forget background poll of the GitHub Releases API ~10 s
+        /// after window-open. Result is fed into MainViewModel via
+        /// UpdateService.UpdateChanged, which surfaces the banner.
+        /// </summary>
+        private static void ScheduleUpdateCheck()
+        {
+            _ = System.Threading.Tasks.Task.Run(async () =>
+            {
+                try
+                {
+                    await System.Threading.Tasks.Task.Delay(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    var svc = Services.GetService<UpdateService>();
+                    if (svc is null) return;
+                    await svc.CheckAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Services.GetService<ILogger<App>>()?.LogWarning(ex, "Background update check failed");
+                }
+            });
+        }
+
         private static void PlaySoundboardItem(int index) =>
             TryPost(() =>
             {
                 var vm = Services.GetService<SoundboardViewModel>();
                 if (vm?.Sounds != null && vm.Sounds.Count > index)
                     vm.PlaySoundCommand.Execute(vm.Sounds[index]);
+            });
+
+        private static void ApplyLayoutSlot(int zeroBasedIndex) =>
+            TryPost(() =>
+            {
+                var svc = Services.GetService<WindowLayoutService>();
+                if (svc is null) return;
+                if (zeroBasedIndex >= svc.Layouts.Count)
+                {
+                    ToastService.Instance.Warning($"No layout in slot {zeroBasedIndex + 1}");
+                    return;
+                }
+                var layout = svc.Layouts[zeroBasedIndex];
+                var applied = svc.ApplyLayout(layout);
+                if (applied > 0)
+                    ToastService.Instance.Success($"Applied '{layout.Name}' — {applied} window{(applied == 1 ? "" : "s")} placed");
+                else
+                    ToastService.Instance.Warning($"'{layout.Name}' — no matching windows are open");
             });
 
         private static void TryPost(Action action)
@@ -176,6 +224,8 @@ namespace CenterHubNew
                     services.AddSingleton<AutoClickerService>();
                     services.AddSingleton<SoundboardService>();
                     services.AddSingleton<GlobalHotkeyService>();
+                    services.AddSingleton<WindowLayoutService>();
+                    services.AddSingleton<UpdateService>();
 
                     services.AddTransient<MainViewModel>();
                     services.AddTransient<HomeViewModel>();
@@ -195,6 +245,9 @@ namespace CenterHubNew
                     services.AddTransient<ConverterToolsViewModel>();
                     services.AddTransient<HotkeySettingsViewModel>();
                     services.AddTransient<FavoritesViewModel>();
+                    // Transient — MainViewModel disposes child VMs on shutdown;
+                    // the long-lived state lives in WindowLayoutService (singleton).
+                    services.AddTransient<WindowLayoutsViewModel>();
 
                     services.AddTransient<MainWindow>();
                     services.AddTransient<FavoritesWindow>();

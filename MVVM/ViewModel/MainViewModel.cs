@@ -1,13 +1,19 @@
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Threading;
+using CenterHubNew.MVVM.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Threading.Tasks;
 
 namespace CenterHubNew.MVVM.ViewModel
 {
     public partial class MainViewModel : BaseViewModel
     {
+        private readonly UpdateService? _updateService;
+
         private MonitoringViewModel? _monitoringVM;
         private SoundViewModel? _soundVM;
         private SoundboardViewModel? _soundboardVM;
@@ -17,6 +23,16 @@ namespace CenterHubNew.MVVM.ViewModel
         private StandingViewModel? _standingVM;
         private QuickNotesViewModel? _notesVM;
         private HotkeySettingsViewModel? _hotkeySettingsVM;
+        private WindowLayoutsViewModel? _layoutsVM;
+
+        // ─── Update banner state ───
+        [ObservableProperty] private bool   _isUpdateAvailable;
+        [ObservableProperty] private string _updateVersion = "";
+        [ObservableProperty] private string _updateHeadline = "Update available";
+        [ObservableProperty] private string _updateBodyPreview = "";
+        [ObservableProperty] private bool   _isDownloadingUpdate;
+        [ObservableProperty] private double _downloadProgressPercent;
+        [ObservableProperty] private string _updateActionText = "Download & install";
 
         [ObservableProperty]
         private object? _currentView;
@@ -49,6 +65,9 @@ namespace CenterHubNew.MVVM.ViewModel
         private bool isHotkeySettingsSelected = false;
 
         [ObservableProperty]
+        private bool isLayoutsSelected = false;
+
+        [ObservableProperty]
         private bool isSidebarExpanded = true;
 
         [ObservableProperty]
@@ -57,12 +76,131 @@ namespace CenterHubNew.MVVM.ViewModel
         public string SidebarToggleIcon => IsSidebarExpanded ? "◀" : "▶";
         public string SidebarToggleText => IsSidebarExpanded ? "Collapse" : "";
 
-        public MainViewModel(ILogger<MainViewModel>? logger = null) : base(logger)
+        public MainViewModel(
+            UpdateService? updateService = null,
+            ILogger<MainViewModel>? logger = null) : base(logger)
         {
+            _updateService = updateService;
+
             // Set initial view to Monitoring
             MonitoringView();
-            
+
+            // Subscribe to the update service so the banner appears whenever a
+            // check (running in App startup) finds something newer than us.
+            if (_updateService is not null)
+            {
+                _updateService.UpdateChanged += OnUpdateChanged;
+            }
+
             Logger?.LogInformation("MainViewModel initialized");
+        }
+
+        // ─── Update banner ───
+
+        private void OnUpdateChanged(UpdateInfo? info)
+        {
+            // Always marshal to UI thread — UpdateService raises this from the background check task
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (IsDisposed) return;
+                if (info is null)
+                {
+                    IsUpdateAvailable = false;
+                    return;
+                }
+                IsUpdateAvailable = true;
+                UpdateVersion = info.Version;
+                UpdateHeadline = $"v{info.Version} is ready to install";
+                UpdateBodyPreview = ShortenBody(info.Body);
+            });
+        }
+
+        private static string ShortenBody(string body)
+        {
+            if (string.IsNullOrWhiteSpace(body)) return "Click Download & install to upgrade.";
+            // Strip markdown headers/badges, take first non-empty line, cap length.
+            var line = "";
+            foreach (var raw in body.Split('\n'))
+            {
+                var t = raw.Trim().TrimStart('#', '>', '-', '*', ' ').Trim();
+                if (string.IsNullOrEmpty(t)) continue;
+                if (t.StartsWith("![")) continue;       // image badges
+                if (t.StartsWith("[")) continue;        // link-only lines
+                line = t; break;
+            }
+            if (string.IsNullOrEmpty(line)) line = body.Trim();
+            return line.Length > 140 ? line[..140] + "…" : line;
+        }
+
+        [RelayCommand]
+        private async Task DownloadAndInstallUpdate()
+        {
+            if (_updateService?.AvailableUpdate is null || IsDownloadingUpdate) return;
+
+            IsDownloadingUpdate = true;
+            UpdateActionText = "Downloading…";
+            DownloadProgressPercent = 0;
+
+            var progress = new Progress<(long d, long t)>(tuple =>
+            {
+                if (tuple.t > 0)
+                    DownloadProgressPercent = (double)tuple.d / tuple.t * 100.0;
+            });
+
+            string? msiPath = null;
+            try
+            {
+                msiPath = await _updateService.DownloadAsync(progress);
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogWarning(ex, "Update download failed");
+            }
+
+            if (string.IsNullOrEmpty(msiPath))
+            {
+                IsDownloadingUpdate = false;
+                UpdateActionText = "Download failed — retry";
+                DownloadProgressPercent = 0;
+                ToastService.Instance.Error("Couldn't download update. Try again later.");
+                return;
+            }
+
+            UpdateActionText = "Launching installer…";
+            ToastService.Instance.Info("Installer launching — CenterHub will close to complete the upgrade.");
+
+            // Small delay so the user sees the toast before we yank the window
+            await Task.Delay(800);
+
+            var ok = _updateService.LaunchInstaller(msiPath);
+            if (!ok)
+            {
+                IsDownloadingUpdate = false;
+                UpdateActionText = "Could not start msiexec — retry";
+                ToastService.Instance.Error("Could not start the installer. See logs for details.");
+                return;
+            }
+
+            // Shutdown — the closing event recognizes ApplicationShutdown and
+            // skips the exit-confirmation prompt automatically.
+            var lifetime = Avalonia.Application.Current?.ApplicationLifetime
+                            as IClassicDesktopStyleApplicationLifetime;
+            lifetime?.Shutdown();
+        }
+
+        [RelayCommand]
+        private void SkipUpdate()
+        {
+            _updateService?.SkipCurrent();
+            IsUpdateAvailable = false;
+            ToastService.Instance.Info($"Skipped v{UpdateVersion}. You'll be prompted again on the next release.");
+        }
+
+        [RelayCommand]
+        private void DismissUpdate()
+        {
+            _updateService?.DismissForSession();
+            IsUpdateAvailable = false;
         }
 
         private void DeselectAll()
@@ -76,6 +214,7 @@ namespace CenterHubNew.MVVM.ViewModel
             IsStandingSelected = false;
             IsNotesSelected = false;
             IsHotkeySettingsSelected = false;
+            IsLayoutsSelected = false;
         }
 
         [RelayCommand]
@@ -213,10 +352,27 @@ namespace CenterHubNew.MVVM.ViewModel
             }
         }
 
+        [RelayCommand]
+        private void LayoutsView()
+        {
+            ThrowIfDisposed();
+            _layoutsVM ??= App.Services.GetService(typeof(WindowLayoutsViewModel)) as WindowLayoutsViewModel;
+            if (_layoutsVM != null)
+            {
+                CurrentView = _layoutsVM;
+                DeselectAll();
+                IsLayoutsSelected = true;
+                Logger?.LogDebug("Switched to Window Layouts view");
+            }
+        }
+
         protected override void Dispose(bool disposing)
         {
             if (!IsDisposed && disposing)
             {
+                if (_updateService is not null)
+                    _updateService.UpdateChanged -= OnUpdateChanged;
+
                 if (CurrentView is IDisposable currentDisposable)
                 {
                     currentDisposable.Dispose();
@@ -231,6 +387,7 @@ namespace CenterHubNew.MVVM.ViewModel
                 _standingVM?.Dispose();
                 _notesVM?.Dispose();
                 _hotkeySettingsVM?.Dispose();
+                _layoutsVM?.Dispose();
             }
             base.Dispose(disposing);
         }

@@ -21,7 +21,7 @@
             BorderThickness="1"
             BorderBrush="{StaticResource BorderHairline}"
             CornerRadius="8">
-        <Grid RowDefinitions="Auto,*">
+        <Grid RowDefinitions="Auto,Auto,*">
 
             <!-- ===== TITLE BAR ===== -->
             <Border Grid.Row="0"
@@ -85,8 +85,87 @@
                 </Grid>
             </Border>
 
+            <!-- ===== UPDATE BANNER ===== -->
+            <Border Grid.Row="1"
+                    Background="{StaticResource AccentSubtleBrush}"
+                    BorderThickness="0,0,0,1"
+                    BorderBrush="{StaticResource AccentBrush}"
+                    Padding="20,10"
+                    IsVisible="{Binding IsUpdateAvailable}">
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto" RowDefinitions="Auto,Auto">
+
+                    <!-- Status icon -->
+                    <Border Grid.Column="0" Grid.RowSpan="2"
+                            Width="34" Height="34" CornerRadius="10"
+                            Background="{StaticResource AccentBrush}"
+                            VerticalAlignment="Center" Margin="0,0,14,0">
+                        <TextBlock Text="&#xE895;"
+                                   FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"
+                                   FontSize="17"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="{StaticResource TextOnAccentBrush}"/>
+                    </Border>
+
+                    <!-- Headline + body preview -->
+                    <StackPanel Grid.Column="1" Grid.RowSpan="2" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="Update available —"
+                                       FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding UpdateHeadline}"
+                                       FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{StaticResource AccentHoverBrush}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding UpdateBodyPreview}"
+                                   FontSize="11"
+                                   Foreground="{StaticResource TextMutedBrush}"
+                                   TextTrimming="CharacterEllipsis"
+                                   MaxWidth="700"
+                                   HorizontalAlignment="Left"
+                                   Margin="0,2,0,0"
+                                   IsVisible="{Binding !IsDownloadingUpdate}"/>
+                        <ProgressBar Value="{Binding DownloadProgressPercent}"
+                                     Maximum="100"
+                                     Height="4"
+                                     MinWidth="240"
+                                     HorizontalAlignment="Left"
+                                     Margin="0,6,0,0"
+                                     Foreground="{StaticResource AccentBrush}"
+                                     IsVisible="{Binding IsDownloadingUpdate}"/>
+                    </StackPanel>
+
+                    <!-- Action buttons -->
+                    <StackPanel Grid.Column="2" Grid.RowSpan="2" Orientation="Horizontal" Spacing="6"
+                                VerticalAlignment="Center" Margin="14,0,0,0">
+                        <Button Classes="primary" Padding="14,7" FontSize="12"
+                                Content="{Binding UpdateActionText}"
+                                Command="{Binding DownloadAndInstallUpdateCommand}"
+                                IsEnabled="{Binding !IsDownloadingUpdate}"/>
+                        <Button Classes="secondary" Padding="12,7" FontSize="12"
+                                Content="Skip this version"
+                                ToolTip.Tip="Don't show this version again — wait for the next one"
+                                Command="{Binding SkipUpdateCommand}"
+                                IsEnabled="{Binding !IsDownloadingUpdate}"/>
+                    </StackPanel>
+
+                    <Button Grid.Column="3" Grid.RowSpan="2"
+                            Classes="ghost" Padding="8,7"
+                            VerticalAlignment="Center" Margin="4,0,0,0"
+                            ToolTip.Tip="Hide until next launch"
+                            Command="{Binding DismissUpdateCommand}"
+                            IsEnabled="{Binding !IsDownloadingUpdate}">
+                        <TextBlock Text="&#xE894;"
+                                   FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"
+                                   FontSize="14"
+                                   Foreground="{StaticResource TextMutedBrush}"/>
+                    </Button>
+                </Grid>
+            </Border>
+
             <!-- ===== MAIN LAYOUT: sidebar + content ===== -->
-            <Grid Grid.Row="1">
+            <Grid Grid.Row="2">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="{Binding SidebarWidth}"/>
                     <ColumnDefinition Width="*"/>
@@ -137,6 +216,13 @@
                                              ToolTip.Tip="Quick notes"
                                              IsChecked="{Binding IsNotesSelected}"
                                              Command="{Binding NotesViewCommand}"
+                                             GroupName="Nav"/>
+                                <RadioButton Classes="navtab"
+                                             Tag="&#xE737;"
+                                             Content="Layouts"
+                                             ToolTip.Tip="Save and restore window arrangements"
+                                             IsChecked="{Binding IsLayoutsSelected}"
+                                             Command="{Binding LayoutsViewCommand}"
                                              GroupName="Nav"/>
 
                                 <!-- MEDIA -->
@@ -232,7 +318,7 @@
 
             <!-- ===== EXIT CONFIRMATION OVERLAY ===== -->
             <Border x:Name="ExitOverlay"
-                    Grid.RowSpan="2"
+                    Grid.RowSpan="3"
                     Background="#A8000000"
                     IsVisible="False"
                     ZIndex="1000">

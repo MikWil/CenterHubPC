@@ -184,6 +184,9 @@ namespace CenterHubNew.MVVM.Services
             Add(HotkeyAction.SoundboardPlay3, "Play Sound 3", "SOUNDBOARD");
             Add(HotkeyAction.SoundboardStopPlayback, "Stop Playback", "SOUNDBOARD");
             Add(HotkeyAction.StandingTimerStartStop, "Start / Stop", "STANDING TIMER");
+            Add(HotkeyAction.ApplyLayout1, "Apply Layout 1", "WINDOW LAYOUTS");
+            Add(HotkeyAction.ApplyLayout2, "Apply Layout 2", "WINDOW LAYOUTS");
+            Add(HotkeyAction.ApplyLayout3, "Apply Layout 3", "WINDOW LAYOUTS");
             ApplyDefaults();
         }
 
