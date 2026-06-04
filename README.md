@@ -18,8 +18,8 @@ Built with **Avalonia UI 11** on **.NET 10 LTS**.
 | Live CPU / GPU / RAM percentages with **temperature badges** (now + max) | Color-coded per metric (blue / violet / emerald / amber) |
 | **Storage tiles** for every fixed drive — used / total + fill bar | Updates every 2 seconds via [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) |
 | **Compact Favorites panel** (always-on-top, 380×640) | Per-tile DWM-aware borders that don't bleed |
+<img width="1359" height="879" alt="image" src="https://github.com/user-attachments/assets/b9e1f2fd-9eaf-42f9-8ccb-734e02fb6724" />
 
-<img width="1361" height="870" alt="Monitoring tab — CPU/GPU/RAM cards + storage tiles" src="https://github.com/user-attachments/assets/dd9a2651-6436-4fc1-8c0f-6e1e8517bc84" />
 
 ---
 
@@ -29,8 +29,9 @@ Built with **Avalonia UI 11** on **.NET 10 LTS**.
 - **Quick-controls strip** — output device, master volume slider, mic mute toggle, default playback/communication device pickers
 - **Advanced Sound Controls** window — per-app volume mixer (like SndVol but Fluent-themed)
 - **Compact Favorites panel** for secondary monitors (Corsair Edge / pen-display friendly)
+<img width="1368" height="879" alt="image" src="https://github.com/user-attachments/assets/d1d8d6b5-670d-4ed4-a24e-13be53219ce6" />
 
-<img width="1369" height="878" alt="Sound tab — profiles, quick controls, advanced mixer" src="https://github.com/user-attachments/assets/9f493e09-fcd7-461d-a27e-e89ca7d8ee6d" />
+
 
 ---
 
@@ -42,6 +43,8 @@ Built with **Avalonia UI 11** on **.NET 10 LTS**.
 - Optional **monitor mix** — hear yourself
 - **Discord setup wizard** built in with step-by-step Voicemeeter routing
 - Bindable global hotkeys for "Play sound 1 / 2 / 3" and "Stop playback"
+- <img width="1364" height="874" alt="image" src="https://github.com/user-attachments/assets/32e643e8-8768-46a0-9ae1-55e84500565f" />
+
 
 ---
 
@@ -53,7 +56,8 @@ Built with **Avalonia UI 11** on **.NET 10 LTS**.
 - **Skip-phase** command if you want to flip early
 - **Real Windows toast notifications** (v5.3.0+) — phase transitions raise an Action Center notification with `Reminder` priority. **Breaks through Focus Assist and Game Mode** so you actually see them while gaming. Same-group tagging means a "Sit down" toast replaces an in-flight "Stand up" toast instead of stacking up while you're AFK.
 
-<img alt="Standing Timer — presets, configuration, session stats" src="docs/screenshots/standing-timer.png" />
+<img width="1365" height="875" alt="image" src="https://github.com/user-attachments/assets/f4f1e5f1-f39b-41c1-98d2-132e9e640c7c" />
+
 
 ---
 
@@ -75,7 +79,8 @@ The hard part — multi-monitor + DWM border compensation — is handled correct
 Persisted at `%LOCALAPPDATA%\CenterHub\layouts.json`.
 
 <!-- Drop a screenshot of the Layouts page at docs/screenshots/window-layouts.png to enable -->
-<img alt="Window Layouts page — saved layout cards with apply/recapture/rename/delete actions" src="docs/screenshots/window-layouts.png" />
+<img width="1354" height="876" alt="image" src="https://github.com/user-attachments/assets/e1a5adc8-6880-4058-b57f-4e43b3307954" />
+
 
 ---
 
@@ -94,8 +99,8 @@ Doesn't fight your cursor. Three modes:
 - **Click limit** (0 = ∞), **L/R/M button picker**, **±N px jitter**
 - Live click counter + elapsed clock
 - Sub-second intervals allowed (`0,05` = 50 ms / 20 cps) — accepts both `.` and `,` decimal separators
+<img width="1353" height="870" alt="image" src="https://github.com/user-attachments/assets/6f154a37-6bea-482c-a388-2ae6e841c3ca" />
 
-<img width="1371" height="872" alt="Auto Clicker — modes, configuration, advanced jitter/failsafe" src="https://github.com/user-attachments/assets/eb791011-6126-4268-bd9e-df5d5cb93ea9" />
 
 ---
 
@@ -127,7 +132,8 @@ Doesn't fight your cursor. Three modes:
 | **Unix timestamp ↔ date** | Local and UTC |
 | **GUID generator** | Standard, UPPERCASE, no-dashes |
 
-<img width="1359" height="880" alt="Utilities tab — JSON, Base64, URL, Hash, Unix time, GUID" src="https://github.com/user-attachments/assets/f0cf4724-3f9b-44f9-a8c5-13f89dac080a" />
+<img width="1357" height="874" alt="image" src="https://github.com/user-attachments/assets/0e94c322-442c-48ac-9c28-e3f2fc3492b9" />
+
 
 ---
 
