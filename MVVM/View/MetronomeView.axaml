@@ -159,6 +159,29 @@
                                  Margin="14,0,0,0"/>
                     </Grid>
 
+                    <!-- Volume row -->
+                    <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,14">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6"
+                                    VerticalAlignment="Center" Width="90">
+                            <TextBlock Text="&#xE767;" FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                       FontSize="14" Foreground="{StaticResource TextMutedBrush}"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock Text="VOLUME" FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                       Foreground="{StaticResource TextMutedBrush}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <Slider Grid.Column="1"
+                                Minimum="0" Maximum="1"
+                                Value="{Binding Volume, Mode=TwoWay}"
+                                VerticalAlignment="Center"
+                                Margin="10,0,10,0"/>
+                        <TextBlock Grid.Column="2"
+                                   Text="{Binding Volume, StringFormat={}{0:P0}}"
+                                   FontSize="12" FontWeight="SemiBold" Width="42"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   VerticalAlignment="Center" TextAlignment="Right"/>
+                    </Grid>
+
                     <Grid ColumnDefinitions="*,12,*">
                         <Border Grid.Column="0" Classes="card-inner">
                             <StackPanel>

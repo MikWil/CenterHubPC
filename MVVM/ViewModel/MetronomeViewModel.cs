@@ -21,9 +21,10 @@ namespace CenterHubNew.MVVM.ViewModel
         private DispatcherTimer? _tick;
 
         // ── User config ──
-        [ObservableProperty] private int  _bpm = 120;
-        [ObservableProperty] private int  _beatsPerMeasure = 4;
-        [ObservableProperty] private bool _accentEnabled  = true;
+        [ObservableProperty] private int   _bpm = 120;
+        [ObservableProperty] private int   _beatsPerMeasure = 4;
+        [ObservableProperty] private bool  _accentEnabled  = true;
+        [ObservableProperty] private double _volume = 0.75; // 0.0–1.0
 
         // ── Live state ──
         [ObservableProperty] private bool _isPlaying;
@@ -146,7 +147,7 @@ namespace CenterHubNew.MVVM.ViewModel
             CurrentBeat = CurrentBeat % BeatsPerMeasure + 1; // 1..N rolling
             var accent  = AccentEnabled && CurrentBeat == 1;
 
-            _audio.Tick(accent);
+            _audio.Tick(accent, (float)Volume);
             Pulse = !Pulse; // toggle so the visual element can re-animate
         }
 

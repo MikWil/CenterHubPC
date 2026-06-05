@@ -20,8 +20,8 @@ namespace CenterHubNew.MVVM.Services
 
         public MetronomeService()
         {
-            _tickPcm   = GenerateClick(frequencyHz: 1000, durationSec: 0.040, amplitude: 0.35);
-            _accentPcm = GenerateClick(frequencyHz: 1500, durationSec: 0.045, amplitude: 0.55);
+            _tickPcm   = GenerateClick(frequencyHz: 1200, durationSec: 0.035, amplitude: 0.60, decayRate: 80);
+            _accentPcm = GenerateClick(frequencyHz:  800, durationSec: 0.045, amplitude: 0.90, decayRate: 60);
         }
 
         /// <summary>Start the output stream if not already running.</summary>
@@ -38,12 +38,25 @@ namespace CenterHubNew.MVVM.Services
             _output.Play();
         }
 
-        /// <summary>Queue one click. accent=true plays the brighter beat-1 sound.</summary>
-        public void Tick(bool accent)
+        /// <summary>Queue one click. accent=true plays the deeper beat-1 sound.</summary>
+        public void Tick(bool accent, float volume = 1.0f)
         {
             Prime();
-            var pcm = accent ? _accentPcm : _tickPcm;
-            _buffer?.AddSamples(pcm, 0, pcm.Length);
+            var src = accent ? _accentPcm : _tickPcm;
+            if (Math.Abs(volume - 1.0f) < 0.005f)
+            {
+                _buffer?.AddSamples(src, 0, src.Length);
+                return;
+            }
+            // Scale amplitude by volume without allocating on every tick
+            var scaled = new byte[src.Length];
+            for (int i = 0; i < src.Length - 1; i += 2)
+            {
+                short s = (short)(BitConverter.ToInt16(src, i) * volume);
+                scaled[i]     = (byte)(s & 0xFF);
+                scaled[i + 1] = (byte)((s >> 8) & 0xFF);
+            }
+            _buffer?.AddSamples(scaled, 0, scaled.Length);
         }
 
         /// <summary>Stop and dispose the output (keeps the cached PCM).</summary>
@@ -57,27 +70,32 @@ namespace CenterHubNew.MVVM.Services
 
         // ─────────────────── Tone synthesis ───────────────────
 
-        private byte[] GenerateClick(double frequencyHz, double durationSec, double amplitude)
+        // Percussive click: very short attack (1 ms), then exponential decay.
+        // Mixing the fundamental with a 2x overtone adds presence and cuts through
+        // well at higher tempos.
+        private byte[] GenerateClick(double frequencyHz, double durationSec, double amplitude, double decayRate = 70)
         {
-            int samples = (int)(_format.SampleRate * durationSec);
-            int rampSamples = (int)(_format.SampleRate * 0.005); // 5 ms attack + release
+            int samples    = (int)(_format.SampleRate * durationSec);
+            int attackSamples = (int)(_format.SampleRate * 0.001); // 1 ms attack
             var shorts = new short[samples];
 
-            double phase = 0;
-            double phaseInc = 2 * Math.PI * frequencyHz / _format.SampleRate;
+            double phase     = 0;
+            double phase2    = 0;
+            double phaseInc  = 2 * Math.PI * frequencyHz / _format.SampleRate;
+            double phaseInc2 = 2 * Math.PI * frequencyHz * 2 / _format.SampleRate;
 
             for (int i = 0; i < samples; i++)
             {
-                // Linear envelope to avoid the audible "snap" at start/end
-                double env = 1.0;
-                if (i < rampSamples)
-                    env = (double)i / rampSamples;
-                else if (i > samples - rampSamples)
-                    env = (double)(samples - i) / rampSamples;
+                double t   = (double)i / _format.SampleRate;
+                double env = Math.Exp(-decayRate * t);
+                if (i < attackSamples)
+                    env *= (double)i / attackSamples; // brief linear attack to avoid transient pop
 
-                double v = Math.Sin(phase) * amplitude * env;
-                shorts[i] = (short)(v * short.MaxValue);
-                phase += phaseInc;
+                // Fundamental + 2nd harmonic (−10 dB) for a woodier timbre
+                double v = (Math.Sin(phase) * 0.85 + Math.Sin(phase2) * 0.15) * amplitude * env;
+                shorts[i] = (short)(Math.Clamp(v, -1.0, 1.0) * short.MaxValue);
+                phase  += phaseInc;
+                phase2 += phaseInc2;
             }
 
             var bytes = new byte[samples * sizeof(short)];
