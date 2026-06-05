@@ -24,6 +24,9 @@ namespace CenterHubNew.MVVM.ViewModel
         private QuickNotesViewModel? _notesVM;
         private HotkeySettingsViewModel? _hotkeySettingsVM;
         private WindowLayoutsViewModel? _layoutsVM;
+        private NetworkViewModel? _networkVM;
+        private RandomizerViewModel? _randomizerVM;
+        private MetronomeViewModel? _metronomeVM;
 
         // ─── Update banner state ───
         [ObservableProperty] private bool   _isUpdateAvailable;
@@ -66,6 +69,15 @@ namespace CenterHubNew.MVVM.ViewModel
 
         [ObservableProperty]
         private bool isLayoutsSelected = false;
+
+        [ObservableProperty]
+        private bool isNetworkSelected = false;
+
+        [ObservableProperty]
+        private bool isRandomizerSelected = false;
+
+        [ObservableProperty]
+        private bool isMetronomeSelected = false;
 
         [ObservableProperty]
         private bool isSidebarExpanded = true;
@@ -215,6 +227,9 @@ namespace CenterHubNew.MVVM.ViewModel
             IsNotesSelected = false;
             IsHotkeySettingsSelected = false;
             IsLayoutsSelected = false;
+            IsNetworkSelected = false;
+            IsRandomizerSelected = false;
+            IsMetronomeSelected = false;
         }
 
         [RelayCommand]
@@ -366,6 +381,48 @@ namespace CenterHubNew.MVVM.ViewModel
             }
         }
 
+        [RelayCommand]
+        private void NetworkView()
+        {
+            ThrowIfDisposed();
+            _networkVM ??= App.Services.GetService(typeof(NetworkViewModel)) as NetworkViewModel;
+            if (_networkVM != null)
+            {
+                CurrentView = _networkVM;
+                DeselectAll();
+                IsNetworkSelected = true;
+                Logger?.LogDebug("Switched to Network view");
+            }
+        }
+
+        [RelayCommand]
+        private void RandomizerView()
+        {
+            ThrowIfDisposed();
+            _randomizerVM ??= App.Services.GetService(typeof(RandomizerViewModel)) as RandomizerViewModel;
+            if (_randomizerVM != null)
+            {
+                CurrentView = _randomizerVM;
+                DeselectAll();
+                IsRandomizerSelected = true;
+                Logger?.LogDebug("Switched to Randomizer view");
+            }
+        }
+
+        [RelayCommand]
+        private void MetronomeView()
+        {
+            ThrowIfDisposed();
+            _metronomeVM ??= App.Services.GetService(typeof(MetronomeViewModel)) as MetronomeViewModel;
+            if (_metronomeVM != null)
+            {
+                CurrentView = _metronomeVM;
+                DeselectAll();
+                IsMetronomeSelected = true;
+                Logger?.LogDebug("Switched to Metronome view");
+            }
+        }
+
         protected override void Dispose(bool disposing)
         {
             if (!IsDisposed && disposing)
@@ -388,6 +445,9 @@ namespace CenterHubNew.MVVM.ViewModel
                 _notesVM?.Dispose();
                 _hotkeySettingsVM?.Dispose();
                 _layoutsVM?.Dispose();
+                _networkVM?.Dispose();
+                _randomizerVM?.Dispose();
+                _metronomeVM?.Dispose();
             }
             base.Dispose(disposing);
         }

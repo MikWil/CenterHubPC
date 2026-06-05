@@ -3,7 +3,7 @@
 
   <!-- Version is overridden at build time via -d Version=x.y.z
        Default value below mirrors the current csproj version. -->
-  <?define Version = "5.3.0" ?>
+  <?define Version = "5.4.0" ?>
   <?define PublishDir = "..\publish\Release" ?>
 
   <Package Name="CenterHub"

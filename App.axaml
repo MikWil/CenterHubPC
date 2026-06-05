@@ -38,6 +38,15 @@
         <DataTemplate DataType="{x:Type viewmodel:WindowLayoutsViewModel}">
             <view:WindowLayoutsView/>
         </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodel:NetworkViewModel}">
+            <view:NetworkView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodel:RandomizerViewModel}">
+            <view:RandomizerView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodel:MetronomeViewModel}">
+            <view:MetronomeView/>
+        </DataTemplate>
     </Application.DataTemplates>
 
     <Application.Styles>

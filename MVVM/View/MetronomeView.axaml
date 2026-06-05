@@ -1,0 +1,255 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+             xmlns:conv="clr-namespace:CenterHubNew.MVVM.Converters"
+             x:Class="CenterHubNew.MVVM.View.MetronomeView"
+             x:DataType="viewmodel:MetronomeViewModel"
+             mc:Ignorable="d"
+             Background="Transparent">
+
+    <UserControl.Resources>
+        <conv:FlexibleIntConverter x:Key="FlexInt"/>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled"
+                  Padding="24,20" Background="Transparent">
+        <Border MaxWidth="900" HorizontalAlignment="Center">
+        <StackPanel Spacing="0" VerticalAlignment="Top">
+
+            <!-- ===== PAGE HEADER ===== -->
+            <Grid Margin="0,0,0,20" ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Metronome"
+                               FontSize="22" FontWeight="Bold"
+                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                    <TextBlock Text="Keep tempo for practice — accent beat 1, audible click via NAudio"
+                               FontSize="12"
+                               Foreground="{StaticResource TextMutedBrush}"
+                               Margin="0,2,0,0"/>
+                </StackPanel>
+                <Border Grid.Column="1" VerticalAlignment="Center"
+                        CornerRadius="6" Padding="10,5"
+                        Background="{StaticResource SuccessBrush}"
+                        IsVisible="{Binding IsPlaying}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="6" Height="6" CornerRadius="3"
+                                Background="White" VerticalAlignment="Center"/>
+                        <TextBlock Text="PLAYING" FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                   Foreground="White" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- ===== HERO CARD — BPM, big tempo display, beat dots ===== -->
+            <Border Margin="0,0,0,12"
+                    CornerRadius="14" Padding="0"
+                    BorderThickness="1" BorderBrush="{StaticResource BorderHairline}"
+                    ClipToBounds="True">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Color="#221B1B28" Offset="0"/>
+                        <GradientStop Color="#88141422" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+                <Grid RowDefinitions="4,Auto">
+                    <Border Grid.Row="0" Background="{StaticResource AccentBrush}"/>
+
+                    <Grid Grid.Row="1" Margin="32,28,32,28" ColumnDefinitions="*,Auto">
+
+                        <!-- LEFT: tempo display + beat dots -->
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="0">
+
+                            <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,0,0,4">
+                                <Border Width="10" Height="10" CornerRadius="5"
+                                        Background="{StaticResource AccentBrush}"
+                                        VerticalAlignment="Center"/>
+                                <TextBlock Text="TEMPO" FontSize="12" FontWeight="Bold" LetterSpacing="3"
+                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Spacing="14" VerticalAlignment="Bottom">
+                                <TextBlock Text="{Binding Bpm}"
+                                           FontSize="92" FontWeight="Bold"
+                                           LineHeight="100"
+                                           FontFamily="Segoe UI Variable Display, Segoe UI, $default"
+                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                           VerticalAlignment="Bottom"/>
+                                <TextBlock Text="BPM"
+                                           FontSize="20" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextMutedBrush}"
+                                           VerticalAlignment="Bottom"
+                                           Margin="0,0,0,12"/>
+                            </StackPanel>
+
+                            <TextBlock Text="{Binding IntervalDisplay}"
+                                       FontSize="11"
+                                       Foreground="{StaticResource TextMutedBrush}"
+                                       Margin="0,2,0,14"/>
+
+                        </StackPanel>
+
+                        <!-- RIGHT: big play/stop button + pulse -->
+                        <StackPanel Grid.Column="1" Spacing="14" VerticalAlignment="Center"
+                                    Margin="32,0,0,0">
+
+                            <!-- Pulsing dot reacts to Pulse property -->
+                            <Border Width="120" Height="120" CornerRadius="60"
+                                    HorizontalAlignment="Center"
+                                    BorderThickness="3"
+                                    BorderBrush="{StaticResource AccentBrush}"
+                                    Background="{StaticResource AccentSubtleBrush}">
+                                <TextBlock Text="{Binding CurrentBeat}"
+                                           FontSize="60" FontWeight="Bold"
+                                           FontFamily="Segoe UI Variable Display, Segoe UI, $default"
+                                           Foreground="{StaticResource AccentBrush}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+
+                            <Button Classes="primary" Padding="36,11" FontSize="14"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center"
+                                    Command="{Binding TogglePlayCommand}">
+                                <Panel>
+                                    <TextBlock Text="Stop" FontWeight="SemiBold"
+                                               IsVisible="{Binding IsPlaying}"/>
+                                    <TextBlock Text="Start" FontWeight="SemiBold"
+                                               IsVisible="{Binding !IsPlaying}"/>
+                                </Panel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <!-- ===== TEMPO CONTROLS ===== -->
+            <Border Classes="card" Margin="0,0,0,12">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,14" Spacing="8">
+                        <Border Width="3" Height="14" CornerRadius="2"
+                                Background="{StaticResource InfoBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="TEMPO CONTROL" FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,0,0,14">
+                        <Button Grid.Column="0" Classes="secondary"
+                                Padding="14,9" FontSize="14" FontWeight="Bold"
+                                Content="−"
+                                ToolTip.Tip="Decrease BPM by 1"
+                                Command="{Binding BpmDecreaseCommand}"/>
+                        <Slider Grid.Column="1"
+                                Minimum="40" Maximum="220"
+                                Value="{Binding Bpm, Mode=TwoWay}"
+                                VerticalAlignment="Center"
+                                Margin="14,0,14,0"
+                                TickFrequency="10"/>
+                        <Button Grid.Column="2" Classes="secondary"
+                                Padding="14,9" FontSize="14" FontWeight="Bold"
+                                Content="+"
+                                ToolTip.Tip="Increase BPM by 1"
+                                Command="{Binding BpmIncreaseCommand}"/>
+                        <TextBox Grid.Column="3"
+                                 Text="{Binding Bpm, Mode=TwoWay, Converter={StaticResource FlexInt}}"
+                                 Classes="input" Width="70"
+                                 FontSize="15" FontWeight="SemiBold"
+                                 Margin="14,0,0,0"/>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*,12,*">
+                        <Border Grid.Column="0" Classes="card-inner">
+                            <StackPanel>
+                                <TextBlock Text="TIME SIGNATURE"
+                                           FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                           Foreground="{StaticResource TextMutedBrush}"
+                                           Margin="0,0,0,8"/>
+                                <ComboBox ItemsSource="{Binding BeatChoices}"
+                                          SelectedItem="{Binding BeatsPerMeasure, Mode=TwoWay}"
+                                          HorizontalAlignment="Stretch"/>
+                                <CheckBox Content="Accent beat 1"
+                                          IsChecked="{Binding AccentEnabled, Mode=TwoWay}"
+                                          FontSize="12" Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="2" Classes="card-inner">
+                            <StackPanel>
+                                <TextBlock Text="TAP TEMPO"
+                                           FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                           Foreground="{StaticResource TextMutedBrush}"
+                                           Margin="0,0,0,8"/>
+                                <Button Classes="secondary" Padding="14,11" FontSize="13"
+                                        HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Center"
+                                        Command="{Binding TapTempoCommand}"
+                                        ToolTip.Tip="Click in rhythm at least twice to set the BPM">
+                                    <TextBlock Text="Tap…"/>
+                                </Button>
+                                <TextBlock Text="Tap at least twice — the BPM updates to match your rhythm."
+                                           FontSize="10"
+                                           Foreground="{StaticResource TextMutedBrush}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,8,0,0"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- ===== PRESETS ===== -->
+            <Border Classes="card" Margin="0,0,0,12">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,14" Spacing="8">
+                        <Border Width="3" Height="14" CornerRadius="2"
+                                Background="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="PRESETS" FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <ItemsControl ItemsSource="{Binding Presets}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="3" Rows="2"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="viewmodel:MetronomePreset">
+                                <Button Background="Transparent" BorderThickness="0" Padding="0"
+                                        Margin="0,0,8,8" Cursor="Hand"
+                                        HorizontalContentAlignment="Stretch"
+                                        Command="{Binding $parent[ItemsControl].((viewmodel:MetronomeViewModel)DataContext).ApplyPresetCommand}"
+                                        CommandParameter="{Binding}">
+                                    <Border Background="{StaticResource CardInnerBrush}"
+                                            CornerRadius="10" Padding="14,12"
+                                            BorderThickness="1" BorderBrush="{StaticResource BorderHairline}">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="{Binding Name}"
+                                                           FontSize="13" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource TextPrimaryBrush}"/>
+                                                <TextBlock Text="{Binding Italian}"
+                                                           FontSize="11"
+                                                           Foreground="{StaticResource TextMutedBrush}"
+                                                           Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding Bpm}"
+                                                       FontSize="18" FontWeight="Bold"
+                                                       Foreground="{StaticResource AccentBrush}"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <Border Height="24"/>
+        </StackPanel>
+        </Border>
+    </ScrollViewer>
+</UserControl>

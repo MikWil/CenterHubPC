@@ -1,0 +1,254 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+             xmlns:conv="clr-namespace:CenterHubNew.MVVM.Converters"
+             x:Class="CenterHubNew.MVVM.View.RandomizerView"
+             x:DataType="viewmodel:RandomizerViewModel"
+             mc:Ignorable="d"
+             Background="Transparent">
+
+    <UserControl.Resources>
+        <conv:FlexibleDoubleConverter x:Key="FlexDouble"/>
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <!-- Default row look + animated transitions when state changes -->
+        <Style Selector="Border.option-row">
+            <Setter Property="Background"  Value="{StaticResource CardInnerBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderHairline}"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background"  Duration="0:0:0.10"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.10"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <!-- Active during the cycle — toggled via Classes.highlight binding -->
+        <Style Selector="Border.option-row.highlight">
+            <Setter Property="Background"  Value="{StaticResource AccentSubtleBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+        </Style>
+        <!-- Sticky after the cycle stops on the winner -->
+        <Style Selector="Border.option-row.winner">
+            <Setter Property="Background"  Value="{StaticResource SuccessSubtleBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource SuccessBrush}"/>
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled"
+                  Padding="24,20" Background="Transparent">
+        <Border MaxWidth="980" HorizontalAlignment="Center">
+        <StackPanel Spacing="0" VerticalAlignment="Top">
+
+            <!-- ===== PAGE HEADER ===== -->
+            <StackPanel Margin="0,0,0,20">
+                <TextBlock Text="Randomizer"
+                           FontSize="22" FontWeight="Bold"
+                           Foreground="{StaticResource TextPrimaryBrush}"/>
+                <TextBlock Text="Pick a random value from your custom list — pizza or sushi? Who pays? Who goes first?"
+                           FontSize="12"
+                           Foreground="{StaticResource TextMutedBrush}"
+                           Margin="0,2,0,0"/>
+            </StackPanel>
+
+            <!-- ===== TWO-COLUMN: options on left, result + history on right ===== -->
+            <Grid ColumnDefinitions="*,12,320" Margin="0,0,0,12">
+
+                <!-- LEFT: option editor + animated list -->
+                <Border Grid.Column="0" Classes="card">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14" Spacing="8">
+                            <Border Width="3" Height="14" CornerRadius="2"
+                                    Background="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="OPTIONS" FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                       Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding Options.Count, StringFormat='({0})'}"
+                                       FontSize="11"
+                                       Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Add row -->
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+                            <TextBox Grid.Column="0"
+                                     Text="{Binding NewOptionName, Mode=TwoWay}"
+                                     Classes="input"
+                                     Watermark="Type an option and press Add (e.g. 'Mountain biking')">
+                                <TextBox.KeyBindings>
+                                    <KeyBinding Gesture="Enter" Command="{Binding AddOptionCommand}"/>
+                                </TextBox.KeyBindings>
+                            </TextBox>
+                            <Button Grid.Column="1"
+                                    Content="+ Add"
+                                    Classes="primary"
+                                    Padding="16,8" Margin="8,0,0,0"
+                                    Command="{Binding AddOptionCommand}"/>
+                        </Grid>
+
+                        <!-- Option list — animates as the highlight cycles -->
+                        <ItemsControl ItemsSource="{Binding Options}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="viewmodel:RandomizerOption">
+                                    <Border Classes="option-row"
+                                            Classes.highlight="{Binding IsHighlighted}"
+                                            Classes.winner="{Binding IsWinner}"
+                                            CornerRadius="10" Padding="14,11"
+                                            Margin="0,0,0,6"
+                                            BorderThickness="1">
+
+                                        <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                            <!-- Left indicator dot — accent when highlighted, green when winning -->
+                                            <Border Grid.Column="0"
+                                                    Width="10" Height="10" CornerRadius="5"
+                                                    VerticalAlignment="Center"
+                                                    Margin="0,0,10,0"
+                                                    BorderThickness="1"
+                                                    BorderBrush="{StaticResource BorderHairline}"
+                                                    Background="Transparent"/>
+
+                                            <!-- Label (inline-editable) -->
+                                            <TextBox Grid.Column="1"
+                                                     Text="{Binding Label, Mode=TwoWay}"
+                                                     Background="Transparent"
+                                                     BorderThickness="0"
+                                                     Padding="0"
+                                                     FontSize="14" FontWeight="SemiBold"
+                                                     Foreground="{StaticResource TextPrimaryBrush}"/>
+
+                                            <!-- Weight (visible when UseWeights) -->
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6"
+                                                        VerticalAlignment="Center"
+                                                        Margin="10,0,8,0"
+                                                        IsVisible="{Binding $parent[ItemsControl].((viewmodel:RandomizerViewModel)DataContext).UseWeights}">
+                                                <TextBlock Text="weight"
+                                                           FontSize="10" FontWeight="Bold" LetterSpacing="0.5"
+                                                           Foreground="{StaticResource TextMutedBrush}"
+                                                           VerticalAlignment="Center"/>
+                                                <TextBox Text="{Binding Weight, Mode=TwoWay, Converter={StaticResource FlexDouble}}"
+                                                         Classes="input" Width="56" FontSize="12"/>
+                                            </StackPanel>
+
+                                            <Button Grid.Column="3" Classes="ghost" Padding="6,4"
+                                                    VerticalAlignment="Center"
+                                                    Command="{Binding $parent[ItemsControl].((viewmodel:RandomizerViewModel)DataContext).RemoveOptionCommand}"
+                                                    CommandParameter="{Binding}"
+                                                    ToolTip.Tip="Remove">
+                                                <TextBlock Text="&#xD7;" FontSize="14"
+                                                           Foreground="{StaticResource ErrorBrush}"/>
+                                            </Button>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Settings row -->
+                        <Grid ColumnDefinitions="*,*,Auto" Margin="0,16,0,0">
+                            <CheckBox Grid.Column="0"
+                                      Content="Use weights"
+                                      IsChecked="{Binding UseWeights, Mode=TwoWay}"
+                                      FontSize="12"
+                                      ToolTip.Tip="Bias the pick by per-option weight"/>
+                            <CheckBox Grid.Column="1"
+                                      Content="Animate the pick"
+                                      IsChecked="{Binding Animate, Mode=TwoWay}"
+                                      FontSize="12"
+                                      ToolTip.Tip="Cycle the highlight through the options before landing on the winner"/>
+                            <Button Grid.Column="2" Classes="secondary"
+                                    Content="Clear all"
+                                    Padding="14,7" FontSize="12"
+                                    Command="{Binding ClearAllCommand}"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- RIGHT: result + history -->
+                <StackPanel Grid.Column="2" Spacing="12">
+
+                    <Border Margin="0"
+                            CornerRadius="14" Padding="22"
+                            BorderThickness="1" BorderBrush="{StaticResource BorderHairline}">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                                <GradientStop Color="#221B1B28" Offset="0"/>
+                                <GradientStop Color="#88141422" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel Spacing="0">
+                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+                                <Border Width="3" Height="14" CornerRadius="2"
+                                        Background="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="RESULT" FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                           Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="{Binding ResultLabel}"
+                                       FontSize="28" FontWeight="Bold"
+                                       LineHeight="34"
+                                       FontFamily="Segoe UI Variable Display, Segoe UI, $default"
+                                       Foreground="{StaticResource AccentBrush}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,18"/>
+                            <Button Classes="primary" Padding="20,14" FontSize="15"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center"
+                                    IsEnabled="{Binding !IsSpinning}"
+                                    Command="{Binding PickCommand}">
+                                <Panel>
+                                    <TextBlock Text="Pick a random option"
+                                               FontWeight="SemiBold"
+                                               IsVisible="{Binding !IsSpinning}"/>
+                                    <TextBlock Text="Picking…"
+                                               FontWeight="SemiBold"
+                                               IsVisible="{Binding IsSpinning}"/>
+                                </Panel>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="card" Margin="0">
+                        <StackPanel>
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                    <Border Width="3" Height="14" CornerRadius="2"
+                                            Background="{StaticResource SuccessBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="HISTORY" FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                               Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <Button Grid.Column="1" Classes="ghost" Padding="6,4"
+                                        Command="{Binding ClearHistoryCommand}"
+                                        ToolTip.Tip="Clear history">
+                                    <TextBlock Text="Clear" FontSize="11"
+                                               Foreground="{StaticResource TextMutedBrush}"/>
+                                </Button>
+                            </Grid>
+                            <ItemsControl ItemsSource="{Binding History}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="viewmodel:RandomizerHistoryEntry">
+                                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                                            <TextBlock Grid.Column="0" Text="{Binding Label}"
+                                                       FontSize="13"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding AtDisplay}"
+                                                       FontSize="11"
+                                                       Foreground="{StaticResource TextMutedBrush}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="No history yet — press Pick to get started"
+                                       FontSize="11"
+                                       Foreground="{StaticResource TextMutedBrush}"
+                                       IsVisible="{Binding !History.Count}"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+
+            <Border Height="24"/>
+        </StackPanel>
+        </Border>
+    </ScrollViewer>
+</UserControl>

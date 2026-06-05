@@ -274,12 +274,40 @@
                                              Command="{Binding ClipboardViewCommand}"
                                              GroupName="Nav"/>
 
+                                <!-- HOBBY -->
+                                <TextBlock Text="HOBBY"
+                                           FontSize="9" FontWeight="Bold" LetterSpacing="1.5"
+                                           Foreground="{StaticResource TextMutedBrush}"
+                                           Margin="18,16,0,6"
+                                           IsVisible="{Binding IsSidebarExpanded}"/>
+                                <RadioButton Classes="navtab"
+                                             Tag="&#xF4A5;"
+                                             Content="Randomizer"
+                                             ToolTip.Tip="Pick a random option from a custom list"
+                                             IsChecked="{Binding IsRandomizerSelected}"
+                                             Command="{Binding RandomizerViewCommand}"
+                                             GroupName="Nav"/>
+                                <RadioButton Classes="navtab"
+                                             Tag="&#xEC4F;"
+                                             Content="Metronome"
+                                             ToolTip.Tip="Audible click track at any tempo"
+                                             IsChecked="{Binding IsMetronomeSelected}"
+                                             Command="{Binding MetronomeViewCommand}"
+                                             GroupName="Nav"/>
+
                                 <!-- SYSTEM -->
                                 <TextBlock Text="SYSTEM"
                                            FontSize="9" FontWeight="Bold" LetterSpacing="1.5"
                                            Foreground="{StaticResource TextMutedBrush}"
                                            Margin="18,16,0,6"
                                            IsVisible="{Binding IsSidebarExpanded}"/>
+                                <RadioButton Classes="navtab"
+                                             Tag="&#xE701;"
+                                             Content="Network"
+                                             ToolTip.Tip="Wi-Fi signal + connection fixes"
+                                             IsChecked="{Binding IsNetworkSelected}"
+                                             Command="{Binding NetworkViewCommand}"
+                                             GroupName="Nav"/>
                                 <RadioButton Classes="navtab"
                                              Tag="&#xE92E;"
                                              Content="Hotkeys"
