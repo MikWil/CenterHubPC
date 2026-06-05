@@ -8,8 +8,13 @@
              mc:Ignorable="d"
              Background="Transparent">
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24,20" Background="Transparent">
-        <StackPanel Spacing="0">
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled"
+                  Padding="24,20" Background="Transparent">
+        <!-- Width constraint on outer Border, explicit VerticalAlignment=Top on
+             the StackPanel — same scroll fix as Standing/Network/Layouts. -->
+        <Border MaxWidth="900" HorizontalAlignment="Center">
+        <StackPanel Spacing="0" VerticalAlignment="Top">
             <!-- PAGE HEADER -->
             <StackPanel Margin="0,0,0,20">
                 <TextBlock Text="Utilities"
@@ -312,6 +317,11 @@
                     </StackPanel>
                 </StackPanel>
             </Border>
+
+            <!-- Trailing breathing room so the last card never sits flush against
+                 the bottom edge of the viewport even at max scroll. -->
+            <Border Height="24"/>
         </StackPanel>
+        </Border>
     </ScrollViewer>
 </UserControl>

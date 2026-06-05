@@ -1,0 +1,519 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+             x:Class="CenterHubNew.MVVM.View.NetworkView"
+             x:DataType="viewmodel:NetworkViewModel"
+             mc:Ignorable="d"
+             Background="Transparent">
+
+    <Grid>
+        <!-- ============== MAIN CONTENT ============== -->
+        <!-- Width-constraint on an OUTER Border, not the inner StackPanel
+             (avoids the Stretch/MaxWidth+ScrollViewer measure-pass trap that
+             prevents the ScrollViewer from detecting content overflow). -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      Padding="24,20" Background="Transparent">
+        <Border MaxWidth="980" HorizontalAlignment="Center">
+            <StackPanel Spacing="0">
+
+                <!-- ===== PAGE HEADER ===== -->
+                <Grid Margin="0,0,0,20" ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Network"
+                                   FontSize="22" FontWeight="Bold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"/>
+                        <TextBlock Text="Live Wi-Fi signal, connection details, and one-click fixes"
+                                   FontSize="12"
+                                   Foreground="{StaticResource TextMutedBrush}"
+                                   Margin="0,2,0,0"/>
+                    </StackPanel>
+                    <Button Grid.Column="1" Classes="secondary"
+                            Padding="12,9" FontSize="12"
+                            Command="{Binding RefreshCommand}"
+                            ToolTip.Tip="Refresh now (also auto-refreshes every 3s)">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="&#xE72C;"
+                                       FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"
+                                       FontSize="13"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock Text="Refresh" FontSize="12" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+
+                <!-- ===== HERO CARD — current connection + signal ===== -->
+                <Border Margin="0,0,0,12"
+                        CornerRadius="14" Padding="0"
+                        BorderThickness="1" BorderBrush="{StaticResource BorderHairline}"
+                        ClipToBounds="True">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                            <GradientStop Color="#221B1B28" Offset="0"/>
+                            <GradientStop Color="#88141422" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Grid RowDefinitions="4,Auto">
+
+                        <!-- Top accent stripe -->
+                        <Border Grid.Row="0" Background="{StaticResource AccentBrush}"/>
+
+                        <Grid Grid.Row="1" Margin="32,26,32,24" ColumnDefinitions="Auto,*,Auto">
+
+                            <!-- Big signal icon block -->
+                            <Border Grid.Column="0"
+                                    Width="80" Height="80" CornerRadius="14"
+                                    Background="{StaticResource AccentSubtleBrush}"
+                                    BorderThickness="1" BorderBrush="{StaticResource AccentBrush}"
+                                    VerticalAlignment="Center">
+                                <TextBlock x:Name="WifiGlyph"
+                                           Text="&#xE701;"
+                                           FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"
+                                           FontSize="36"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Foreground="{StaticResource AccentBrush}"/>
+                            </Border>
+
+                            <!-- Connection details -->
+                            <StackPanel Grid.Column="1" Margin="22,0,0,0" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,4">
+                                    <Border Width="8" Height="8" CornerRadius="4"
+                                            Background="{StaticResource SuccessBrush}" VerticalAlignment="Center"
+                                            IsVisible="{Binding IsConnected}"/>
+                                    <Border Width="8" Height="8" CornerRadius="4"
+                                            Background="{StaticResource ErrorBrush}" VerticalAlignment="Center"
+                                            IsVisible="{Binding !IsConnected}"/>
+                                    <TextBlock Text="{Binding ConnectionTypeLabel}"
+                                               FontSize="11" FontWeight="Bold" LetterSpacing="2"
+                                               Foreground="{StaticResource TextMutedBrush}"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+
+                                <!-- SSID for Wi-Fi or adapter name for ethernet -->
+                                <TextBlock Text="{Binding Ssid}"
+                                           FontSize="28" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                           TextTrimming="CharacterEllipsis"
+                                           IsVisible="{Binding IsWifi}"/>
+                                <TextBlock Text="{Binding AdapterName}"
+                                           FontSize="22" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                           TextTrimming="CharacterEllipsis"
+                                           IsVisible="{Binding !IsWifi}"/>
+
+                                <!-- Signal bars + quality (Wi-Fi only) -->
+                                <StackPanel Orientation="Horizontal" Spacing="14" Margin="0,10,0,0"
+                                            IsVisible="{Binding IsWifi}">
+                                    <TextBlock Text="{Binding SignalBars}"
+                                               FontSize="20"
+                                               LetterSpacing="2"
+                                               Foreground="{StaticResource AccentBrush}"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding SignalQuality, StringFormat='{}{0}%'}"
+                                               FontSize="22" FontWeight="Bold"
+                                               Foreground="{StaticResource AccentBrush}"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding SignalLabel}"
+                                               FontSize="13"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding SignalDbm, StringFormat='≈ {0} dBm'}"
+                                               FontSize="11"
+                                               Foreground="{StaticResource TextMutedBrush}"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+
+                                <!-- Status line -->
+                                <TextBlock Text="{Binding StatusMessage}"
+                                           FontSize="11"
+                                           Foreground="{StaticResource TextMutedBrush}"
+                                           Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <!-- ===== CONNECTION ===== -->
+                <Border Classes="card" Margin="0,0,0,12">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14" Spacing="8">
+                            <Border Width="3" Height="14" CornerRadius="2"
+                                    Background="{StaticResource InfoBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="CONNECTION" FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                       Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <UniformGrid Columns="3" Rows="1">
+                            <Border Classes="card-inner" Margin="0,0,4,0">
+                                <StackPanel>
+                                    <TextBlock Text="DOWNLOAD" FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                               Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock Text="{Binding RxRateDisplay}"
+                                               FontSize="17" FontWeight="SemiBold"
+                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                               Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="card-inner" Margin="4,0,4,0">
+                                <StackPanel>
+                                    <TextBlock Text="UPLOAD" FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                               Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock Text="{Binding TxRateDisplay}"
+                                               FontSize="17" FontWeight="SemiBold"
+                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                               Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="card-inner" Margin="4,0,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="STANDARD" FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                               Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock Text="{Binding PhyType}"
+                                               FontSize="14" FontWeight="SemiBold"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               Margin="0,4,0,0"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+                    </StackPanel>
+                </Border>
+
+                <!-- ===== IP ADDRESSING ===== -->
+                <Border Classes="card" Margin="0,0,0,12">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14" Spacing="8">
+                            <Border Width="3" Height="14" CornerRadius="2"
+                                    Background="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="IP ADDRESSING" FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                       Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Public IP — featured row with refresh button -->
+                        <Border Classes="card-inner" Margin="0,0,0,8"
+                                BorderBrush="{StaticResource AccentBrush}" BorderThickness="1">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="PUBLIC IPV4 (WAN)"
+                                               FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                               Foreground="{StaticResource AccentBrush}"/>
+                                    <TextBlock Text="{Binding PublicIpv4}"
+                                               FontSize="18" FontWeight="SemiBold"
+                                               FontFamily="Consolas, Menlo, Courier New, monospace"
+                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                               Margin="0,4,0,2"/>
+                                    <TextBlock Text="The IP the internet sees you as — what websites log when you visit."
+                                               FontSize="10"
+                                               Foreground="{StaticResource TextMutedBrush}"/>
+                                </StackPanel>
+                                <Button Grid.Column="1" Classes="secondary"
+                                        Padding="10,7" VerticalAlignment="Center"
+                                        Command="{Binding RefreshPublicIpCommand}"
+                                        IsEnabled="{Binding !IsPublicIpLoading}"
+                                        ToolTip.Tip="Refresh public IP via ipify">
+                                    <TextBlock Text="&#xE72C;"
+                                               FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"
+                                               FontSize="13"/>
+                                </Button>
+                            </Grid>
+                        </Border>
+
+                        <!-- Local IPv4 / Subnet / Gateway -->
+                        <UniformGrid Columns="3" Rows="1" Margin="0,0,0,8">
+                            <Border Classes="card-inner" Margin="0,0,4,0">
+                                <StackPanel>
+                                    <TextBlock Text="LOCAL IPV4" FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                               Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock Text="{Binding Ipv4}"
+                                               FontSize="14" FontWeight="SemiBold"
+                                               FontFamily="Consolas, Menlo, Courier New, monospace"
+                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                               Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="card-inner" Margin="4,0,4,0">
+                                <StackPanel>
+                                    <TextBlock Text="SUBNET MASK" FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                               Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock Text="{Binding SubnetMask}"
+                                               FontSize="14" FontWeight="SemiBold"
+                                               FontFamily="Consolas, Menlo, Courier New, monospace"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="card-inner" Margin="4,0,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="GATEWAY" FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                               Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock Text="{Binding Gateway}"
+                                               FontSize="14" FontWeight="SemiBold"
+                                               FontFamily="Consolas, Menlo, Courier New, monospace"
+                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                               Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+
+                        <!-- IPv6 — shown only if assigned -->
+                        <Border Classes="card-inner"
+                                IsVisible="{Binding Ipv6, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                            <StackPanel>
+                                <TextBlock Text="IPV6" FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                           Foreground="{StaticResource TextMutedBrush}"/>
+                                <TextBlock Text="{Binding Ipv6}"
+                                           FontSize="13" FontWeight="SemiBold"
+                                           FontFamily="Consolas, Menlo, Courier New, monospace"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           Margin="0,4,0,0"
+                                           TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- ===== DNS, DHCP, HOST ===== -->
+                <Border Classes="card" Margin="0,0,0,12">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14" Spacing="8">
+                            <Border Width="3" Height="14" CornerRadius="2"
+                                    Background="{StaticResource SuccessBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="DNS · DHCP · HOST" FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                       Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- DNS row (wide because servers can be multiple) -->
+                        <Border Classes="card-inner" Margin="0,0,0,8">
+                            <StackPanel>
+                                <TextBlock Text="DNS SERVERS" FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                           Foreground="{StaticResource TextMutedBrush}"/>
+                                <TextBlock Text="{Binding DnsServers}"
+                                           FontSize="14" FontWeight="SemiBold"
+                                           FontFamily="Consolas, Menlo, Courier New, monospace"
+                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                           Margin="0,4,0,0"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- DHCP server + lease + hostname + MAC -->
+                        <UniformGrid Columns="2" Rows="2">
+                            <Border Classes="card-inner" Margin="0,0,4,4">
+                                <StackPanel>
+                                    <TextBlock Text="DHCP SERVER" FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                               Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock Text="{Binding DhcpServer}"
+                                               FontSize="14" FontWeight="SemiBold"
+                                               FontFamily="Consolas, Menlo, Courier New, monospace"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="card-inner" Margin="4,0,0,4">
+                                <StackPanel>
+                                    <TextBlock Text="LEASE EXPIRES" FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                               Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock Text="{Binding DhcpLeaseEnd}"
+                                               FontSize="14" FontWeight="SemiBold"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="card-inner" Margin="0,4,4,0">
+                                <StackPanel>
+                                    <TextBlock Text="HOSTNAME" FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                               Foreground="{StaticResource TextMutedBrush}"/>
+                                    <TextBlock Text="{Binding Hostname}"
+                                               FontSize="14" FontWeight="SemiBold"
+                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                               Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="card-inner" Margin="4,4,0,0">
+                                <StackPanel>
+                                    <!-- Wi-Fi: show BSSID (access-point MAC). Ethernet: show adapter MAC. -->
+                                    <TextBlock Text="ACCESS POINT (BSSID)" FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                               Foreground="{StaticResource TextMutedBrush}"
+                                               IsVisible="{Binding IsWifi}"/>
+                                    <TextBlock Text="ADAPTER MAC" FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                               Foreground="{StaticResource TextMutedBrush}"
+                                               IsVisible="{Binding !IsWifi}"/>
+                                    <TextBlock Text="{Binding Bssid}"
+                                               FontSize="13" FontWeight="SemiBold"
+                                               FontFamily="Consolas, Menlo, Courier New, monospace"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               Margin="0,4,0,0"
+                                               IsVisible="{Binding IsWifi}"/>
+                                    <TextBlock Text="{Binding MacAddress}"
+                                               FontSize="13" FontWeight="SemiBold"
+                                               FontFamily="Consolas, Menlo, Courier New, monospace"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               Margin="0,4,0,0"
+                                               IsVisible="{Binding !IsWifi}"/>
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+                    </StackPanel>
+                </Border>
+
+                <!-- ===== FIX BUTTONS ===== -->
+                <Border Classes="card" Margin="0,0,0,12">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14" Spacing="8">
+                            <Border Width="3" Height="14" CornerRadius="2"
+                                    Background="{StaticResource WarningBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="FIX MY CONNECTION" FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                       Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <Grid ColumnDefinitions="*,12,*,12,*">
+                            <!-- Renew DHCP -->
+                            <Border Grid.Column="0" Classes="card-inner">
+                                <StackPanel>
+                                    <TextBlock Text="&#xE968;"
+                                               FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"
+                                               FontSize="22"
+                                               Foreground="{StaticResource InfoBrush}"
+                                               Margin="0,0,0,8"/>
+                                    <TextBlock Text="Renew DHCP" FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Release the current IP lease and ask the router for a new one."
+                                               FontSize="11" Foreground="{StaticResource TextMutedBrush}"
+                                               TextWrapping="Wrap" Margin="0,3,0,12"/>
+                                    <Button Content="Renew DHCP" Classes="secondary"
+                                            Padding="14,8" FontSize="12"
+                                            HorizontalAlignment="Left"
+                                            IsEnabled="{Binding !IsBusy}"
+                                            Command="{Binding ConfirmRenewDhcpCommand}"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Flush DNS -->
+                            <Border Grid.Column="2" Classes="card-inner">
+                                <StackPanel>
+                                    <TextBlock Text="&#xE74D;"
+                                               FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"
+                                               FontSize="22"
+                                               Foreground="{StaticResource SuccessBrush}"
+                                               Margin="0,0,0,8"/>
+                                    <TextBlock Text="Flush DNS" FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Clear the local DNS cache — fixes 'site not loading' after DNS changes."
+                                               FontSize="11" Foreground="{StaticResource TextMutedBrush}"
+                                               TextWrapping="Wrap" Margin="0,3,0,12"/>
+                                    <Button Content="Flush DNS" Classes="secondary"
+                                            Padding="14,8" FontSize="12"
+                                            HorizontalAlignment="Left"
+                                            IsEnabled="{Binding !IsBusy}"
+                                            Command="{Binding ConfirmFlushDnsCommand}"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Full Reset -->
+                            <Border Grid.Column="4" Classes="card-inner"
+                                    BorderBrush="{StaticResource WarningBrush}" BorderThickness="1">
+                                <StackPanel>
+                                    <TextBlock Text="&#xE777;"
+                                               FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"
+                                               FontSize="22"
+                                               Foreground="{StaticResource WarningBrush}"
+                                               Margin="0,0,0,8"/>
+                                    <TextBlock Text="Full Reset" FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="Flush DNS + release + renew + re-register. The 'I'm stuck, fix it' button."
+                                               FontSize="11" Foreground="{StaticResource TextMutedBrush}"
+                                               TextWrapping="Wrap" Margin="0,3,0,12"/>
+                                    <Button Content="Reset Network" Classes="primary"
+                                            Padding="14,8" FontSize="12"
+                                            HorizontalAlignment="Left"
+                                            IsEnabled="{Binding !IsBusy}"
+                                            Command="{Binding ConfirmFullResetCommand}"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- ===== TIPS ===== -->
+                <Border Classes="card" Margin="0,0,0,0">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Spacing="8">
+                            <Border Width="3" Height="14" CornerRadius="2"
+                                    Background="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="WHEN TO USE WHICH" FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                       Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock TextWrapping="Wrap" FontSize="12"
+                                   Foreground="{StaticResource TextSecondaryBrush}">
+                            <Run Text="• " Foreground="{StaticResource InfoBrush}"/>
+                            <Run Text="Renew DHCP" FontWeight="SemiBold" Foreground="{StaticResource InfoBrush}"/>
+                            <Run Text=" — Wi-Fi shows connected but you have no internet, after waking from sleep, or right after the router rebooted."/>
+                            <LineBreak/>
+                            <Run Text="• " Foreground="{StaticResource SuccessBrush}"/>
+                            <Run Text="Flush DNS" FontWeight="SemiBold" Foreground="{StaticResource SuccessBrush}"/>
+                            <Run Text=" — A specific site won't load while others do, you just changed DNS servers, or you suspect a DNS lookup is cached wrong."/>
+                            <LineBreak/>
+                            <Run Text="• " Foreground="{StaticResource WarningBrush}"/>
+                            <Run Text="Full Reset" FontWeight="SemiBold" Foreground="{StaticResource WarningBrush}"/>
+                            <Run Text=" — Anything else. The big red 'unstick' button — it runs all the steps and re-registers with DNS. Briefly takes you offline."/>
+                            <LineBreak/>
+                            <LineBreak/>
+                            <Run Text="Each fix asks Windows for admin permission (UAC prompt). If you click No, nothing happens and you stay where you were."
+                                 Foreground="{StaticResource TextMutedBrush}" FontSize="11"/>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+                <!-- Trailing breathing room — without this, max-scroll lands
+                     with the bottom of the last card flush against the
+                     viewport edge and the final lines get clipped. -->
+                <Border Height="24"/>
+            </StackPanel>
+        </Border>
+        </ScrollViewer>
+
+        <!-- ===== CONFIRMATION OVERLAY ===== -->
+        <Border Background="#A8000000" IsVisible="{Binding IsConfirmOpen}" ZIndex="500">
+            <Border Width="480"
+                    Background="{StaticResource CardBackgroundBrush}"
+                    BorderThickness="1" BorderBrush="{StaticResource BorderHairline}"
+                    CornerRadius="12" Padding="28,24"
+                    VerticalAlignment="Center" HorizontalAlignment="Center"
+                    BoxShadow="0 12 40 0 #80000000">
+                <StackPanel Spacing="0">
+                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,0,12">
+                        <Border Width="36" Height="36" CornerRadius="18"
+                                Background="{StaticResource WarningSubtleBrush}"
+                                BorderThickness="1" BorderBrush="{StaticResource WarningBrush}"
+                                VerticalAlignment="Center">
+                            <TextBlock Text="!" FontSize="20" FontWeight="Bold"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Foreground="{StaticResource WarningBrush}"/>
+                        </Border>
+                        <TextBlock Text="{Binding ConfirmTitle}"
+                                   FontSize="17" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding ConfirmBody}"
+                               TextWrapping="Wrap" FontSize="13"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Margin="0,0,0,20"/>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+                        <Button Content="Cancel" Classes="secondary"
+                                Padding="22,9"
+                                Command="{Binding CancelConfirmCommand}"/>
+                        <Button Content="Run it" Classes="primary"
+                                Padding="22,9"
+                                Command="{Binding RunConfirmedCommand}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Border>
+
+    </Grid>
+</UserControl>

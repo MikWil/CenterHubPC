@@ -13,8 +13,15 @@
         <conv:FlexibleIntConverter x:Key="FlexInt"/>
     </UserControl.Resources>
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24,20" Background="Transparent">
-        <StackPanel Spacing="0" MaxWidth="980" HorizontalAlignment="Stretch">
+    <!-- ScrollViewer hosts the content. Width-constraint must live on an OUTER
+         Border, NOT on the inner StackPanel — when Stretch wins on the
+         StackPanel itself inside a ScrollViewer, its DesiredSize.Y clamps to
+         the viewport and overflow becomes invisible (no scrollbar). -->
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled"
+                  Padding="24,20" Background="Transparent">
+        <Border MaxWidth="980" HorizontalAlignment="Center">
+        <StackPanel Spacing="0">
 
             <!-- ===== PAGE HEADER ===== -->
             <Grid Margin="0,0,0,20" ColumnDefinitions="*,Auto">
@@ -340,6 +347,10 @@
                 </StackPanel>
             </Border>
 
+            <!-- Trailing breathing room so the last card isn't flush
+                 against the viewport edge at max scroll. -->
+            <Border Height="24"/>
         </StackPanel>
+        </Border>
     </ScrollViewer>
 </UserControl>

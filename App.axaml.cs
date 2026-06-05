@@ -227,6 +227,8 @@ namespace CenterHubNew
                     services.AddSingleton<WindowLayoutService>();
                     services.AddSingleton<UpdateService>();
                     services.AddSingleton<WindowsNotificationService>();
+                    services.AddSingleton<WifiService>();
+                    services.AddSingleton<MetronomeService>();
 
                     services.AddTransient<MainViewModel>();
                     services.AddTransient<HomeViewModel>();
@@ -249,6 +251,9 @@ namespace CenterHubNew
                     // Transient — MainViewModel disposes child VMs on shutdown;
                     // the long-lived state lives in WindowLayoutService (singleton).
                     services.AddTransient<WindowLayoutsViewModel>();
+                    services.AddTransient<NetworkViewModel>();
+                    services.AddTransient<RandomizerViewModel>();
+                    services.AddTransient<MetronomeViewModel>();
 
                     services.AddTransient<MainWindow>();
                     services.AddTransient<FavoritesWindow>();
