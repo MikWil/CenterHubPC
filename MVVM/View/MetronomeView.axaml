@@ -13,6 +13,7 @@
         <conv:FlexibleIntConverter x:Key="FlexInt"/>
     </UserControl.Resources>
 
+    <Grid>
     <ScrollViewer VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Disabled"
                   Padding="24,20" Background="Transparent">
@@ -275,4 +276,5 @@
         </StackPanel>
         </Border>
     </ScrollViewer>
+    </Grid>
 </UserControl>
