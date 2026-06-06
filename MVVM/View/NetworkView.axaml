@@ -10,13 +10,9 @@
 
     <Grid>
         <!-- ============== MAIN CONTENT ============== -->
-        <!-- Width-constraint on an OUTER Border, not the inner StackPanel
-             (avoids the Stretch/MaxWidth+ScrollViewer measure-pass trap that
-             prevents the ScrollViewer from detecting content overflow). -->
         <ScrollViewer VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
                       Padding="24,20" Background="Transparent">
-        <Border MaxWidth="980" HorizontalAlignment="Center" VerticalAlignment="Top">
             <StackPanel Spacing="0">
 
                 <!-- ===== PAGE HEADER ===== -->
@@ -471,7 +467,6 @@
                      viewport edge and the final lines get clipped. -->
                 <Border Height="24"/>
             </StackPanel>
-        </Border>
         </ScrollViewer>
 
         <!-- ===== CONFIRMATION OVERLAY ===== -->

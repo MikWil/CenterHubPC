@@ -13,11 +13,9 @@
         <conv:FlexibleIntConverter x:Key="FlexInt"/>
     </UserControl.Resources>
 
-    <Grid>
     <ScrollViewer VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Disabled"
                   Padding="24,20" Background="Transparent">
-        <Border MaxWidth="900" HorizontalAlignment="Center" VerticalAlignment="Top">
         <StackPanel Spacing="0">
 
             <!-- ===== PAGE HEADER ===== -->
@@ -274,7 +272,5 @@
 
             <Border Height="24"/>
         </StackPanel>
-        </Border>
     </ScrollViewer>
-    </Grid>
 </UserControl>
