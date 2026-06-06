@@ -16,6 +16,18 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Disabled"
                   Padding="24,20" Background="Transparent">
+        <!-- Soft fade at the bottom edge so scrollable content tapers off
+             gracefully instead of looking hard-clipped at the viewport edge.
+             The trailing spacer below is sized to exceed the fade zone, so the
+             last real card is never dimmed at max scroll. -->
+        <ScrollViewer.OpacityMask>
+            <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                <GradientStop Offset="0.0"  Color="White"/>
+                <GradientStop Offset="0.95" Color="White"/>
+                <GradientStop Offset="1.0"  Color="Transparent"/>
+            </LinearGradientBrush>
+        </ScrollViewer.OpacityMask>
+        <Border MaxWidth="900" HorizontalAlignment="Center">
         <StackPanel Spacing="0">
 
             <!-- ===== PAGE HEADER ===== -->
@@ -270,7 +282,8 @@
                 </StackPanel>
             </Border>
 
-            <Border Height="24"/>
+            <Border Height="48"/>
         </StackPanel>
+        </Border>
     </ScrollViewer>
 </UserControl>

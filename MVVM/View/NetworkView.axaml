@@ -13,6 +13,15 @@
         <ScrollViewer VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
                       Padding="24,20" Background="Transparent">
+            <!-- Soft bottom fade for a graceful finish (see MetronomeView). -->
+            <ScrollViewer.OpacityMask>
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                    <GradientStop Offset="0.0"  Color="White"/>
+                    <GradientStop Offset="0.95" Color="White"/>
+                    <GradientStop Offset="1.0"  Color="Transparent"/>
+                </LinearGradientBrush>
+            </ScrollViewer.OpacityMask>
+            <Border MaxWidth="980" HorizontalAlignment="Center">
             <StackPanel Spacing="0">
 
                 <!-- ===== PAGE HEADER ===== -->
@@ -465,8 +474,9 @@
                 <!-- Trailing breathing room — without this, max-scroll lands
                      with the bottom of the last card flush against the
                      viewport edge and the final lines get clipped. -->
-                <Border Height="24"/>
+                <Border Height="48"/>
             </StackPanel>
+            </Border>
         </ScrollViewer>
 
         <!-- ===== CONFIRMATION OVERLAY ===== -->
