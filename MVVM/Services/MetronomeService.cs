@@ -20,8 +20,12 @@ namespace CenterHubNew.MVVM.Services
 
         public MetronomeService()
         {
-            _tickPcm   = GenerateClick(frequencyHz: 1200, durationSec: 0.035, amplitude: 0.60, decayRate: 80);
-            _accentPcm = GenerateClick(frequencyHz:  800, durationSec: 0.045, amplitude: 0.90, decayRate: 60);
+            // "tick" — high, light clock tick
+            _tickPcm   = GenerateClockTick(bodyHz: 1800, clickHz: 4000, durationSec: 0.028,
+                                           amplitude: 0.70, bodyDecay: 280, clickDecay: 600);
+            // "tock" — accent beat 1: lower, heavier
+            _accentPcm = GenerateClockTick(bodyHz:  900, clickHz: 2800, durationSec: 0.040,
+                                           amplitude: 0.95, bodyDecay: 180, clickDecay: 400);
         }
 
         /// <summary>Start the output stream if not already running.</summary>
@@ -70,32 +74,41 @@ namespace CenterHubNew.MVVM.Services
 
         // ─────────────────── Tone synthesis ───────────────────
 
-        // Percussive click: very short attack (1 ms), then exponential decay.
-        // Mixing the fundamental with a 2x overtone adds presence and cuts through
-        // well at higher tempos.
-        private byte[] GenerateClick(double frequencyHz, double durationSec, double amplitude, double decayRate = 70)
+        /// <summary>
+        /// Synthesises a clock-tick sound by layering two components:
+        ///   • "click" layer  — very high frequency, extremely fast decay (~1 ms)
+        ///                      mimics the hard mechanical impact transient
+        ///   • "body" layer   — mid frequency, slower exponential decay
+        ///                      mimics the resonant woody body of a clock escapement
+        /// Both layers share a 0.5 ms linear attack ramp to avoid a digital pop.
+        /// </summary>
+        private byte[] GenerateClockTick(
+            double bodyHz, double clickHz,
+            double durationSec, double amplitude,
+            double bodyDecay, double clickDecay)
         {
-            int samples    = (int)(_format.SampleRate * durationSec);
-            int attackSamples = (int)(_format.SampleRate * 0.001); // 1 ms attack
+            int samples       = (int)(_format.SampleRate * durationSec);
+            int attackSamples = Math.Max(1, (int)(_format.SampleRate * 0.0005)); // 0.5 ms
+
             var shorts = new short[samples];
 
-            double phase     = 0;
-            double phase2    = 0;
-            double phaseInc  = 2 * Math.PI * frequencyHz / _format.SampleRate;
-            double phaseInc2 = 2 * Math.PI * frequencyHz * 2 / _format.SampleRate;
+            double bodyPhase  = 0, bodyInc  = 2 * Math.PI * bodyHz  / _format.SampleRate;
+            double clickPhase = 0, clickInc = 2 * Math.PI * clickHz / _format.SampleRate;
 
             for (int i = 0; i < samples; i++)
             {
-                double t   = (double)i / _format.SampleRate;
-                double env = Math.Exp(-decayRate * t);
-                if (i < attackSamples)
-                    env *= (double)i / attackSamples; // brief linear attack to avoid transient pop
+                double t      = (double)i / _format.SampleRate;
+                double attack = i < attackSamples ? (double)i / attackSamples : 1.0;
 
-                // Fundamental + 2nd harmonic (−10 dB) for a woodier timbre
-                double v = (Math.Sin(phase) * 0.85 + Math.Sin(phase2) * 0.15) * amplitude * env;
+                double body  = Math.Sin(bodyPhase)  * Math.Exp(-bodyDecay  * t);
+                double click = Math.Sin(clickPhase) * Math.Exp(-clickDecay * t);
+
+                // click layer is ~40 % of body level — adds the sharp initial "snap"
+                double v = (body * 0.70 + click * 0.30) * amplitude * attack;
                 shorts[i] = (short)(Math.Clamp(v, -1.0, 1.0) * short.MaxValue);
-                phase  += phaseInc;
-                phase2 += phaseInc2;
+
+                bodyPhase  += bodyInc;
+                clickPhase += clickInc;
             }
 
             var bytes = new byte[samples * sizeof(short)];

@@ -16,8 +16,8 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Disabled"
                   Padding="24,20" Background="Transparent">
-        <Border MaxWidth="900" HorizontalAlignment="Center">
-        <StackPanel Spacing="0" VerticalAlignment="Top">
+        <Border MaxWidth="900" HorizontalAlignment="Center" VerticalAlignment="Top">
+        <StackPanel Spacing="0">
 
             <!-- ===== PAGE HEADER ===== -->
             <Grid Margin="0,0,0,20" ColumnDefinitions="*,Auto">
