@@ -69,7 +69,7 @@ namespace CenterHubNew.MVVM.Services
             }
             LoadSettings();
             LoadSounds();
-            EnsureDefaultSounds();
+            PruneMissingDefaults();
         }
 
         public List<SoundboardItem> GetSounds() => _sounds.ToList();
@@ -119,7 +119,7 @@ namespace CenterHubNew.MVVM.Services
                     DeviceNumber = deviceNumber
                 };
 
-                _waveOut.Init(_audioReader);
+                _waveOut.Init(ApplyTrim(_audioReader, sound));
                 _waveOut.Play();
 
                 // Monitor output (for you to hear)
@@ -135,7 +135,7 @@ namespace CenterHubNew.MVVM.Services
                         DeviceNumber = MonitorDeviceIndex
                     };
 
-                    _monitorWaveOut.Init(_monitorAudioReader);
+                    _monitorWaveOut.Init(ApplyTrim(_monitorAudioReader, sound));
                     _monitorWaveOut.Play();
                 }
 
@@ -145,6 +145,25 @@ namespace CenterHubNew.MVVM.Services
             {
                 _logger?.LogError(ex, "Failed to play sound: {Name}", sound.Name);
             }
+        }
+
+        /// <summary>
+        /// Wrap a reader so only the user-chosen slice plays: skip <c>StartSeconds</c>
+        /// from the front and take <c>LengthSeconds</c> (0 = to the end). Lets users
+        /// trim a clip in-app instead of editing the file externally.
+        /// </summary>
+        private static ISampleProvider ApplyTrim(AudioFileReader reader, SoundboardItem sound)
+        {
+            ISampleProvider provider = reader;
+            if (sound.StartSeconds <= 0 && sound.LengthSeconds <= 0)
+                return provider;
+
+            var offset = new OffsetSampleProvider(provider);
+            if (sound.StartSeconds > 0)
+                offset.SkipOver = TimeSpan.FromSeconds((double)sound.StartSeconds);
+            if (sound.LengthSeconds > 0)
+                offset.Take = TimeSpan.FromSeconds((double)sound.LengthSeconds);
+            return offset;
         }
 
         public void Stop()
@@ -190,6 +209,8 @@ namespace CenterHubNew.MVVM.Services
                 existing.Volume = sound.Volume;
                 existing.Hotkey = sound.Hotkey;
                 existing.Color = sound.Color;
+                existing.StartSeconds = sound.StartSeconds;
+                existing.LengthSeconds = sound.LengthSeconds;
                 SaveSounds();
             }
         }
@@ -275,36 +296,20 @@ namespace CenterHubNew.MVVM.Services
             public float OutputVolume { get; set; } = 1.0f;
         }
 
-        private void EnsureDefaultSounds()
+        /// <summary>
+        /// The soundboard ships with no bundled audio. Earlier versions seeded a set
+        /// of built-in entries pointing at files that were never installed, leaving
+        /// dead buttons. Remove any such managed-default entry whose file is missing so
+        /// users start clean and add their own clips.
+        /// </summary>
+        private void PruneMissingDefaults()
         {
-            // Default sounds - always present
-            var defaultSounds = new[]
-            {
-                ("Airhorn", "airhorn.mp3"),
-                ("Sad Trombone", "sad-trombone.mp3"),
-                ("Rimshot", "rimshot.mp3"),
-                ("Applause", "applause.mp3"),
-                ("Crickets", "crickets.mp3"),
-                ("Dramatic", "dramatic.mp3"),
-                ("Fart", "fart.mp3"),
-                ("Laugh Track", "laugh.mp3")
-            };
+            int removed = _sounds.RemoveAll(s =>
+                s.IsDefault && (string.IsNullOrEmpty(s.FilePath) || !File.Exists(s.FilePath)));
 
-            bool changed = false;
-            foreach (var (name, fileName) in defaultSounds)
+            if (removed > 0)
             {
-                var filePath = Path.Combine(_defaultSoundsFolder, fileName);
-                // Check if this default sound already exists
-                if (!_sounds.Any(s => s.Name == name && s.FilePath == filePath))
-                {
-                    var sound = new SoundboardItem(name, filePath) { IsDefault = true };
-                    _sounds.Insert(0, sound); // Add defaults at the beginning
-                    changed = true;
-                }
-            }
-            
-            if (changed)
-            {
+                _logger?.LogInformation("Removed {Count} built-in soundboard entries with no audio file", removed);
                 SaveSounds();
             }
         }

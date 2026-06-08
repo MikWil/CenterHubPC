@@ -26,6 +26,14 @@ namespace CenterHubNew.MVVM.Models
         [ObservableProperty]
         private bool _isDefault = false;
 
+        /// <summary>Playback start offset in seconds (trim from the front). 0 = beginning.</summary>
+        [ObservableProperty]
+        private decimal _startSeconds = 0m;
+
+        /// <summary>How long to play, in seconds. 0 = play to the end of the clip.</summary>
+        [ObservableProperty]
+        private decimal _lengthSeconds = 0m;
+
         public SoundboardItem() { }
 
         public SoundboardItem(string name, string filePath)

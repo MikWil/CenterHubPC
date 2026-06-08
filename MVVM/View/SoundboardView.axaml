@@ -199,6 +199,28 @@
                                        VerticalAlignment="Center" Margin="12,0,0,0" MinWidth="40"/>
                         </Grid>
 
+                        <TextBlock Text="Trim (seconds)" FontSize="11" FontWeight="Bold" LetterSpacing="0.5"
+                                   Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,5"/>
+                        <Grid ColumnDefinitions="*,12,*" Margin="0,0,0,6">
+                            <StackPanel Grid.Column="0" Spacing="4">
+                                <TextBlock Text="Start" FontSize="11"
+                                           Foreground="{StaticResource TextSecondaryBrush}"/>
+                                <NumericUpDown Value="{Binding SelectedSound.StartSeconds, Mode=TwoWay}"
+                                               Minimum="0" Increment="0.5" FormatString="0.0"
+                                               HorizontalAlignment="Stretch"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Spacing="4">
+                                <TextBlock Text="Length" FontSize="11"
+                                           Foreground="{StaticResource TextSecondaryBrush}"/>
+                                <NumericUpDown Value="{Binding SelectedSound.LengthSeconds, Mode=TwoWay}"
+                                               Minimum="0" Increment="0.5" FormatString="0.0"
+                                               HorizontalAlignment="Stretch"/>
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Text="Length 0 = play the whole clip. Use these to play only a portion."
+                                   FontSize="10" TextWrapping="Wrap"
+                                   Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,20"/>
+
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
                             <Button Content="Cancel" Classes="secondary" Padding="20,9"
                                     Command="{Binding CancelSoundEditCommand}"/>
