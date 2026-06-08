@@ -229,6 +229,7 @@ namespace CenterHubNew
                     services.AddSingleton<WindowsNotificationService>();
                     services.AddSingleton<WifiService>();
                     services.AddSingleton<MetronomeService>();
+                    services.AddSingleton<RandomizerSoundService>();
 
                     services.AddTransient<MainViewModel>();
                     services.AddTransient<HomeViewModel>();

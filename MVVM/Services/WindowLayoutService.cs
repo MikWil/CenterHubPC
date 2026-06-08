@@ -268,7 +268,6 @@ namespace CenterHubNew.MVVM.Services
         private List<LiveWindow> EnumerateLiveWindows()
         {
             var list = new List<LiveWindow>();
-            var selfPid = Environment.ProcessId;
 
             EnumWindows((hwnd, _) =>
             {
@@ -285,7 +284,6 @@ namespace CenterHubNew.MVVM.Services
                 if (string.IsNullOrWhiteSpace(title)) return true;
 
                 GetWindowThreadProcessId(hwnd, out var pid);
-                if (pid == (uint)selfPid) return true; // skip our own window
 
                 string procName = "", exePath = "";
                 try

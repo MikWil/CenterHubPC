@@ -26,6 +26,10 @@ namespace CenterHubNew.MVVM.ViewModel
     public partial class RandomizerViewModel : BaseViewModel
     {
         private readonly Random _rng = new();
+        private readonly RandomizerSoundService? _sound;
+
+        // ── Audio ──
+        [ObservableProperty] private bool _soundEnabled = true;
 
         // ── Editable options ──
         [ObservableProperty] private ObservableCollection<RandomizerOption> _options = new();
@@ -41,8 +45,11 @@ namespace CenterHubNew.MVVM.ViewModel
         [ObservableProperty] private bool   _hasResult;
         [ObservableProperty] private ObservableCollection<RandomizerHistoryEntry> _history = new();
 
-        public RandomizerViewModel(ILogger<RandomizerViewModel>? logger = null) : base(logger)
+        public RandomizerViewModel(
+            RandomizerSoundService? sound = null,
+            ILogger<RandomizerViewModel>? logger = null) : base(logger)
         {
+            _sound = sound;
             // Sensible seed examples — the user can edit/replace
             Options.Add(new RandomizerOption { Label = "Pizza"  });
             Options.Add(new RandomizerOption { Label = "Burger" });
@@ -132,6 +139,9 @@ namespace CenterHubNew.MVVM.ViewModel
                     currentIdx = (currentIdx + 1) % Options.Count;
                     Options[currentIdx].IsHighlighted = true;
 
+                    // Soft low tick on each step while the wheel rolls
+                    if (SoundEnabled) _sound?.PlayTick();
+
                     // Quadratic ease-out — fast at start, slower near the end
                     double t = (double)i / totalSteps;
                     int delay = (int)(35 + 230 * Math.Pow(t, 2.4));
@@ -152,6 +162,7 @@ namespace CenterHubNew.MVVM.ViewModel
             History.Insert(0, new RandomizerHistoryEntry { Label = Options[idx].Label, At = DateTime.Now });
             while (History.Count > 20) History.RemoveAt(History.Count - 1);
             ToastService.Instance.Success($"Picked: {Options[idx].Label}");
+            if (SoundEnabled) _sound?.PlayWin();
             IsSpinning = false;
         }
 

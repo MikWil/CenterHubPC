@@ -145,7 +145,7 @@
                         </ItemsControl>
 
                         <!-- Settings row -->
-                        <Grid ColumnDefinitions="*,*,Auto" Margin="0,16,0,0">
+                        <Grid ColumnDefinitions="*,*,*,Auto" Margin="0,16,0,0">
                             <CheckBox Grid.Column="0"
                                       Content="Use weights"
                                       IsChecked="{Binding UseWeights, Mode=TwoWay}"
@@ -156,7 +156,12 @@
                                       IsChecked="{Binding Animate, Mode=TwoWay}"
                                       FontSize="12"
                                       ToolTip.Tip="Cycle the highlight through the options before landing on the winner"/>
-                            <Button Grid.Column="2" Classes="secondary"
+                            <CheckBox Grid.Column="2"
+                                      Content="Sound"
+                                      IsChecked="{Binding SoundEnabled, Mode=TwoWay}"
+                                      FontSize="12"
+                                      ToolTip.Tip="Play a soft tick while rolling and a cheer on the result"/>
+                            <Button Grid.Column="3" Classes="secondary"
                                     Content="Clear all"
                                     Padding="14,7" FontSize="12"
                                     Command="{Binding ClearAllCommand}"/>

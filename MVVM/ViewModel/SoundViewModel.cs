@@ -220,14 +220,41 @@ namespace CenterHubNew.MVVM.ViewModel
 
             try
             {
-                // Get a fresh reference to the default microphone device each time
-                using var defaultDevice = deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Communications);
-                if (defaultDevice != null)
+                bool newState = !IsMicrophoneMuted;
+
+                // Mute the default capture device for every role (Console, Multimedia,
+                // Communications). They can resolve to different physical devices, so
+                // applying to all of them guarantees the mic the user is actually using
+                // gets muted — the previous code only touched the Communications role,
+                // which is why the button often appeared to do nothing.
+                using var enumerator = new MMDeviceEnumerator();
+                var roles = new[] { Role.Console, Role.Multimedia, Role.Communications };
+                var applied = new System.Collections.Generic.HashSet<string>();
+                bool any = false;
+
+                foreach (var role in roles)
                 {
-                    IsMicrophoneMuted = !IsMicrophoneMuted;
-                    defaultDevice.AudioEndpointVolume.Mute = IsMicrophoneMuted;
-                    Logger?.LogInformation("Microphone mute toggled: {IsMuted}", IsMicrophoneMuted);
-                    ToastService.Instance.Success(IsMicrophoneMuted ? "Microphone muted" : "Microphone unmuted");
+                    MMDevice? device = null;
+                    try { device = enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, role); }
+                    catch { /* no default for this role */ }
+                    if (device == null) continue;
+
+                    try
+                    {
+                        if (applied.Add(device.ID))
+                        {
+                            device.AudioEndpointVolume.Mute = newState;
+                            any = true;
+                        }
+                    }
+                    finally { device.Dispose(); }
+                }
+
+                if (any)
+                {
+                    IsMicrophoneMuted = newState;
+                    Logger?.LogInformation("Microphone mute toggled: {IsMuted} ({Count} device(s))", newState, applied.Count);
+                    ToastService.Instance.Success(newState ? "Microphone muted" : "Microphone unmuted");
                 }
                 else
                 {

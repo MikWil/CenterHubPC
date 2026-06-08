@@ -7,9 +7,7 @@
              x:Class="CenterHubNew.MVVM.View.HotkeySettingsView"
              x:DataType="viewmodel:HotkeySettingsViewModel"
              mc:Ignorable="d"
-             Background="Transparent"
-             Focusable="True"
-             KeyDown="UserControl_KeyDown">
+             Background="Transparent">
 
     <UserControl.Styles>
         <Style Selector="Border.hotkey-btn">
@@ -85,8 +83,16 @@
                                         Classes="secondary"
                                         Command="{Binding DataContext.StartRecordingCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
                                         CommandParameter="{Binding}"
-                                        MinWidth="140" Height="34" Padding="14,0">
-                                    <TextBlock FontSize="12" Text="{Binding DisplayString}"/>
+                                        MinWidth="140" Height="34" Padding="14,0"
+                                        ToolTip.Tip="Click, then press the key combo. Esc cancels.">
+                                    <Panel>
+                                        <TextBlock FontSize="12" Text="{Binding DisplayString}"
+                                                   IsVisible="{Binding !IsRecording}"/>
+                                        <TextBlock FontSize="12" Text="Press a key…"
+                                                   FontStyle="Italic"
+                                                   Foreground="{StaticResource AccentBrush}"
+                                                   IsVisible="{Binding IsRecording}"/>
+                                    </Panel>
                                 </Button>
 
                                 <!-- Clear button -->
