@@ -179,7 +179,7 @@ namespace CenterHubNew.MVVM.ViewModel
             }
 
             UpdateActionText = "Launching installer…";
-            ToastService.Instance.Info("Installer launching — CenterHub will close to complete the upgrade.");
+            ToastService.Instance.Info("Updating — CenterHub will close and reopen automatically when it's done.");
 
             // Small delay so the user sees the toast before we yank the window
             await Task.Delay(800);

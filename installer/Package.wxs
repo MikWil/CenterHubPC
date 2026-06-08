@@ -3,7 +3,7 @@
 
   <!-- Version is overridden at build time via -d Version=x.y.z
        Default value below mirrors the current csproj version. -->
-  <?define Version = "5.7.0" ?>
+  <?define Version = "5.7.1" ?>
   <?define PublishDir = "..\publish\Release" ?>
 
   <Package Name="CenterHub"
@@ -77,6 +77,25 @@
       <ComponentRef Id="StartMenuFolderComponent" />
       <ComponentRef Id="AppShortcuts" />
     </Feature>
+
+    <!-- ===== Launch the app automatically when install/upgrade finishes ===== -->
+    <!-- Covers both a fresh install (double-click MSI) and the in-app updater,
+         which exits and hands off to msiexec — this relaunches the new version.
+         Type 50 EXE-from-property action; impersonated so it runs in the user's
+         session, async so msiexec doesn't wait on it. Skipped on uninstall. -->
+    <SetProperty Id="LaunchTarget"
+                 Value="[INSTALLFOLDER]CenterHubNew.exe"
+                 Before="LaunchApplication"
+                 Sequence="execute" />
+    <CustomAction Id="LaunchApplication"
+                  Property="LaunchTarget"
+                  ExeCommand=""
+                  Execute="immediate"
+                  Impersonate="yes"
+                  Return="asyncNoWait" />
+    <InstallExecuteSequence>
+      <Custom Action="LaunchApplication" After="InstallFinalize" Condition="NOT REMOVE" />
+    </InstallExecuteSequence>
 
     <!-- ===== App metadata in Add/Remove Programs ===== -->
     <Icon Id="AppIcon.ico" SourceFile="..\Images\circular_connection_icon_155652.ico" />

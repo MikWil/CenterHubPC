@@ -296,8 +296,14 @@ namespace CenterHubNew.MVVM.Services
 
         /// <summary>
         /// Hand the MSI off to msiexec. We use /passive so the user sees a
-        /// progress dialog but no prompts; MajorUpgrade replaces the old
-        /// install automatically.
+        /// progress dialog but no prompts; MajorUpgrade replaces the old install
+        /// automatically, and the MSI's LaunchApplication action restarts the new
+        /// version when the upgrade finishes.
+        ///
+        /// The caller shuts the app down right after this returns. We run msiexec
+        /// through a short cmd delay so this process has fully exited before the
+        /// installer starts replacing files — otherwise the running exe is locked
+        /// and the upgrade stalls on a "files in use" prompt.
         /// </summary>
         public bool LaunchInstaller(string msiPath)
         {
@@ -306,12 +312,14 @@ namespace CenterHubNew.MVVM.Services
                 if (!File.Exists(msiPath)) return false;
                 var psi = new ProcessStartInfo
                 {
-                    FileName  = "msiexec.exe",
-                    Arguments = $"/i \"{msiPath}\" /passive /norestart",
-                    UseShellExecute = true,
+                    FileName  = "cmd.exe",
+                    // ~2s delay (ping is a dependency-free timer), then the upgrade.
+                    Arguments = $"/c ping -n 3 127.0.0.1 >nul & msiexec /i \"{msiPath}\" /passive /norestart",
+                    UseShellExecute = false,
+                    CreateNoWindow  = true,
                 };
                 Process.Start(psi);
-                _logger?.LogInformation("Launched MSI installer: {Path}", msiPath);
+                _logger?.LogInformation("Scheduled MSI upgrade (delayed): {Path}", msiPath);
                 return true;
             }
             catch (Exception ex)
