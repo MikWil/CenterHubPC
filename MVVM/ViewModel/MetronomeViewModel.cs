@@ -15,6 +15,14 @@ namespace CenterHubNew.MVVM.ViewModel
         public int    Bpm { get; init; }
     }
 
+    /// <summary>A selectable click timbre, shown in the Sound picker.</summary>
+    public sealed class MetronomeSoundChoice
+    {
+        public string Name { get; init; } = "";
+        public MetronomeSound Sound { get; init; }
+        public override string ToString() => Name; // ComboBox fallback display
+    }
+
     public partial class MetronomeViewModel : BaseViewModel
     {
         private readonly MetronomeService _audio;
@@ -25,6 +33,7 @@ namespace CenterHubNew.MVVM.ViewModel
         [ObservableProperty] private int   _beatsPerMeasure = 4;
         [ObservableProperty] private bool  _accentEnabled  = true;
         [ObservableProperty] private double _volume = 0.75; // 0.0–1.0
+        [ObservableProperty] private MetronomeSoundChoice? _selectedSound;
 
         // ── Live state ──
         [ObservableProperty] private bool _isPlaying;
@@ -46,6 +55,17 @@ namespace CenterHubNew.MVVM.ViewModel
         // Time-signature choices for the picker
         public IReadOnlyList<int> BeatChoices { get; } = new[] { 2, 3, 4, 5, 6, 7, 8 };
 
+        // Selectable click sounds
+        public IReadOnlyList<MetronomeSoundChoice> SoundChoices { get; } = new[]
+        {
+            new MetronomeSoundChoice { Name = "Clock",      Sound = MetronomeSound.Clock },
+            new MetronomeSoundChoice { Name = "Wood Block", Sound = MetronomeSound.WoodBlock },
+            new MetronomeSoundChoice { Name = "Beep",       Sound = MetronomeSound.Beep },
+            new MetronomeSoundChoice { Name = "Click",      Sound = MetronomeSound.Click },
+            new MetronomeSoundChoice { Name = "Cowbell",    Sound = MetronomeSound.Cowbell },
+            new MetronomeSoundChoice { Name = "Rim",        Sound = MetronomeSound.Rim },
+        };
+
         // ── Tap-tempo state ──
         private readonly List<DateTime> _tapHistory = new();
 
@@ -54,6 +74,7 @@ namespace CenterHubNew.MVVM.ViewModel
             ILogger<MetronomeViewModel>? logger = null) : base(logger)
         {
             _audio = audio;
+            _selectedSound = SoundChoices[0];
             UpdateIntervalDisplay();
         }
 
@@ -147,7 +168,7 @@ namespace CenterHubNew.MVVM.ViewModel
             CurrentBeat = CurrentBeat % BeatsPerMeasure + 1; // 1..N rolling
             var accent  = AccentEnabled && CurrentBeat == 1;
 
-            _audio.Tick(accent, (float)Volume);
+            _audio.Tick(accent, (float)Volume, SelectedSound?.Sound ?? MetronomeSound.Clock);
             Pulse = !Pulse; // toggle so the visual element can re-animate
         }
 
@@ -165,6 +186,13 @@ namespace CenterHubNew.MVVM.ViewModel
         {
             // Resets the beat counter so the accent lands right
             CurrentBeat = 0;
+        }
+
+        partial void OnSelectedSoundChanged(MetronomeSoundChoice? value)
+        {
+            if (IsDisposed || value is null) return;
+            // Preview the chosen sound so the user hears the difference immediately
+            _audio.Tick(accent: false, volume: (float)Volume, sound: value.Sound);
         }
 
         private void UpdateIntervalDisplay()

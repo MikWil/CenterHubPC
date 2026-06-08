@@ -193,6 +193,31 @@
                                    VerticalAlignment="Center" TextAlignment="Right"/>
                     </Grid>
 
+                    <!-- Sound row -->
+                    <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,14">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6"
+                                    VerticalAlignment="Center" Width="90">
+                            <TextBlock Text="&#xE8D6;" FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                       FontSize="14" Foreground="{StaticResource TextMutedBrush}"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock Text="SOUND" FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                       Foreground="{StaticResource TextMutedBrush}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <ComboBox Grid.Column="1"
+                                  ItemsSource="{Binding SoundChoices}"
+                                  SelectedItem="{Binding SelectedSound, Mode=TwoWay}"
+                                  HorizontalAlignment="Stretch"
+                                  Margin="10,0,0,0"
+                                  ToolTip.Tip="Pick the click timbre — selecting one previews it">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="viewmodel:MetronomeSoundChoice">
+                                    <TextBlock Text="{Binding Name}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </Grid>
+
                     <Grid ColumnDefinitions="*,12,*">
                         <Border Grid.Column="0" Classes="card-inner">
                             <StackPanel>
