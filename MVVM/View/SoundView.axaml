@@ -3,6 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+             xmlns:svc="clr-namespace:CenterHubNew.MVVM.Services"
              x:Class="CenterHubNew.MVVM.View.SoundView"
              x:DataType="viewmodel:SoundViewModel"
              mc:Ignorable="d"
@@ -16,93 +17,14 @@
                 <TextBlock Text="Sound"
                            FontSize="22" FontWeight="Bold"
                            Foreground="{StaticResource TextPrimaryBrush}"/>
-                <TextBlock Text="Audio profiles and device control"
+                <TextBlock Text="Route what you hear and what others hear — save it as a preset"
                            FontSize="12"
                            Foreground="{StaticResource TextMutedBrush}"
                            Margin="0,2,0,0"/>
             </StackPanel>
 
-            <!-- PROFILES -->
-            <Border Classes="card" Margin="0,0,0,10">
-                <StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,14" Spacing="8">
-                        <Border Width="3" Height="16" CornerRadius="2"
-                                Background="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
-                        <TextBlock Text="Profiles"
-                                   FontSize="13" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextPrimaryBrush}"
-                                   VerticalAlignment="Center"/>
-                    </StackPanel>
-                    <Grid ColumnDefinitions="*,8,*,8,*">
-                        <Border Grid.Column="0" Classes="card-inner">
-                            <StackPanel>
-                                <TextBox Text="{Binding Profile1.Name, Mode=TwoWay}"
-                                         FontSize="13" FontWeight="SemiBold" Background="Transparent"
-                                         BorderThickness="0" Foreground="{StaticResource TextPrimaryBrush}"
-                                         Padding="0" Margin="0,0,0,6"/>
-                                <TextBlock Text="{Binding Profile1.AudioDevice, FallbackValue='No device'}"
-                                           FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
-                                           TextTrimming="CharacterEllipsis"/>
-                                <TextBlock Text="{Binding Profile1.Volume, StringFormat='Vol: {0:P0}'}"
-                                           FontSize="11" Foreground="{StaticResource TextMutedBrush}"
-                                           Margin="0,2,0,10"/>
-                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <Button Content="Apply" Classes="primary"
-                                            Command="{Binding ApplyProfileCommand}" CommandParameter="0"
-                                            Padding="10,5" FontSize="11"/>
-                                    <Button Content="Save" Classes="secondary"
-                                            Command="{Binding SaveCurrentProfileCommand}" CommandParameter="0"
-                                            Padding="10,5" FontSize="11"/>
-                                </StackPanel>
-                            </StackPanel>
-                        </Border>
-                        <Border Grid.Column="2" Classes="card-inner">
-                            <StackPanel>
-                                <TextBox Text="{Binding Profile2.Name, Mode=TwoWay}"
-                                         FontSize="13" FontWeight="SemiBold" Background="Transparent"
-                                         BorderThickness="0" Foreground="{StaticResource TextPrimaryBrush}"
-                                         Padding="0" Margin="0,0,0,6"/>
-                                <TextBlock Text="{Binding Profile2.AudioDevice, FallbackValue='No device'}"
-                                           FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
-                                           TextTrimming="CharacterEllipsis"/>
-                                <TextBlock Text="{Binding Profile2.Volume, StringFormat='Vol: {0:P0}'}"
-                                           FontSize="11" Foreground="{StaticResource TextMutedBrush}"
-                                           Margin="0,2,0,10"/>
-                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <Button Content="Apply" Classes="primary"
-                                            Command="{Binding ApplyProfileCommand}" CommandParameter="1"
-                                            Padding="10,5" FontSize="11"/>
-                                    <Button Content="Save" Classes="secondary"
-                                            Command="{Binding SaveCurrentProfileCommand}" CommandParameter="1"
-                                            Padding="10,5" FontSize="11"/>
-                                </StackPanel>
-                            </StackPanel>
-                        </Border>
-                        <Border Grid.Column="4" Classes="card-inner">
-                            <StackPanel>
-                                <TextBox Text="{Binding Profile3.Name, Mode=TwoWay}"
-                                         FontSize="13" FontWeight="SemiBold" Background="Transparent"
-                                         BorderThickness="0" Foreground="{StaticResource TextPrimaryBrush}"
-                                         Padding="0" Margin="0,0,0,6"/>
-                                <TextBlock Text="{Binding Profile3.AudioDevice, FallbackValue='No device'}"
-                                           FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
-                                           TextTrimming="CharacterEllipsis"/>
-                                <TextBlock Text="{Binding Profile3.Volume, StringFormat='Vol: {0:P0}'}"
-                                           FontSize="11" Foreground="{StaticResource TextMutedBrush}"
-                                           Margin="0,2,0,10"/>
-                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <Button Content="Apply" Classes="primary"
-                                            Command="{Binding ApplyProfileCommand}" CommandParameter="2"
-                                            Padding="10,5" FontSize="11"/>
-                                    <Button Content="Save" Classes="secondary"
-                                            Command="{Binding SaveCurrentProfileCommand}" CommandParameter="2"
-                                            Padding="10,5" FontSize="11"/>
-                                </StackPanel>
-                            </StackPanel>
-                        </Border>
-                    </Grid>
-                </StackPanel>
-            </Border>
+            <!-- ROUTING BOARD (presets + flows) -->
+            <ContentControl Content="{Binding Routing}" Margin="0,0,0,10"/>
 
             <!-- QUICK CONTROLS -->
             <Border Classes="card" Margin="0,0,0,10">

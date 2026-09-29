@@ -400,6 +400,103 @@
                 </Border>
             </Border>
 
+            <!-- ===== "WHAT'S NEW" POPUP (after an update) ===== -->
+            <Border Grid.RowSpan="3"
+                    Background="#A8000000"
+                    IsVisible="{Binding IsWhatsNewOpen}"
+                    ZIndex="1100">
+                <Border Width="560" MaxHeight="620"
+                        Background="{StaticResource CardBackgroundBrush}"
+                        BorderThickness="1" BorderBrush="{StaticResource BorderHairline}"
+                        CornerRadius="12"
+                        Padding="28,24"
+                        VerticalAlignment="Center"
+                        HorizontalAlignment="Center"
+                        BoxShadow="0 12 40 0 #80000000">
+                    <Grid RowDefinitions="Auto,*,Auto">
+                        <!-- Header -->
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" Margin="0,0,0,16">
+                            <Border Width="36" Height="36" CornerRadius="18"
+                                    Background="{StaticResource AccentSubtleBrush}"
+                                    BorderThickness="1" BorderBrush="{StaticResource AccentBrush}"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="&#xE789;" FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                           FontSize="16"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Foreground="{StaticResource AccentBrush}"/>
+                            </Border>
+                            <TextBlock Text="{Binding WhatsNewTitle}"
+                                       FontSize="18" FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Release notes -->
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <SelectableTextBlock Text="{Binding WhatsNewBody}"
+                                                 TextWrapping="Wrap"
+                                                 FontSize="13" LineHeight="20"
+                                                 Foreground="{StaticResource TextSecondaryBrush}"/>
+                        </ScrollViewer>
+
+                        <!-- Actions -->
+                        <StackPanel Grid.Row="2" Orientation="Horizontal"
+                                    HorizontalAlignment="Right" Spacing="10" Margin="0,20,0,0">
+                            <Button Content="Got it" Classes="primary"
+                                    Padding="22,10"
+                                    Command="{Binding CloseWhatsNewCommand}"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Border>
+
+            <!-- ===== VOICEMEETER AUDIO-RESTORE PROMPT (after a crash) ===== -->
+            <Border Grid.RowSpan="3"
+                    Background="#A8000000"
+                    IsVisible="{Binding IsAudioRestoreOpen}"
+                    ZIndex="1200">
+                <Border Width="440"
+                        Background="{StaticResource CardBackgroundBrush}"
+                        BorderThickness="1" BorderBrush="{StaticResource BorderHairline}"
+                        CornerRadius="12"
+                        Padding="28,24"
+                        VerticalAlignment="Center"
+                        HorizontalAlignment="Center"
+                        BoxShadow="0 12 40 0 #80000000">
+                    <StackPanel Spacing="0">
+                        <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,0,12">
+                            <Border Width="36" Height="36" CornerRadius="18"
+                                    Background="{StaticResource AccentSubtleBrush}"
+                                    BorderThickness="1" BorderBrush="{StaticResource AccentBrush}"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="&#xE7F3;" FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
+                                           FontSize="16"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Foreground="{StaticResource AccentBrush}"/>
+                            </Border>
+                            <TextBlock Text="Restore audio?"
+                                       FontSize="18" FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <TextBlock Text="{Binding AudioRestoreBody}"
+                                   TextWrapping="Wrap" FontSize="13"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   Margin="0,0,0,22"/>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+                            <Button Content="Keep current" Classes="secondary"
+                                    Padding="18,10"
+                                    Command="{Binding DismissAudioRestoreCommand}"/>
+                            <Button Content="Restore" Classes="primary"
+                                    Padding="18,10"
+                                    Command="{Binding RestoreAudioNowCommand}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Border>
+
         </Grid>
     </Border>
 </Window>

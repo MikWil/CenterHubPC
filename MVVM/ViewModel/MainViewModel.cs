@@ -13,6 +13,7 @@ namespace CenterHubNew.MVVM.ViewModel
     public partial class MainViewModel : BaseViewModel
     {
         private readonly UpdateService? _updateService;
+        private readonly VoicemeeterModeService? _modeService;
 
         private MonitoringViewModel? _monitoringVM;
         private SoundViewModel? _soundVM;
@@ -36,6 +37,16 @@ namespace CenterHubNew.MVVM.ViewModel
         [ObservableProperty] private bool   _isDownloadingUpdate;
         [ObservableProperty] private double _downloadProgressPercent;
         [ObservableProperty] private string _updateActionText = "Download & install";
+
+        // ─── "What's new" popup (shown once after an update) ───
+        [ObservableProperty] private bool   _isWhatsNewOpen;
+        [ObservableProperty] private string _whatsNewTitle = "";
+        [ObservableProperty] private string _whatsNewBody  = "";
+
+        // ─── Voicemeeter crash-recovery prompt ───
+        [ObservableProperty] private bool   _isAudioRestoreOpen;
+        [ObservableProperty] private string _audioRestoreBody =
+            "CenterHub closed while Voicemeeter audio mode was active. Restore your previous Windows audio devices?";
 
         [ObservableProperty]
         private object? _currentView;
@@ -90,9 +101,12 @@ namespace CenterHubNew.MVVM.ViewModel
 
         public MainViewModel(
             UpdateService? updateService = null,
+            VoicemeeterModeService? modeService = null,
             ILogger<MainViewModel>? logger = null) : base(logger)
         {
             _updateService = updateService;
+            _modeService = modeService
+                ?? App.Services?.GetService(typeof(VoicemeeterModeService)) as VoicemeeterModeService;
 
             // Set initial view to Monitoring
             MonitoringView();
@@ -102,9 +116,114 @@ namespace CenterHubNew.MVVM.ViewModel
             if (_updateService is not null)
             {
                 _updateService.UpdateChanged += OnUpdateChanged;
+                _ = ShowWhatsNewIfUpdatedAsync();
             }
 
+            CheckInterruptedVoicemeeterSession();
+
             Logger?.LogInformation("MainViewModel initialized");
+        }
+
+        // ─── Voicemeeter crash-recovery ───
+
+        private void CheckInterruptedVoicemeeterSession()
+        {
+            try
+            {
+                if (_modeService is null) return;
+                if (!_modeService.HasInterruptedSession(out _)) return;
+
+                if (_modeService.AutoRestoreEnabled)
+                {
+                    _ = RestoreAudioNowAsync();
+                }
+                else
+                {
+                    IsAudioRestoreOpen = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogWarning(ex, "Voicemeeter crash-recovery check failed");
+            }
+        }
+
+        [RelayCommand]
+        private async Task RestoreAudioNowAsync()
+        {
+            IsAudioRestoreOpen = false;
+            if (_modeService is null) return;
+            try
+            {
+                var result = await _modeService.RestoreInterruptedAsync();
+                if (result.Success) ToastService.Instance.Success(result.Message);
+                else ToastService.Instance.Warning(result.Message);
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "Failed to restore audio after interrupted session");
+                ToastService.Instance.Error("Could not restore audio devices.");
+            }
+        }
+
+        [RelayCommand]
+        private void DismissAudioRestore()
+        {
+            IsAudioRestoreOpen = false;
+            // Leave audio as-is, but clear the flag so we don't prompt again next launch.
+            try { _modeService?.ClearInterruptedSession(); } catch { }
+        }
+
+        // ─── "What's new" popup ───
+
+        private async Task ShowWhatsNewIfUpdatedAsync()
+        {
+            try
+            {
+                var notes = await _updateService!.TryGetUpdateNotesAsync().ConfigureAwait(false);
+                if (notes is null) return;
+
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (IsDisposed) return;
+                    WhatsNewTitle = $"What's new in v{notes.Value.version}";
+                    WhatsNewBody  = CleanReleaseNotes(notes.Value.body);
+                    IsWhatsNewOpen = true;
+                });
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogWarning(ex, "Failed to show What's New popup");
+            }
+        }
+
+        [RelayCommand]
+        private void CloseWhatsNew() => IsWhatsNewOpen = false;
+
+        /// <summary>Lightly de-markdown the GitHub release body for plain-text display.</summary>
+        private static string CleanReleaseNotes(string body)
+        {
+            if (string.IsNullOrWhiteSpace(body)) return "";
+            var sb = new System.Text.StringBuilder();
+            foreach (var raw in body.Replace("\r\n", "\n").Split('\n'))
+            {
+                var line = raw.TrimEnd();
+                var trimmed = line.TrimStart();
+
+                if (trimmed.StartsWith("![")) continue;        // image badges
+                if (trimmed == "---" || trimmed == "***") continue; // horizontal rules
+
+                // Headings → bare text
+                while (trimmed.StartsWith("#")) trimmed = trimmed[1..];
+                // Bullets → •
+                if (trimmed.StartsWith("- ") || trimmed.StartsWith("* "))
+                    trimmed = "  • " + trimmed[2..];
+                // Strip inline emphasis/backticks
+                trimmed = trimmed.Replace("**", "").Replace("`", "");
+
+                sb.AppendLine(trimmed.TrimEnd());
+            }
+            return sb.ToString().Trim();
         }
 
         // ─── Update banner ───

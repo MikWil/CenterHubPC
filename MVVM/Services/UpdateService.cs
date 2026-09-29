@@ -29,6 +29,8 @@ namespace CenterHubNew.MVVM.Services
         [JsonPropertyName("lastChecked")] public DateTime LastCheckedUtc { get; set; }
         [JsonPropertyName("latestTag")]   public string?  LatestTagName  { get; set; }
         [JsonPropertyName("skippedTag")]  public string?  SkippedVersion { get; set; }
+        /// <summary>App version whose release notes have already been shown to the user.</summary>
+        [JsonPropertyName("notesShownVersion")] public string? NotesShownVersion { get; set; }
     }
 
     /// <summary>
@@ -218,6 +220,61 @@ namespace CenterHubNew.MVVM.Services
         {
             AvailableUpdate = info;
             try { UpdateChanged?.Invoke(info); } catch { }
+        }
+
+        // ─────────────────── "What's new" after an update ───────────────────
+
+        /// <summary>
+        /// Once after an upgrade, return the release notes for the version now
+        /// running so the app can show a "What's New" popup. Returns null when the
+        /// notes for this version were already shown, on a brand-new first install
+        /// (we don't greet first-timers), or on any fetch failure (will retry next
+        /// launch). The "shown" marker is only persisted once notes are returned.
+        /// </summary>
+        public async Task<(string version, string body)?> TryGetUpdateNotesAsync(CancellationToken ct = default)
+        {
+            var current = CurrentVersion;
+
+            if (string.Equals(_cache.NotesShownVersion, current, StringComparison.OrdinalIgnoreCase))
+                return null; // already shown for this version
+
+            // First run ever — record the baseline and stay quiet.
+            if (string.IsNullOrEmpty(_cache.NotesShownVersion))
+            {
+                _cache.NotesShownVersion = current;
+                SaveCache();
+                return null;
+            }
+
+            var body = await FetchReleaseBodyAsync("v" + current, ct).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(body))
+                return null; // offline / not published yet — try again next launch
+
+            _cache.NotesShownVersion = current;
+            SaveCache();
+            return (current, body!);
+        }
+
+        private async Task<string?> FetchReleaseBodyAsync(string tag, CancellationToken ct)
+        {
+            try
+            {
+                var url = $"https://api.github.com/repos/{GitHubRepo}/releases/tags/{tag}";
+                using var resp = await _http.GetAsync(url, ct).ConfigureAwait(false);
+                if (!resp.IsSuccessStatusCode)
+                {
+                    _logger?.LogWarning("Release-notes fetch for {Tag} returned {Status}", tag, (int)resp.StatusCode);
+                    return null;
+                }
+                var json = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+                using var doc = JsonDocument.Parse(json);
+                return doc.RootElement.GetPropertyOrEmpty("body");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Release-notes fetch for {Tag} failed", tag);
+                return null;
+            }
         }
 
         // ─────────────────── Skip / dismiss ───────────────────

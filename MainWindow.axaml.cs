@@ -118,6 +118,23 @@ namespace CenterHubNew
             }
         }
 
+        /// <summary>
+        /// Bring the window to the foreground from a hidden/minimized/tray state.
+        /// Called when a second instance is launched (single-instance activation).
+        /// </summary>
+        public void RestoreFromTray()
+        {
+            if (WindowState == WindowState.Minimized)
+                WindowState = WindowState.Normal;
+            Show();
+            Activate();
+            // Nudge to front without staying pinned on top.
+            Topmost = true;
+            Topmost = false;
+            if (_notifyIcon != null)
+                _notifyIcon.Visible = false;
+        }
+
         private void NotifyIcon_MouseUp(object? sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)

@@ -11,6 +11,9 @@
         <DataTemplate DataType="{x:Type viewmodel:SoundViewModel}">
             <view:SoundView/>
         </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodel:RoutingViewModel}">
+            <view:RoutingView/>
+        </DataTemplate>
         <DataTemplate DataType="{x:Type viewmodel:StandingViewModel}">
             <view:StandingView/>
         </DataTemplate>

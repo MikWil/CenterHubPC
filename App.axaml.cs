@@ -17,8 +17,6 @@ namespace CenterHubNew
     public partial class App : Application
     {
         private static IHost? _host;
-        private static Mutex? _mutex;
-        private const string MutexName = "CenterHubNew_SingleInstance_Mutex";
 
         public static IServiceProvider Services => _host?.Services
             ?? throw new InvalidOperationException("Services not initialized");
@@ -30,17 +28,8 @@ namespace CenterHubNew
 
         public override async void OnFrameworkInitializationCompleted()
         {
-            bool createdNew;
-            _mutex = new Mutex(true, MutexName, out createdNew);
-
-            if (!createdNew)
-            {
-                if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-                {
-                    desktop.Shutdown();
-                }
-                return;
-            }
+            // Single-instance is enforced earlier, in Program.Main (before Avalonia
+            // starts), so a second process never reaches this point.
 
             try
             {
@@ -54,14 +43,13 @@ namespace CenterHubNew
                     mainWindow.Show();
 
                     InitializeGlobalHotkeys(mainWindow);
+                    StartActivationListener(mainWindow);
                     ScheduleUpdateCheck();
 
                     lifetime.Exit += (_, _) =>
                     {
                         try { _host.Services.GetService<GlobalHotkeyService>()?.Dispose(); } catch { }
                         try { _host.Services.GetService<UpdateService>()?.Dispose(); } catch { }
-                        _mutex?.ReleaseMutex();
-                        _mutex?.Dispose();
                         try { _host.StopAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult(); } catch { }
                         try { _host.Dispose(); } catch { }
                     };
@@ -74,6 +62,36 @@ namespace CenterHubNew
             }
 
             base.OnFrameworkInitializationCompleted();
+        }
+
+        /// <summary>
+        /// Listen (on a background thread) for a second instance asking us to surface.
+        /// When signaled, restore and foreground the main window.
+        /// </summary>
+        private static void StartActivationListener(MainWindow mainWindow)
+        {
+            var ev = Program.ActivateRequested;
+            if (ev is null) return;
+
+            var thread = new Thread(() =>
+            {
+                while (true)
+                {
+                    try { if (!ev.WaitOne()) break; }
+                    catch { break; }
+
+                    try
+                    {
+                        Dispatcher.UIThread.Post(mainWindow.RestoreFromTray);
+                    }
+                    catch (InvalidOperationException) { break; } // dispatcher gone — app shutting down
+                }
+            })
+            {
+                IsBackground = true,
+                Name = "SingleInstanceActivation"
+            };
+            thread.Start();
         }
 
         private static void InitializeGlobalHotkeys(MainWindow mainWindow)
@@ -230,6 +248,12 @@ namespace CenterHubNew
                     services.AddSingleton<WifiService>();
                     services.AddSingleton<MetronomeService>();
                     services.AddSingleton<RandomizerSoundService>();
+                    services.AddSingleton<IAudioDeviceService, AudioDeviceService>();
+                    services.AddSingleton<IVoicemeeterService, VoicemeeterService>();
+                    services.AddSingleton<VoicemeeterSettingsService>();
+                    services.AddSingleton<VoicemeeterModeService>();
+                    services.AddSingleton<PerAppAudioService>();
+                    services.AddSingleton<AudioRoutingService>();
 
                     services.AddTransient<MainViewModel>();
                     services.AddTransient<HomeViewModel>();
@@ -255,6 +279,8 @@ namespace CenterHubNew
                     services.AddTransient<NetworkViewModel>();
                     services.AddTransient<RandomizerViewModel>();
                     services.AddTransient<MetronomeViewModel>();
+                    services.AddTransient<VoicemeeterViewModel>();
+                    services.AddTransient<RoutingViewModel>();
 
                     services.AddTransient<MainWindow>();
                     services.AddTransient<FavoritesWindow>();

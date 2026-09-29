@@ -16,6 +16,18 @@ namespace CenterHubNew.MVVM.Models
         [ObservableProperty]
         private float volume = 1.0f;
 
+        /// <summary>
+        /// When true, applying this profile also enables Voicemeeter "Guitar + Discord"
+        /// mode; when false, applying it disables/restores an active Voicemeeter session.
+        /// Absent in older saved profiles (deserializes to false — normal behavior).
+        /// </summary>
+        [ObservableProperty]
+        private bool voicemeeterEnabled;
+
+        /// <summary>Reserved for future named Voicemeeter presets; null = the single default preset.</summary>
+        [ObservableProperty]
+        private string? voicemeeterProfileId;
+
         public SoundProfile()
         {
         }

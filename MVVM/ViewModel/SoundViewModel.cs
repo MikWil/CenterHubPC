@@ -50,8 +50,31 @@ namespace CenterHubNew.MVVM.ViewModel
         private readonly SoundProfileService _profileService;
         private bool _isLoadingProfiles = false;
 
-        public SoundViewModel(ILogger<SoundViewModel>? logger = null) : base(logger)
+        private readonly VoicemeeterModeService? _modeService;
+        private readonly VoicemeeterSettingsService? _vmSettingsService;
+
+        /// <summary>Backs the "Devices" card on the Sound page (mic/guitar/monitor selection).</summary>
+        public VoicemeeterViewModel? Voicemeeter { get; }
+
+        /// <summary>Backs the flow-routing board on the Sound page.</summary>
+        public RoutingViewModel? Routing { get; }
+
+        public SoundViewModel(
+            ILogger<SoundViewModel>? logger = null,
+            VoicemeeterViewModel? voicemeeter = null,
+            RoutingViewModel? routing = null,
+            VoicemeeterModeService? modeService = null,
+            VoicemeeterSettingsService? vmSettingsService = null) : base(logger)
         {
+            Voicemeeter = voicemeeter
+                ?? App.Services?.GetService(typeof(VoicemeeterViewModel)) as VoicemeeterViewModel;
+            Routing = routing
+                ?? App.Services?.GetService(typeof(RoutingViewModel)) as RoutingViewModel;
+            _modeService = modeService
+                ?? App.Services?.GetService(typeof(VoicemeeterModeService)) as VoicemeeterModeService;
+            _vmSettingsService = vmSettingsService
+                ?? App.Services?.GetService(typeof(VoicemeeterSettingsService)) as VoicemeeterSettingsService;
+
             deviceEnumerator = new MMDeviceEnumerator();
             // Create logger for SoundProfileService using logger factory if available
             ILogger<SoundProfileService>? profileServiceLogger = null;
@@ -365,7 +388,13 @@ namespace CenterHubNew.MVVM.ViewModel
                 var profiles = _profileService.LoadProfiles();
                 if (profiles.Count >= 3)
                 {
-                    try { Dispatcher.UIThread.Post(() => { Profile1 = profiles[0]; Profile2 = profiles[1]; Profile3 = profiles[2]; }); }
+                    try { Dispatcher.UIThread.Post(() =>
+                    {
+                        Profile1 = profiles[0]; Profile2 = profiles[1]; Profile3 = profiles[2];
+                        HookProfile(0, Profile1);
+                        HookProfile(1, Profile2);
+                        HookProfile(2, Profile3);
+                    }); }
                     catch (InvalidOperationException) { }
                     Logger?.LogInformation("Loaded sound profiles");
                 }
@@ -378,6 +407,25 @@ namespace CenterHubNew.MVVM.ViewModel
             {
                 _isLoadingProfiles = false;
             }
+        }
+
+        /// <summary>
+        /// Persist a profile immediately when its name or Voicemeeter toggle changes,
+        /// so the per-profile "Voicemeeter" checkbox and inline rename stick without
+        /// needing an explicit Save (which would also overwrite the saved devices).
+        /// </summary>
+        private void HookProfile(int index, SoundProfile profile)
+        {
+            profile.PropertyChanged += (_, e) =>
+            {
+                if (_isLoadingProfiles || IsDisposed) return;
+                if (e.PropertyName == nameof(SoundProfile.VoicemeeterEnabled) ||
+                    e.PropertyName == nameof(SoundProfile.Name))
+                {
+                    try { _profileService.SaveProfile(index, profile); }
+                    catch (Exception ex) { Logger?.LogError(ex, "Error saving profile {Index}", index); }
+                }
+            };
         }
 
         [RelayCommand]
@@ -429,27 +477,35 @@ namespace CenterHubNew.MVVM.ViewModel
                     Logger?.LogWarning(ex, "Could not get current communication device");
                 }
 
+                // Preserve the profile's own settings (name + Voicemeeter toggle) while
+                // capturing the current system devices/volume.
+                var existing = profileIndex == 0 ? Profile1 : profileIndex == 1 ? Profile2 : Profile3;
                 var profile = new SoundProfile
                 {
-                    Name = profileIndex == 0 ? Profile1.Name : profileIndex == 1 ? Profile2.Name : Profile3.Name,
+                    Name = existing.Name,
                     CommunicationDevice = currentCommDevice,
                     AudioDevice = currentAudioDevice,
-                    Volume = OutputVolume
+                    Volume = OutputVolume,
+                    VoicemeeterEnabled = existing.VoicemeeterEnabled,
+                    VoicemeeterProfileId = existing.VoicemeeterProfileId
                 };
 
                 if (profileIndex == 0)
                 {
                     Profile1 = profile;
+                    HookProfile(0, profile);
                     _profileService.SaveProfile(0, profile);
                 }
                 else if (profileIndex == 1)
                 {
                     Profile2 = profile;
+                    HookProfile(1, profile);
                     _profileService.SaveProfile(1, profile);
                 }
                 else
                 {
                     Profile3 = profile;
+                    HookProfile(2, profile);
                     _profileService.SaveProfile(2, profile);
                 }
 
@@ -482,6 +538,33 @@ namespace CenterHubNew.MVVM.ViewModel
             try
             {
                 SoundProfile profile = profileIndex == 0 ? Profile1 : profileIndex == 1 ? Profile2 : Profile3;
+
+                // ── Voicemeeter integration ──
+                // A Voicemeeter-enabled profile lets the mode service own all device
+                // switching (it captures a snapshot then routes to the virtual devices).
+                if (profile.VoicemeeterEnabled)
+                {
+                    if (_modeService is null)
+                    {
+                        ToastService.Instance.Error("Voicemeeter service unavailable");
+                        return;
+                    }
+                    var vmSettings = _vmSettingsService?.Load().Settings ?? new VoicemeeterSettings();
+                    var vmResult = await _modeService.EnableAsync(vmSettings);
+                    if (vmResult.Success) ToastService.Instance.Success($"Profile '{profile.Name}' — {vmResult.Message}");
+                    else ToastService.Instance.Error(vmResult.Message);
+                    Voicemeeter?.RefreshState();
+                    SelectedProfileIndex = profileIndex;
+                    return;
+                }
+
+                // Switching to a normal profile — restore audio first if a Voicemeeter
+                // session is currently active, then apply this profile's own devices.
+                if (_modeService?.IsActive == true)
+                {
+                    await _modeService.DisableAsync();
+                    Voicemeeter?.RefreshState();
+                }
 
                 if (string.IsNullOrEmpty(profile.AudioDevice) && string.IsNullOrEmpty(profile.CommunicationDevice))
                 {
