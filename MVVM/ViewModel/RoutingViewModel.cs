@@ -43,7 +43,7 @@ namespace CenterHubNew.MVVM.ViewModel
         [ObservableProperty] private double gainDb;
         [ObservableProperty] private bool muted;
 
-        // App-slot assignment (virtual sources only).
+        // App-slot in-app assignment (virtual sources only).
         public ObservableCollection<AudioAppInfo> Apps { get; }
         [ObservableProperty] private AudioAppInfo? selectedApp;
 
@@ -52,7 +52,7 @@ namespace CenterHubNew.MVVM.ViewModel
 
         public RoutingSourceRow(
             AudioSource src, AudioSourceRoute? route, Action<RoutingSourceRow>? onChanged,
-            System.Collections.Generic.IEnumerable<AudioAppInfo>? apps = null,
+            System.Collections.Generic.IReadOnlyList<AudioAppInfo>? apps = null,
             Func<AudioSourceKind, AudioAppInfo, bool>? assignApp = null)
         {
             Kind = src.Kind;
@@ -85,7 +85,7 @@ namespace CenterHubNew.MVVM.ViewModel
             if (_assignApp(Kind, value))
                 ToastService.Instance.Success($"{value.DisplayName} → {DisplayName}");
             else
-                ToastService.Instance.Error($"Couldn't route {value.DisplayName}. Is the Voicemeeter driver installed?");
+                ToastService.Instance.Warning($"Couldn't set {value.DisplayName} automatically on this Windows build — use \"Assign app in Windows…\" instead.");
         }
 
         public AudioSourceRoute ToRoute() => new()
@@ -125,9 +125,6 @@ namespace CenterHubNew.MVVM.ViewModel
         [ObservableProperty] private bool isInstalled;
         [ObservableProperty] private string statusText = "Checking…";
         [ObservableProperty] private bool isBusy;
-
-        /// <summary>False when VB-Cable isn't installed — shows the "add another app slot" hint.</summary>
-        [ObservableProperty] private bool isVbCableInstalled = true;
 
         public RoutingViewModel(
             AudioRoutingService routing,
@@ -179,18 +176,7 @@ namespace CenterHubNew.MVVM.ViewModel
         }
 
         private bool AssignAppToSlot(AudioSourceKind kind, AudioAppInfo app)
-            => _routing.AssignAppToSlot(app.ProcessId, kind);
-
-        [RelayCommand]
-        private void InstallVbCable()
-        {
-            try
-            {
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
-                    "https://vb-audio.com/Cable/") { UseShellExecute = true });
-            }
-            catch (Exception ex) { Logger?.LogWarning(ex, "Could not open VB-Cable download page"); }
-        }
+            => _routing.AssignAppToSlot(app, kind);
 
         [RelayCommand]
         private void RefreshApps()
@@ -232,14 +218,12 @@ namespace CenterHubNew.MVVM.ViewModel
             {
                 var installed = _routing.IsInstalled;
                 var running = installed && _routing.RefreshStatus();
-                var cable = _routing.IsVbCableInstalled;
                 try
                 {
                     Dispatcher.UIThread.Post(() =>
                     {
                         if (IsDisposed) return;
                         IsInstalled = installed;
-                        IsVbCableInstalled = cable;
                         StatusText = !installed ? "Banana: Not installed"
                                    : running ? "Banana: Running"
                                    : "Banana: Stopped";
@@ -359,10 +343,18 @@ namespace CenterHubNew.MVVM.ViewModel
         {
             _routing.OpenAppVolumeSettings();
             if (row?.WindowsPlaybackName is { } name)
-                ToastService.Instance.Info($"Point the app's output at \"{name}\".");
+                ToastService.Instance.Info($"Windows opened — under the app, set Output to \"{name}\", then toggle You/Others here.");
         }
 
         [RelayCommand]
-        private void Refresh() => RefreshState();
+        private void Refresh()
+        {
+            RefreshState();
+            LoadApps();
+            LoadSourcesFor(_current);
+            RecomputeSummaries();
+            Devices?.RefreshDevicesCommand.Execute(null);
+            ToastService.Instance.Info("Refreshed apps, devices and Voicemeeter status.");
+        }
     }
 }

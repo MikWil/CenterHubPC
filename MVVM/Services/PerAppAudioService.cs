@@ -86,6 +86,25 @@ namespace CenterHubNew.MVVM.Services
             return byPid.Values.OrderBy(a => a.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
         }
 
+        /// <summary>
+        /// Re-resolve a live process id for the selected app at the moment of assignment.
+        /// The dropdown's captured PID can be stale (the app restarted, or Windows recycled
+        /// the PID onto a different process) — assigning that would route the WRONG app.
+        /// Prefer the captured PID only if it still belongs to a same-named audio session;
+        /// otherwise fall back to any current audio session with that process name.
+        /// </summary>
+        public int? ResolveLivePid(int preferredPid, string processName)
+        {
+            if (string.IsNullOrWhiteSpace(processName)) return null;
+            var live = GetAudioApps();
+            var exact = live.FirstOrDefault(a => a.ProcessId == preferredPid &&
+                string.Equals(a.DisplayName, processName, StringComparison.OrdinalIgnoreCase));
+            if (exact != null) return exact.ProcessId;
+            var byName = live.FirstOrDefault(a =>
+                string.Equals(a.DisplayName, processName, StringComparison.OrdinalIgnoreCase));
+            return byName?.ProcessId;
+        }
+
         private static string? FriendlyProcessName(int pid)
         {
             try

@@ -114,18 +114,22 @@
                             <DataTemplate x:DataType="viewmodel:RoutingSourceRow">
                                 <Border Classes="card-inner" Margin="0,0,0,8">
                                     <Grid ColumnDefinitions="*,Auto,Auto">
-                                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="4">
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="8">
                                             <TextBox Text="{Binding DisplayName, Mode=TwoWay}"
                                                      FontSize="13" FontWeight="SemiBold" Background="Transparent"
                                                      BorderThickness="0" Padding="0"
                                                      Foreground="{StaticResource TextPrimaryBrush}"/>
-                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                                 <Slider Minimum="-60" Maximum="12" Width="150" VerticalAlignment="Center"
                                                         Value="{Binding GainDb, Mode=TwoWay}"/>
                                                 <TextBlock Text="{Binding GainDb, StringFormat='{}{0:F0} dB'}"
                                                            FontSize="11" MinWidth="46" VerticalAlignment="Center"
                                                            Foreground="{StaticResource TextMutedBrush}"/>
-                                                <ComboBox IsVisible="{Binding IsVirtualApp}" MinWidth="170"
+                                            </StackPanel>
+
+                                            <!-- App assignment (own line, aligned) -->
+                                            <StackPanel IsVisible="{Binding IsVirtualApp}" Orientation="Horizontal" Spacing="8">
+                                                <ComboBox MinWidth="180" Height="30" VerticalAlignment="Center"
                                                           PlaceholderText="Send an app here…"
                                                           ItemsSource="{Binding Apps}"
                                                           SelectedItem="{Binding SelectedApp}">
@@ -135,7 +139,20 @@
                                                         </DataTemplate>
                                                     </ComboBox.ItemTemplate>
                                                 </ComboBox>
+                                                <Button Content="↻" Classes="secondary"
+                                                        Height="30" Width="34" Padding="0" FontSize="14"
+                                                        VerticalAlignment="Center"
+                                                        ToolTip.Tip="Refresh the app list"
+                                                        Command="{Binding $parent[ItemsControl].((viewmodel:RoutingViewModel)DataContext).RefreshAppsCommand}"/>
+                                                <Button Content="…or in Windows" Classes="secondary"
+                                                        Height="30" Padding="12,0" FontSize="11" VerticalAlignment="Center"
+                                                        Command="{Binding $parent[ItemsControl].((viewmodel:RoutingViewModel)DataContext).OpenAppVolumeCommand}"
+                                                        CommandParameter="{Binding}"/>
                                             </StackPanel>
+                                            <TextBlock IsVisible="{Binding IsVirtualApp}" FontSize="10"
+                                                       TextWrapping="Wrap"
+                                                       Foreground="{StaticResource TextMutedBrush}"
+                                                       Text="{Binding WindowsPlaybackName, StringFormat='Pick an app above. If it doesn’t move, use “…or in Windows” and set its output to “{0}”.'}"/>
                                         </StackPanel>
 
                                         <ToggleButton Grid.Column="1" Classes="route you" Content="You"
@@ -186,18 +203,6 @@
                 </Border>
             </StackPanel>
         </Grid>
-
-        <!-- Extra app slot via VB-Cable -->
-        <Border Classes="card" IsVisible="{Binding !IsVbCableInstalled}">
-            <StackPanel Orientation="Horizontal" Spacing="12">
-                <TextBlock Text="Want another app slot? Banana has no spare virtual input — install the free VB-Audio Virtual Cable and a second application slot appears here automatically."
-                           TextWrapping="Wrap" FontSize="12" VerticalAlignment="Center"
-                           Foreground="{StaticResource TextMutedBrush}" MaxWidth="520"/>
-                <Button Content="Get VB-Cable" Classes="secondary" Padding="14,8"
-                        VerticalAlignment="Center"
-                        Command="{Binding InstallVbCableCommand}"/>
-            </StackPanel>
-        </Border>
 
         <!-- SETUP (collapsible — devices folded in from the old Devices card) -->
         <Expander Header="Setup — pick your devices" IsExpanded="False"
@@ -253,10 +258,9 @@
                 <StackPanel Orientation="Horizontal" Spacing="10">
                     <Button Content="Open Voicemeeter" Classes="secondary" Padding="14,8"
                             Command="{Binding Devices.OpenVoicemeeterCommand}"/>
-                    <Button Content="Refresh devices" Classes="secondary" Padding="14,8"
-                            Command="{Binding Devices.RefreshDevicesCommand}"/>
-                    <Button Content="Refresh apps" Classes="secondary" Padding="14,8"
-                            Command="{Binding RefreshAppsCommand}"/>
+                    <Button Content="Refresh" Classes="secondary" Padding="14,8"
+                            Command="{Binding RefreshCommand}"
+                            ToolTip.Tip="Re-scan audio devices and Voicemeeter status"/>
                 </StackPanel>
             </StackPanel>
         </Expander>

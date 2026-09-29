@@ -275,8 +275,11 @@ namespace CenterHubNew.MVVM.Services
 
         public IReadOnlyList<AudioAppInfo> GetAudioApps() => _perApp.GetAudioApps();
 
-        /// <summary>Point a running app's output at the Voicemeeter virtual input for the given slot.</summary>
-        public bool AssignAppToSlot(int processId, AudioSourceKind slotKind)
+        /// <summary>
+        /// Point a running app's output at the Voicemeeter virtual input for the given slot.
+        /// Re-resolves the app's PID by name first so a recycled/stale PID can't route the wrong app.
+        /// </summary>
+        public bool AssignAppToSlot(AudioAppInfo app, AudioSourceKind slotKind)
         {
             var src = GetAvailableSources().FirstOrDefault(s => s.Kind == slotKind);
             if (src?.WindowsPlaybackName is not { } name) return false;
@@ -288,7 +291,14 @@ namespace CenterHubNew.MVVM.Services
                 _logger?.LogWarning("No render device found matching '{Name}' for slot {Slot}", name, slotKind);
                 return false;
             }
-            return _perApp.SetAppRenderDevice(processId, dev.Id);
+
+            var livePid = _perApp.ResolveLivePid(app.ProcessId, app.DisplayName);
+            if (livePid is null)
+            {
+                _logger?.LogWarning("{App} has no live audio session to route", app.DisplayName);
+                return false;
+            }
+            return _perApp.SetAppRenderDevice(livePid.Value, dev.Id);
         }
 
         /// <summary>Revert an app to the Windows default output.</summary>
