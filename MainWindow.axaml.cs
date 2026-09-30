@@ -65,6 +65,10 @@ namespace CenterHubNew
 
         private void InitializeNotifyIcon()
         {
+            // Create exactly once. Show()/Hide() cycles can re-fire Opened, and we must
+            // never spin up a second tray icon (that was the duplicate-icon bug).
+            if (_notifyIcon != null) return;
+
             try
             {
                 _notifyIcon = new NotifyIcon();
@@ -101,9 +105,8 @@ namespace CenterHubNew
         /// </summary>
         public void RestoreFromTray()
         {
-            // Restore in a fixed order so Windows doesn't leave a ghost taskbar button:
-            // put it back in the taskbar, un-minimize, then show and focus.
-            ShowInTaskbar = true;
+            // Un-minimize, then show and focus. We never touch ShowInTaskbar (changing it
+            // recreates the native window, which duplicates the taskbar button / tray icon).
             WindowState = WindowState.Normal;
             Show();
             Activate();
@@ -123,26 +126,16 @@ namespace CenterHubNew
             }
         }
 
-        private bool _hidingToTray;
-
         protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
         {
             base.OnPropertyChanged(change);
-            if (change.Property == WindowStateProperty
-                && WindowState == WindowState.Minimized
-                && !_hidingToTray)
+            if (change.Property == WindowStateProperty && WindowState == WindowState.Minimized)
             {
-                // Hide to the tray. Drop the taskbar button first (so minimize/restore
-                // cycles can't accumulate duplicate taskbar entries), then hide.
-                _hidingToTray = true;
-                try
-                {
-                    ShowInTaskbar = false;
-                    Hide();
-                    if (_notifyIcon != null)
-                        _notifyIcon.Visible = true;
-                }
-                finally { _hidingToTray = false; }
+                // Hide to the tray. Hide() removes the window's taskbar button on its own;
+                // we do NOT toggle ShowInTaskbar (that recreates the window → duplicates).
+                Hide();
+                if (_notifyIcon != null)
+                    _notifyIcon.Visible = true;
             }
         }
 
