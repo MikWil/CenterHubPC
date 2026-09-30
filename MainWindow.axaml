@@ -344,61 +344,6 @@
                 </Grid>
             </Grid>
 
-            <!-- ===== EXIT CONFIRMATION OVERLAY ===== -->
-            <Border x:Name="ExitOverlay"
-                    Grid.RowSpan="3"
-                    Background="#A8000000"
-                    IsVisible="False"
-                    ZIndex="1000">
-                <Border Width="420"
-                        Background="{StaticResource CardBackgroundBrush}"
-                        BorderThickness="1" BorderBrush="{StaticResource BorderHairline}"
-                        CornerRadius="12"
-                        Padding="28,24"
-                        VerticalAlignment="Center"
-                        HorizontalAlignment="Center"
-                        BoxShadow="0 12 40 0 #80000000">
-                    <StackPanel Spacing="0">
-                        <!-- Icon + title -->
-                        <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,0,12">
-                            <Border Width="36" Height="36" CornerRadius="18"
-                                    Background="{StaticResource ErrorSubtleBrush}"
-                                    BorderThickness="1" BorderBrush="{StaticResource ErrorBrush}"
-                                    VerticalAlignment="Center">
-                                <TextBlock Text="!" FontSize="20" FontWeight="Bold"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                                           Foreground="{StaticResource ErrorBrush}"/>
-                            </Border>
-                            <TextBlock Text="Exit CenterHub?"
-                                       FontSize="18" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
-                                       VerticalAlignment="Center"/>
-                        </StackPanel>
-
-                        <TextBlock TextWrapping="Wrap"
-                                   FontSize="13"
-                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                   Margin="0,0,0,8">
-                            <Run Text="This will stop all running services — hotkeys, auto-clicker, standing timer, and clipboard monitor."/>
-                        </TextBlock>
-                        <TextBlock TextWrapping="Wrap"
-                                   FontSize="12"
-                                   Foreground="{StaticResource TextMutedBrush}"
-                                   Margin="0,0,0,22">
-                            <Run Text="Tip: use the minimize button if you just want to hide the window — CenterHub will keep running in the system tray."/>
-                        </TextBlock>
-
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
-                            <Button Content="Cancel" Classes="secondary"
-                                    Padding="22,10"
-                                    Click="CancelExit_Click"/>
-                            <Button Content="Exit" Classes="danger"
-                                    Padding="22,10"
-                                    Click="ConfirmExit_Click"/>
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-            </Border>
 
             <!-- ===== "WHAT'S NEW" POPUP (after an update) ===== -->
             <Border Grid.RowSpan="3"

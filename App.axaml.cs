@@ -40,6 +40,9 @@ namespace CenterHubNew
                 {
                     var mainWindow = _host.Services.GetRequiredService<MainWindow>();
                     lifetime.MainWindow = mainWindow;
+                    // Closing the main window quits the app (even if Favorites / Sound
+                    // Controls are open); minimizing hides it to the tray instead.
+                    lifetime.ShutdownMode = Avalonia.Controls.ShutdownMode.OnMainWindowClose;
                     mainWindow.Show();
 
                     InitializeGlobalHotkeys(mainWindow);

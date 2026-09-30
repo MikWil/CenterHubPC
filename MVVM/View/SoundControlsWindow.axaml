@@ -12,6 +12,7 @@
         TransparencyLevelHint="Mica,AcrylicBlur"
         ExtendClientAreaToDecorationsHint="True"
         CanResize="False"
+        ShowInTaskbar="False"
         WindowStartupLocation="CenterScreen"
         Background="Transparent">
 
