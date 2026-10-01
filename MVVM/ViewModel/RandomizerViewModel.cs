@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading.Tasks;
 using CenterHubNew.MVVM.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -63,9 +65,19 @@ namespace CenterHubNew.MVVM.ViewModel
         //  Option editing
         // =====================================================
 
-        [RelayCommand]
+        private bool CanEditOptions() => !IsSpinning;
+
+        partial void OnIsSpinningChanged(bool value)
+        {
+            AddOptionCommand.NotifyCanExecuteChanged();
+            RemoveOptionCommand.NotifyCanExecuteChanged();
+            ClearAllCommand.NotifyCanExecuteChanged();
+        }
+
+        [RelayCommand(CanExecute = nameof(CanEditOptions))]
         private void AddOption()
         {
+            if (IsSpinning) return;
             var name = string.IsNullOrWhiteSpace(NewOptionName)
                 ? $"Option {Options.Count + 1}"
                 : NewOptionName.Trim();
@@ -73,16 +85,17 @@ namespace CenterHubNew.MVVM.ViewModel
             NewOptionName = "";
         }
 
-        [RelayCommand]
+        [RelayCommand(CanExecute = nameof(CanEditOptions))]
         private void RemoveOption(RandomizerOption? opt)
         {
-            if (opt is null) return;
+            if (IsSpinning || opt is null) return;
             Options.Remove(opt);
         }
 
-        [RelayCommand]
+        [RelayCommand(CanExecute = nameof(CanEditOptions))]
         private void ClearAll()
         {
+            if (IsSpinning) return;
             Options.Clear();
             History.Clear();
             ResultLabel = "Add options and press Pick";
@@ -110,80 +123,104 @@ namespace CenterHubNew.MVVM.ViewModel
             }
             if (Options.Count == 1)
             {
-                ApplyWinner(0);
+                var only = Options[0];
+                foreach (var o in Options) { o.IsHighlighted = false; o.IsWinner = false; }
+                ApplyWinner(only);
                 return;
             }
 
+            // Work on a snapshot so the animation can never index a mutated collection
+            var snapshot = Options.ToList();
+            RandomizerOption? highlighted = null;
+
             IsSpinning = true;
-            HasResult = false;
-            foreach (var o in Options) { o.IsHighlighted = false; o.IsWinner = false; }
-
-            var winner = ChooseWinnerIndex();
-
-            if (Animate)
+            try
             {
-                // Cycle the highlight forward through the list, decelerating
-                // until we land on the chosen winner.
-                int startIdx = 0;
-                int currentIdx = startIdx;
-                int relativeWinnerSteps =
-                    ((winner - startIdx) % Options.Count + Options.Count) % Options.Count;
-                int extraLaps = 3;
-                int totalSteps = relativeWinnerSteps + Options.Count * extraLaps;
+                HasResult = false;
+                foreach (var o in snapshot) { o.IsHighlighted = false; o.IsWinner = false; }
 
-                for (int i = 1; i <= totalSteps; i++)
+                var winner = ChooseWinnerIndex(snapshot);
+
+                if (Animate)
                 {
-                    if (IsDisposed) return;
+                    // Cycle the highlight forward through the list, decelerating
+                    // until we land on the chosen winner.
+                    int count = snapshot.Count;
+                    int startIdx = 0;
+                    int currentIdx = startIdx;
+                    int relativeWinnerSteps =
+                        ((winner - startIdx) % count + count) % count;
+                    int extraLaps = 3;
+                    int totalSteps = relativeWinnerSteps + count * extraLaps;
 
-                    Options[currentIdx].IsHighlighted = false;
-                    currentIdx = (currentIdx + 1) % Options.Count;
-                    Options[currentIdx].IsHighlighted = true;
+                    for (int i = 1; i <= totalSteps; i++)
+                    {
+                        if (IsDisposed) return;
 
-                    // Soft low tick on each step while the wheel rolls
-                    if (SoundEnabled) _sound?.PlayTick();
+                        if (currentIdx >= 0 && currentIdx < count)
+                            snapshot[currentIdx].IsHighlighted = false;
+                        currentIdx = (currentIdx + 1) % count;
+                        highlighted = snapshot[currentIdx];
+                        highlighted.IsHighlighted = true;
 
-                    // Quadratic ease-out — fast at start, slower near the end
-                    double t = (double)i / totalSteps;
-                    int delay = (int)(35 + 230 * Math.Pow(t, 2.4));
-                    await Task.Delay(delay);
+                        // Soft low tick on each step while the wheel rolls
+                        if (SoundEnabled) _sound?.PlayTick();
+
+                        // Quadratic ease-out — fast at start, slower near the end
+                        double t = (double)i / totalSteps;
+                        int delay = (int)(35 + 230 * Math.Pow(t, 2.4));
+                        await Task.Delay(delay);
+                    }
+
+                    if (highlighted is not null) highlighted.IsHighlighted = false;
+                    highlighted = null;
                 }
 
-                Options[currentIdx].IsHighlighted = false;
+                if (IsDisposed) return;
+                if (winner >= 0 && winner < snapshot.Count)
+                    ApplyWinner(snapshot[winner]);
             }
-
-            ApplyWinner(winner);
+            catch (Exception ex)
+            {
+                Logger?.LogWarning(ex, "Randomizer pick failed");
+            }
+            finally
+            {
+                if (highlighted is not null) highlighted.IsHighlighted = false;
+                foreach (var o in snapshot) o.IsHighlighted = false;
+                IsSpinning = false;
+            }
         }
 
-        private void ApplyWinner(int idx)
+        private void ApplyWinner(RandomizerOption opt)
         {
-            Options[idx].IsWinner = true;
-            ResultLabel = Options[idx].Label;
+            opt.IsWinner = true;
+            ResultLabel = opt.Label;
             HasResult = true;
-            History.Insert(0, new RandomizerHistoryEntry { Label = Options[idx].Label, At = DateTime.Now });
+            History.Insert(0, new RandomizerHistoryEntry { Label = opt.Label, At = DateTime.Now });
             while (History.Count > 20) History.RemoveAt(History.Count - 1);
-            ToastService.Instance.Success($"Picked: {Options[idx].Label}");
+            ToastService.Instance.Success($"Picked: {opt.Label}");
             if (SoundEnabled) _sound?.PlayWin();
-            IsSpinning = false;
         }
 
-        private int ChooseWinnerIndex()
+        private int ChooseWinnerIndex(IReadOnlyList<RandomizerOption> items)
         {
-            if (!UseWeights || Options.Count == 0)
-                return _rng.Next(Options.Count);
+            if (!UseWeights || items.Count == 0)
+                return _rng.Next(items.Count);
 
             // Weighted uniform: clamp each weight to a positive minimum so a 0-weight
             // option can still be picked (otherwise the user gets stuck wondering why)
             double total = 0;
-            foreach (var o in Options) total += Math.Max(0.05, o.Weight);
+            foreach (var o in items) total += Math.Max(0.05, o.Weight);
 
             double pick = _rng.NextDouble() * total;
             double cum  = 0;
-            for (int i = 0; i < Options.Count; i++)
+            for (int i = 0; i < items.Count; i++)
             {
-                cum += Math.Max(0.05, Options[i].Weight);
+                cum += Math.Max(0.05, items[i].Weight);
                 if (pick <= cum) return i;
             }
-            return Options.Count - 1;
+            return items.Count - 1;
         }
 
         protected override void Dispose(bool disposing) { base.Dispose(disposing); }

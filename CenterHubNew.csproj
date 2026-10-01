@@ -11,12 +11,24 @@
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <EnableComHosting>true</EnableComHosting>
     <EnableGeneratedComInterfaceComImportInterop>true</EnableGeneratedComInterfaceComImportInterop>
-    <Version>5.8.3</Version>
+    <Version>6.0.0</Version>
+    <!-- AVLN3001: windows are created through DI (constructor injection), never by the XAML runtime loader. -->
+    <NoWarn>$(NoWarn);AVLN3001</NoWarn>
     <Authors>CenterHub</Authors>
     <Company>CenterHub</Company>
     <Product>CenterHub</Product>
     <Description>CenterHub Application — Avalonia UI on .NET 10 LTS</Description>
   </PropertyGroup>
+
+  <!-- The project sits at the repo root and globs every .cs below it; keep the
+       test project (and its bin/obj) out of the app build. -->
+  <ItemGroup>
+    <Compile Remove="tests\**" />
+    <None Remove="tests\**" />
+    <EmbeddedResource Remove="tests\**" />
+    <AvaloniaXaml Remove="tests\**" />
+    <InternalsVisibleTo Include="CenterHubNew.Tests" />
+  </ItemGroup>
 
   <ItemGroup>
     <None Remove="Images\appicon_placeholder.png" />
@@ -30,7 +42,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="AudioSwitcher.AudioApi.CoreAudio" Version="3.0.3" />
+    <!-- AudioSwitcher only ships .NET Framework builds; it works fine on net10 (NU1701 is expected). -->
+    <PackageReference Include="AudioSwitcher.AudioApi" Version="3.0.0" NoWarn="NU1701" />
+    <PackageReference Include="AudioSwitcher.AudioApi.CoreAudio" Version="3.0.3" NoWarn="NU1701" />
     <PackageReference Include="Avalonia" Version="11.2.3" />
     <PackageReference Include="Avalonia.Desktop" Version="11.2.3" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.3" />
@@ -43,8 +57,9 @@
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.8" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.8" />
     <PackageReference Include="Microsoft.Toolkit.Uwp.Notifications" Version="7.1.3" />
-    <PackageReference Include="Microsoft.VisualBasic" Version="10.3.0" />
     <PackageReference Include="NAudio" Version="2.3.0" />
+    <!-- Pin past GHSA-xrw6-gwf8-vvr9 (Avalonia 11.2 pulls 0.20.0 transitively; only used on Linux). -->
+    <PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <!-- System.Diagnostics.PerformanceCounter and System.Drawing.Common are pruned —
          provided implicitly by net10 + UseWindowsForms. -->

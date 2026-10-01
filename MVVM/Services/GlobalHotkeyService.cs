@@ -81,7 +81,12 @@ namespace CenterHubNew.MVVM.Services
         public GlobalHotkeyService(ILogger<GlobalHotkeyService>? logger = null)
         {
             _logger = logger;
-            _settingsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "hotkeys.json");
+            // Per-user AppData, not the install folder: Program Files isn't writable for a
+            // standard user (bindings silently never saved) and MSI upgrades wipe it.
+            var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CenterHub");
+            Directory.CreateDirectory(folder);
+            _settingsPath = Path.Combine(folder, "hotkeys.json");
+            MigrateLegacySettings();
             InitializeDefaultBindings();
             Load();
         }
@@ -176,8 +181,8 @@ namespace CenterHubNew.MVVM.Services
             Add(HotkeyAction.AutoClickerStartStop, "Start / Stop", "AUTO CLICKER");
             Add(HotkeyAction.AutoClickerCapturePosition, "Capture Position", "AUTO CLICKER");
             Add(HotkeyAction.AudioToggleMic, "Mute / Unmute Mic", "AUDIO");
-            Add(HotkeyAction.AudioNextProfile, "Next Sound Profile", "AUDIO");
-            Add(HotkeyAction.AudioPrevProfile, "Previous Sound Profile", "AUDIO");
+            Add(HotkeyAction.AudioNextProfile, "Next Sound Preset", "AUDIO");
+            Add(HotkeyAction.AudioPrevProfile, "Previous Sound Preset", "AUDIO");
             Add(HotkeyAction.ClipboardToggleMonitoring, "Toggle Monitoring", "CLIPBOARD");
             Add(HotkeyAction.SoundboardPlay1, "Play Sound 1", "SOUNDBOARD");
             Add(HotkeyAction.SoundboardPlay2, "Play Sound 2", "SOUNDBOARD");
@@ -222,8 +227,14 @@ namespace CenterHubNew.MVVM.Services
                 return false;
 
             uint modifiers = ToWin32Modifiers(binding.Modifiers) | MOD_NOREPEAT;
-            // Avalonia Key enum values match Win32 VK codes directly
-            uint vk = (uint)binding.Key;
+            // Avalonia's Key enum follows the WPF layout (Key.A = 44), NOT Win32 VK codes
+            // (VK_A = 0x41). Casting directly registered the wrong key for every hotkey.
+            uint vk = KeyToVirtualKey(binding.Key);
+            if (vk == 0)
+            {
+                _logger?.LogWarning("Hotkey key {Key} has no Win32 virtual-key mapping; skipping", binding.Key);
+                return false;
+            }
             int id = _nextId++;
 
             bool success = RegisterHotKey(_windowHandle, id, modifiers, vk);
@@ -319,12 +330,59 @@ namespace CenterHubNew.MVVM.Services
                     }).ToList()
                 };
                 var json = JsonConvert.SerializeObject(dto, Formatting.Indented);
-                File.WriteAllText(_settingsPath, json);
+                AtomicFile.WriteAllText(_settingsPath, json);
             }
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Failed to save hotkey settings");
             }
+        }
+
+        /// <summary>Copy hotkeys.json from the old install-folder location once, if present.</summary>
+        private void MigrateLegacySettings()
+        {
+            try
+            {
+                var legacy = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "hotkeys.json");
+                if (!File.Exists(_settingsPath) && File.Exists(legacy))
+                {
+                    File.Copy(legacy, _settingsPath);
+                    _logger?.LogInformation("Migrated hotkey settings from {Legacy}", legacy);
+                }
+            }
+            catch (Exception ex) { _logger?.LogWarning(ex, "Hotkey settings migration failed"); }
+        }
+
+        /// <summary>
+        /// Map an Avalonia <see cref="Key"/> to a Win32 virtual-key code for RegisterHotKey.
+        /// Returns 0 for keys that can't be registered as a global hotkey.
+        /// </summary>
+        public static uint KeyToVirtualKey(Key key)
+        {
+            if (key >= Key.A && key <= Key.Z) return 0x41u + (uint)(key - Key.A);
+            if (key >= Key.D0 && key <= Key.D9) return 0x30u + (uint)(key - Key.D0);
+            if (key >= Key.F1 && key <= Key.F24) return 0x70u + (uint)(key - Key.F1);
+            if (key >= Key.NumPad0 && key <= Key.NumPad9) return 0x60u + (uint)(key - Key.NumPad0);
+
+            return key switch
+            {
+                Key.Back => 0x08, Key.Tab => 0x09, Key.Enter => 0x0D, Key.Pause => 0x13,
+                Key.CapsLock => 0x14, Key.Escape => 0x1B, Key.Space => 0x20,
+                Key.PageUp => 0x21, Key.PageDown => 0x22, Key.End => 0x23, Key.Home => 0x24,
+                Key.Left => 0x25, Key.Up => 0x26, Key.Right => 0x27, Key.Down => 0x28,
+                Key.PrintScreen => 0x2C, Key.Insert => 0x2D, Key.Delete => 0x2E,
+                Key.Multiply => 0x6A, Key.Add => 0x6B, Key.Separator => 0x6C,
+                Key.Subtract => 0x6D, Key.Decimal => 0x6E, Key.Divide => 0x6F,
+                Key.NumLock => 0x90, Key.Scroll => 0x91,
+                Key.VolumeMute => 0xAD, Key.VolumeDown => 0xAE, Key.VolumeUp => 0xAF,
+                Key.MediaNextTrack => 0xB0, Key.MediaPreviousTrack => 0xB1,
+                Key.MediaStop => 0xB2, Key.MediaPlayPause => 0xB3,
+                Key.OemSemicolon => 0xBA, Key.OemPlus => 0xBB, Key.OemComma => 0xBC,
+                Key.OemMinus => 0xBD, Key.OemPeriod => 0xBE, Key.OemQuestion => 0xBF,
+                Key.OemTilde => 0xC0, Key.OemOpenBrackets => 0xDB, Key.OemPipe => 0xDC,
+                Key.OemCloseBrackets => 0xDD, Key.OemQuotes => 0xDE, Key.OemBackslash => 0xE2,
+                _ => 0
+            };
         }
 
         private void Load()

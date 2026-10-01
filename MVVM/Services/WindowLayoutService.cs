@@ -56,6 +56,12 @@ namespace CenterHubNew.MVVM.Services
                 if (dto?.Layouts != null) _layouts.AddRange(dto.Layouts);
                 _logger?.LogInformation("Loaded {Count} window layouts", _layouts.Count);
             }
+            catch (System.Text.Json.JsonException ex)
+            {
+                _logger?.LogError(ex, "Window layouts file is corrupt; quarantining {Path}", _storePath);
+                AtomicFile.QuarantineCorrupt(_storePath);
+                _layouts.Clear();
+            }
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Failed to load window layouts from {Path}", _storePath);
@@ -68,7 +74,7 @@ namespace CenterHubNew.MVVM.Services
             {
                 var dto = new WindowLayoutsDto { Layouts = _layouts };
                 var json = JsonSerializer.Serialize(dto, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(_storePath, json);
+                AtomicFile.WriteAllText(_storePath, json);
             }
             catch (Exception ex)
             {

@@ -59,12 +59,14 @@
                                        HorizontalAlignment="Center"
                                        Foreground="{StaticResource CpuBrush}"/>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,6,0,0" Spacing="6">
-                                <Border Background="{StaticResource CardInnerBrush}" CornerRadius="6" Padding="8,3">
+                                <Border Background="{StaticResource CardInnerBrush}" CornerRadius="6" Padding="8,3"
+                                        ToolTip.Tip="{Binding CpuTemperatureHint}">
                                     <TextBlock Text="{Binding CpuTemperature, Converter={StaticResource TempToDisplayConverter}}"
                                                FontSize="10" FontWeight="SemiBold"
                                                Foreground="{StaticResource TextSecondaryBrush}"/>
                                 </Border>
-                                <Border Background="{StaticResource AccentSubtleBrush}" CornerRadius="6" Padding="8,3">
+                                <Border Background="{StaticResource AccentSubtleBrush}" CornerRadius="6" Padding="8,3"
+                                        ToolTip.Tip="{Binding CpuTemperatureHint}">
                                     <TextBlock Text="{Binding CpuMaxTemperature, Converter={StaticResource TempToDisplayConverter}}"
                                                FontSize="10" FontWeight="Bold"
                                                Foreground="{StaticResource AccentBrush}"/>
@@ -93,7 +95,7 @@
                                            Foreground="{StaticResource TextMutedBrush}"
                                            VerticalAlignment="Center"/>
                             </StackPanel>
-                            <TextBlock Text="{Binding GpuUsage, StringFormat='{}{0:F1}%'}"
+                            <TextBlock Text="{Binding GpuUsageText}"
                                        FontSize="38" FontWeight="Bold"
                                        HorizontalAlignment="Center"
                                        Foreground="{StaticResource GpuBrush}"/>
@@ -113,7 +115,7 @@
                                        FontSize="10" Foreground="{StaticResource TextMutedBrush}"
                                        HorizontalAlignment="Center" Margin="0,4,0,0"
                                        TextTrimming="CharacterEllipsis"/>
-                            <ProgressBar Classes="gpu" Value="{Binding GpuUsage}" Maximum="100" Margin="0,10,0,0"/>
+                            <ProgressBar Classes="gpu" Value="{Binding GpuUsageBar}" Maximum="100" Margin="0,10,0,0"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -406,8 +408,8 @@
                                         <TextBlock Text="{Binding TotalSize, StringFormat='of {0:F1} GB'}"
                                                    FontSize="10" HorizontalAlignment="Center"
                                                    Foreground="{StaticResource TextMutedBrush}"/>
-                                        <ProgressBar Classes="disk" Value="{Binding UsedSpace}"
-                                                     Maximum="{Binding TotalSize}"
+                                        <ProgressBar Classes="disk" Value="{Binding UsedPercent}"
+                                                     Maximum="100"
                                                      Height="4" Margin="0,8,0,0"
                                                      HorizontalAlignment="Stretch"/>
                                     </StackPanel>

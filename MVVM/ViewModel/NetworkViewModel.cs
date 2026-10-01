@@ -12,11 +12,13 @@ namespace CenterHubNew.MVVM.ViewModel
     {
         private readonly WifiService _wifi;
         private DispatcherTimer? _poll;
+        private bool _refreshing;
 
         // ── Live connection state ──
         [ObservableProperty] private bool   _isConnected;
         [ObservableProperty] private bool   _isWifi;
         [ObservableProperty] private string _connectionTypeLabel = "DISCONNECTED";
+        [ObservableProperty] private string _connectionGlyph = "";   // Segoe Fluent Icons
         [ObservableProperty] private string _ssid = "";
         [ObservableProperty] private string _adapterName = "";
         [ObservableProperty] private int    _signalQuality;       // 0-100
@@ -58,7 +60,7 @@ namespace CenterHubNew.MVVM.ViewModel
             ILogger<NetworkViewModel>? logger = null) : base(logger)
         {
             _wifi = wifi;
-            Refresh();
+            _ = RefreshAsync();
             StartPolling();
             _ = RefreshPublicIpAsync();
         }
@@ -66,23 +68,40 @@ namespace CenterHubNew.MVVM.ViewModel
         private void StartPolling()
         {
             _poll = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
-            _poll.Tick += (_, _) => { if (!IsDisposed) Refresh(); };
+            _poll.Tick += (_, _) => { if (!IsDisposed) _ = RefreshAsync(); };
             _poll.Start();
         }
 
         // ── Polling ──
 
         [RelayCommand]
-        private void Refresh()
+        private async Task RefreshAsync()
         {
+            if (IsDisposed) return;
+            // Reentrancy guard — skip overlapping polls (only touched on the UI thread)
+            if (_refreshing) return;
+            _refreshing = true;
             try
             {
-                var info = _wifi.GetSnapshot();
-                ApplySnapshot(info);
+                var info = await Task.Run(() => _wifi.GetSnapshot());
+                if (IsDisposed) return;
+                if (Dispatcher.UIThread.CheckAccess())
+                    ApplySnapshot(info);
+                else
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        if (IsDisposed) return;
+                        try { ApplySnapshot(info); }
+                        catch (Exception ex) { Logger?.LogWarning(ex, "Failed to apply network snapshot"); }
+                    });
             }
             catch (Exception ex)
             {
                 Logger?.LogWarning(ex, "Failed to refresh network snapshot");
+            }
+            finally
+            {
+                _refreshing = false;
             }
         }
 
@@ -122,6 +141,13 @@ namespace CenterHubNew.MVVM.ViewModel
                 NetworkConnectionType.Wifi          => "WI-FI",
                 NetworkConnectionType.Ethernet      => "ETHERNET",
                 _                                   => "DISCONNECTED",
+            };
+
+            ConnectionGlyph = info.Type switch
+            {
+                NetworkConnectionType.Wifi     => "",
+                NetworkConnectionType.Ethernet => "",
+                _                              => "",
             };
 
             Ssid          = info.Ssid;
@@ -237,7 +263,7 @@ namespace CenterHubNew.MVVM.ViewModel
             {
                 IsBusy = false;
                 // Force a re-check so the user sees the fresh state
-                Refresh();
+                await RefreshAsync();
             }
         }
 

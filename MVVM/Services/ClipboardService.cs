@@ -92,6 +92,12 @@ namespace CenterHubNew.MVVM.Services
                     _logger?.LogInformation("Loaded {Count} clipboard history items", _history.Count);
                 }
             }
+            catch (Newtonsoft.Json.JsonException ex)
+            {
+                _logger?.LogError(ex, "Clipboard history is corrupt; quarantining file");
+                AtomicFile.QuarantineCorrupt(_historyFilePath);
+                _history = new List<ClipboardItem>();
+            }
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Failed to load clipboard history");
@@ -104,7 +110,7 @@ namespace CenterHubNew.MVVM.Services
             try
             {
                 var json = JsonConvert.SerializeObject(_history, Formatting.Indented);
-                File.WriteAllText(_historyFilePath, json);
+                AtomicFile.WriteAllText(_historyFilePath, json);
             }
             catch (Exception ex)
             {

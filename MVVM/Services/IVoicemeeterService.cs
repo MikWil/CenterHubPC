@@ -62,6 +62,9 @@ namespace CenterHubNew.MVVM.Services
         /// <summary>Restart the Voicemeeter audio engine (clears glitches after idle/device changes).</summary>
         bool RestartAudioEngine();
 
+        /// <summary>Fully close and relaunch the Voicemeeter application — recovers a hung/misbehaving Banana.</summary>
+        Task<bool> RestartApplicationAsync(CancellationToken ct = default);
+
         /// <summary>Bring up the Voicemeeter Banana window.</summary>
         void OpenUi();
 

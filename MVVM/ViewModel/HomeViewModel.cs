@@ -32,7 +32,17 @@ namespace CenterHubNew.MVVM.ViewModel
         private float cpuMaxTemperature;
 
         [ObservableProperty]
+        private string? cpuTemperatureHint;
+
+        [ObservableProperty]
         private float gpuUsage;
+
+        // GpuUsage is -1 when unavailable: bar is clamped to 0 and text shows "N/A"
+        [ObservableProperty]
+        private float gpuUsageBar;
+
+        [ObservableProperty]
+        private string gpuUsageText = "0.0%";
 
         [ObservableProperty]
         private string gpuName = string.Empty;
@@ -50,10 +60,10 @@ namespace CenterHubNew.MVVM.ViewModel
         private float gpuMaxTemperature;
 
         [ObservableProperty]
-        private long totalMemory;
+        private double totalMemory;
 
         [ObservableProperty]
-        private long usedMemory;
+        private double usedMemory;
 
         [ObservableProperty]
         private long totalDiskSpace;
@@ -196,8 +206,14 @@ namespace CenterHubNew.MVVM.ViewModel
                     CpuUsage = systemInfo.CpuUsage;
                     CpuTemperature = systemInfo.CpuTemperature;
                     CpuMaxTemperature = systemInfo.CpuMaxTemperature;
+                    CpuTemperatureHint = systemInfo.CpuTemperature < 0
+                        ? "CPU temperature needs CenterHub to run as administrator"
+                        : null;
                     GpuName = systemInfo.GpuInfo.Name;
                     GpuUsage = systemInfo.GpuInfo.Usage;
+                    bool gpuUsageAvailable = GpuUsage >= 0;
+                    GpuUsageBar = gpuUsageAvailable ? Math.Min(GpuUsage, 100f) : 0f;
+                    GpuUsageText = gpuUsageAvailable ? $"{GpuUsage:F1}%" : "N/A";
                     GpuDriverVersion = systemInfo.GpuInfo.DriverVersion;
                     GpuMemory = systemInfo.GpuInfo.VideoMemory;
                     GpuTemperature = systemInfo.GpuInfo.GpuTemperature;
@@ -205,7 +221,7 @@ namespace CenterHubNew.MVVM.ViewModel
                     TotalMemory = systemInfo.MemoryInfo.TotalPhysicalMemory;
                     UsedMemory = systemInfo.MemoryInfo.UsedPhysicalMemory;
                     Disks = systemInfo.Disks;
-                    MemoryUsagePercent = TotalMemory > 0 ? (float)UsedMemory / TotalMemory * 100 : 0;
+                    MemoryUsagePercent = TotalMemory > 0 ? (float)(UsedMemory / TotalMemory * 100) : 0;
                 });
             }
             catch (InvalidOperationException) { /* dispatcher shut down — app is closing */ }

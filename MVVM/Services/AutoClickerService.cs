@@ -41,6 +41,8 @@ namespace CenterHubNew.MVVM.Services
         private readonly ILogger<AutoClickerService>? _logger;
         private CancellationTokenSource? _cts;
         private volatile bool _isRunning;
+        private readonly object _runLock = new();
+        private int _runId;
         private int _clicksDelivered;
         private DateTime _startedAt;
 
@@ -142,27 +144,52 @@ namespace CenterHubNew.MVVM.Services
                 _logger?.LogWarning("Interval too small; clamping to 5ms");
             }
 
-            _cts = new CancellationTokenSource();
-            _isRunning = true;
-            _clicksDelivered = 0;
-            _startedAt = DateTime.Now;
-            var token = _cts.Token;
+            CancellationToken token;
+            int runId;
+            lock (_runLock)
+            {
+                if (_isRunning) return;
 
-            Task.Run(async () => await RunLoopAsync(options, token).ConfigureAwait(false), token);
+                // Retire the previous run's CTS (cancel first so a lingering loop exits).
+                var old = _cts;
+                if (old is not null)
+                {
+                    try { old.Cancel(); } catch (ObjectDisposedException) { }
+                    try { old.Dispose(); } catch { }
+                }
+
+                var cts = new CancellationTokenSource();
+                _cts = cts;
+                runId = ++_runId;
+                _isRunning = true;
+                _clicksDelivered = 0;
+                _startedAt = DateTime.Now;
+                token = cts.Token;
+            }
+
+            Task.Run(async () => await RunLoopAsync(options, token, runId).ConfigureAwait(false), token);
         }
 
-        public void Stop() => StopInternal("manual stop");
+        public void Stop() => StopInternal("manual stop", null);
 
-        private void StopInternal(string reason)
+        /// <summary>
+        /// Stops the current run. <paramref name="runId"/> (when given) is the run the caller
+        /// belongs to; if a newer run has since started, the call is ignored.
+        /// </summary>
+        private void StopInternal(string reason, int? runId)
         {
-            if (!_isRunning) return;
-            try { _cts?.Cancel(); } catch (ObjectDisposedException) { }
-            _isRunning = false;
+            lock (_runLock)
+            {
+                if (runId.HasValue && runId.Value != _runId) return;
+                if (!_isRunning) return;
+                try { _cts?.Cancel(); } catch (ObjectDisposedException) { }
+                _isRunning = false;
+            }
             _logger?.LogInformation("AutoClicker stopped: {Reason}", reason);
             try { Stopped?.Invoke(reason); } catch { /* observers don't break us */ }
         }
 
-        private async Task RunLoopAsync(AutoClickerOptions opts, CancellationToken token)
+        private async Task RunLoopAsync(AutoClickerOptions opts, CancellationToken token, int runId)
         {
             try
             {
@@ -184,7 +211,7 @@ namespace CenterHubNew.MVVM.Services
                     // === FAILSAFE check (cursor in top-left corner aborts) ===
                     if (opts.FailsafeEnabled && CursorIsInFailsafeCorner())
                     {
-                        StopInternal("failsafe — cursor in top-left corner");
+                        StopInternal("failsafe — cursor in top-left corner", runId);
                         return;
                     }
 
@@ -235,7 +262,7 @@ namespace CenterHubNew.MVVM.Services
 
                     if (opts.MaxClicks > 0 && _clicksDelivered >= opts.MaxClicks)
                     {
-                        StopInternal($"reached limit ({opts.MaxClicks} clicks)");
+                        StopInternal($"reached limit ({opts.MaxClicks} clicks)", runId);
                         return;
                     }
 
@@ -250,11 +277,15 @@ namespace CenterHubNew.MVVM.Services
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Fatal error in AutoClicker loop");
-                StopInternal($"error: {ex.Message}");
+                StopInternal($"error: {ex.Message}", runId);
             }
             finally
             {
-                _isRunning = false;
+                // Only clear state if this loop's run is still the current one.
+                lock (_runLock)
+                {
+                    if (runId == _runId) _isRunning = false;
+                }
             }
         }
 
@@ -340,9 +371,12 @@ namespace CenterHubNew.MVVM.Services
 
         public void Dispose()
         {
-            try { StopInternal("dispose"); } catch { }
-            try { _cts?.Dispose(); } catch { }
-            _cts = null;
+            try { StopInternal("dispose", null); } catch { }
+            lock (_runLock)
+            {
+                try { _cts?.Dispose(); } catch { }
+                _cts = null;
+            }
         }
     }
 }

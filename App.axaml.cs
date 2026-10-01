@@ -49,6 +49,14 @@ namespace CenterHubNew
                     StartActivationListener(mainWindow);
                     ScheduleUpdateCheck();
 
+                    // Clipboard history should capture from launch, not only after the
+                    // Clipboard page is first opened (its VM owns the polling timer).
+                    TryPost(() =>
+                    {
+                        try { _host.Services.GetService<ClipboardViewModel>(); }
+                        catch (Exception ex) { _host.Services.GetService<ILogger<App>>()?.LogWarning(ex, "Clipboard history failed to start"); }
+                    });
+
                     lifetime.Exit += (_, _) =>
                     {
                         try { _host.Services.GetService<GlobalHotkeyService>()?.Dispose(); } catch { }
@@ -138,17 +146,12 @@ namespace CenterHubNew
                     catch (Exception ex) { ToastService.Instance.Error($"Mic toggle failed: {ex.Message}"); }
                 });
 
-                hotkeyService.SetCallback(HotkeyAction.AudioNextProfile, () => TryPost(() =>
-                {
-                    var vm = Services.GetService<SoundViewModel>();
-                    if (vm != null) vm.ApplyProfileCommand.Execute(((vm.SelectedProfileIndex + 1) % 3).ToString());
-                }));
+                // Next / previous cycle the Sound tab's routing presets (Guitar + Discord, Gaming, …).
+                hotkeyService.SetCallback(HotkeyAction.AudioNextProfile,
+                    () => TryPost(() => Services.GetService<SoundViewModel>()?.Routing?.CyclePreset(+1)));
 
-                hotkeyService.SetCallback(HotkeyAction.AudioPrevProfile, () => TryPost(() =>
-                {
-                    var vm = Services.GetService<SoundViewModel>();
-                    if (vm != null) { var p = vm.SelectedProfileIndex - 1; if (p < 0) p = 2; vm.ApplyProfileCommand.Execute(p.ToString()); }
-                }));
+                hotkeyService.SetCallback(HotkeyAction.AudioPrevProfile,
+                    () => TryPost(() => Services.GetService<SoundViewModel>()?.Routing?.CyclePreset(-1)));
 
                 hotkeyService.SetCallback(HotkeyAction.ClipboardToggleMonitoring,
                     () => TryPost(() => Services.GetService<ClipboardViewModel>()?.ToggleMonitoringCommand.Execute(null)));
@@ -260,18 +263,21 @@ namespace CenterHubNew
 
                     services.AddTransient<MainViewModel>();
                     services.AddTransient<HomeViewModel>();
-                    services.AddTransient<SoundViewModel>();
+                    // Singletons: global hotkeys act on these, so they must be the SAME
+                    // instances the UI shows (transient = every key press got a throwaway
+                    // VM — Standing could never stop, timers/handlers leaked per press).
+                    services.AddSingleton<SoundViewModel>();
                     services.AddTransient<SoundControlsViewModel>();
-                    services.AddTransient<StandingViewModel>();
+                    services.AddSingleton<StandingViewModel>();
                     services.AddTransient<MoveFilesViewModel>();
                     services.AddTransient<ComputerViewModel>();
                     services.AddTransient<NameInputViewModel>();
                     services.AddTransient<MonitoringViewModel>();
                     services.AddTransient<UtilitiesViewModel>();
-                    services.AddTransient<ClipboardViewModel>();
+                    services.AddSingleton<ClipboardViewModel>();
                     services.AddTransient<QuickNotesViewModel>();
-                    services.AddTransient<AutoClickerViewModel>();
-                    services.AddTransient<SoundboardViewModel>();
+                    services.AddSingleton<AutoClickerViewModel>();
+                    services.AddSingleton<SoundboardViewModel>();
                     services.AddTransient<JsonStringifyViewModel>();
                     services.AddTransient<ConverterToolsViewModel>();
                     services.AddTransient<HotkeySettingsViewModel>();

@@ -89,9 +89,9 @@ namespace CenterHubNew.MVVM.ViewModel
             }
             _profileService = new SoundProfileService(profileServiceLogger);
             LoadProfiles();
-            Task.Run(LoadSoundDevices);
-            Task.Run(LoadMicrophoneDevice);
-            Task.Run(LoadOutputDevice);
+            _ = Task.Run(LoadSoundDevices);
+            _ = Task.Run(LoadMicrophoneDevice);
+            _ = Task.Run(LoadOutputDevice);
             Logger?.LogInformation("SoundViewModel initialized");
         }
 
@@ -358,7 +358,7 @@ namespace CenterHubNew.MVVM.ViewModel
                 {
                     await device.SetAsDefaultAsync();
                     // Reload output device to update volume/mute state
-                    Task.Run(LoadOutputDevice);
+                    _ = Task.Run(LoadOutputDevice);
                     Logger?.LogInformation("Set {DeviceName} as active output device", device.FullName);
                 }
                 else
@@ -618,8 +618,8 @@ namespace CenterHubNew.MVVM.ViewModel
                 }
 
                 // Reload devices to update UI
-                Task.Run(LoadOutputDevice);
-                Task.Run(LoadSoundDevices);
+                _ = Task.Run(LoadOutputDevice);
+                _ = Task.Run(LoadSoundDevices);
 
                 SelectedProfileIndex = profileIndex;
                 Logger?.LogInformation("Applied profile {Index}: {Name}", profileIndex, profile.Name);

@@ -65,7 +65,7 @@ namespace CenterHubNew.MVVM.Services
             try
             {
                 var json = JsonConvert.SerializeObject(_notes, Formatting.Indented);
-                File.WriteAllText(_notesFilePath, json);
+                AtomicFile.WriteAllText(_notesFilePath, json);
             }
             catch (Exception ex)
             {
@@ -83,6 +83,13 @@ namespace CenterHubNew.MVVM.Services
                     _notes = JsonConvert.DeserializeObject<List<QuickNote>>(json) ?? new List<QuickNote>();
                     _logger?.LogInformation("Loaded {Count} notes", _notes.Count);
                 }
+            }
+            catch (JsonException ex)
+            {
+                // Unreadable file: set it aside rather than letting the next save overwrite it.
+                var moved = AtomicFile.QuarantineCorrupt(_notesFilePath);
+                _logger?.LogError(ex, "Notes file was corrupt; moved to {Path}", moved);
+                _notes = new List<QuickNote>();
             }
             catch (Exception ex)
             {

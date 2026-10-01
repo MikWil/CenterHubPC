@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -134,6 +135,46 @@ namespace CenterHubNew.MVVM.Services
             if (!EnsureConnectedForWrite()) return false;
             // Command.Restart = 1 asks Voicemeeter to restart its audio engine.
             return _remote.SetFloat("Command.Restart", 1f);
+        }
+
+        public async Task<bool> RestartApplicationAsync(CancellationToken ct = default)
+        {
+            EnsureLoaded();
+            if (!_remote.IsAvailable) return false;
+
+            _logger?.LogInformation("Restarting the Voicemeeter application…");
+
+            // 1) Ask Voicemeeter to close itself (clean shutdown), then release our client.
+            try
+            {
+                if (Connect()) _remote.SetFloat("Command.Shutdown", 1f);
+            }
+            catch (Exception ex) { _logger?.LogDebug(ex, "Command.Shutdown failed"); }
+            Disconnect();
+
+            await Task.Delay(1500, ct).ConfigureAwait(false);
+
+            // 2) Force-kill anything still lingering (a hung Banana won't honour Shutdown).
+            KillVoicemeeterProcesses();
+            await Task.Delay(800, ct).ConfigureAwait(false);
+
+            // 3) Relaunch Banana and wait until the engine is ready again.
+            return await EnsureRunningAsync(ct).ConfigureAwait(false);
+        }
+
+        private void KillVoicemeeterProcesses()
+        {
+            try
+            {
+                foreach (var p in Process.GetProcesses())
+                {
+                    if (!p.ProcessName.StartsWith("voicemeeter", StringComparison.OrdinalIgnoreCase)) continue;
+                    try { p.Kill(); p.WaitForExit(2000); }
+                    catch (Exception ex) { _logger?.LogDebug(ex, "Could not kill {Proc}", p.ProcessName); }
+                    finally { p.Dispose(); }
+                }
+            }
+            catch (Exception ex) { _logger?.LogWarning(ex, "Enumerating Voicemeeter processes failed"); }
         }
 
         public void Disconnect()

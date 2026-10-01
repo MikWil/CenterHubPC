@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 
 namespace CenterHubNew.MVVM.Services
 {
@@ -109,34 +110,40 @@ namespace CenterHubNew.MVVM.Services
                 Stop();
 
                 // Main output (for Discord/Voicemeeter)
-                _audioReader = new AudioFileReader(sound.FilePath)
+                var reader = new AudioFileReader(sound.FilePath)
                 {
                     Volume = sound.Volume * OutputVolume
                 };
+                _audioReader = reader;
 
-                _waveOut = new WaveOutEvent
+                var waveOut = new WaveOutEvent
                 {
                     DeviceNumber = deviceNumber
                 };
+                _waveOut = waveOut;
+                waveOut.PlaybackStopped += (_, _) => OnMainPlaybackStopped(waveOut, reader);
 
-                _waveOut.Init(ApplyTrim(_audioReader, sound));
-                _waveOut.Play();
+                waveOut.Init(ApplyTrim(reader, sound));
+                waveOut.Play();
 
                 // Monitor output (for you to hear)
                 if (MonitorEnabled && MonitorDeviceIndex != deviceNumber)
                 {
-                    _monitorAudioReader = new AudioFileReader(sound.FilePath)
+                    var monitorReader = new AudioFileReader(sound.FilePath)
                     {
                         Volume = sound.Volume * MonitorVolume
                     };
+                    _monitorAudioReader = monitorReader;
 
-                    _monitorWaveOut = new WaveOutEvent
+                    var monitorOut = new WaveOutEvent
                     {
                         DeviceNumber = MonitorDeviceIndex
                     };
+                    _monitorWaveOut = monitorOut;
+                    monitorOut.PlaybackStopped += (_, _) => OnMonitorPlaybackStopped(monitorOut, monitorReader);
 
-                    _monitorWaveOut.Init(ApplyTrim(_monitorAudioReader, sound));
-                    _monitorWaveOut.Play();
+                    monitorOut.Init(ApplyTrim(monitorReader, sound));
+                    monitorOut.Play();
                 }
 
                 _logger?.LogDebug("Playing sound: {Name} on device {Device}", sound.Name, deviceNumber);
@@ -144,7 +151,32 @@ namespace CenterHubNew.MVVM.Services
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Failed to play sound: {Name}", sound.Name);
+                // Release any partially-created playback objects.
+                Stop();
             }
+        }
+
+        // Natural end of playback (or device failure): release handles. Ownership is
+        // decided by an atomic field swap so Stop()/Dispose() never double-dispose.
+        private void OnMainPlaybackStopped(WaveOutEvent waveOut, AudioFileReader reader)
+        {
+            if (ReferenceEquals(Interlocked.CompareExchange(ref _waveOut, null, waveOut), waveOut))
+                DisposeQuietly(waveOut);
+            if (ReferenceEquals(Interlocked.CompareExchange(ref _audioReader, null, reader), reader))
+                DisposeQuietly(reader);
+        }
+
+        private void OnMonitorPlaybackStopped(WaveOutEvent waveOut, AudioFileReader reader)
+        {
+            if (ReferenceEquals(Interlocked.CompareExchange(ref _monitorWaveOut, null, waveOut), waveOut))
+                DisposeQuietly(waveOut);
+            if (ReferenceEquals(Interlocked.CompareExchange(ref _monitorAudioReader, null, reader), reader))
+                DisposeQuietly(reader);
+        }
+
+        private static void DisposeQuietly(IDisposable? d)
+        {
+            try { d?.Dispose(); } catch { }
         }
 
         /// <summary>
@@ -168,26 +200,20 @@ namespace CenterHubNew.MVVM.Services
 
         public void Stop()
         {
-            try
-            {
-                _waveOut?.Stop();
-                _waveOut?.Dispose();
-                _waveOut = null;
+            // Atomically take ownership of each object so a concurrent PlaybackStopped
+            // handler can't dispose the same instance twice.
+            var waveOut = Interlocked.Exchange(ref _waveOut, null);
+            var reader = Interlocked.Exchange(ref _audioReader, null);
+            var monitorOut = Interlocked.Exchange(ref _monitorWaveOut, null);
+            var monitorReader = Interlocked.Exchange(ref _monitorAudioReader, null);
 
-                _audioReader?.Dispose();
-                _audioReader = null;
+            try { waveOut?.Stop(); } catch (Exception ex) { _logger?.LogError(ex, "Error stopping sound"); }
+            DisposeQuietly(waveOut);
+            DisposeQuietly(reader);
 
-                _monitorWaveOut?.Stop();
-                _monitorWaveOut?.Dispose();
-                _monitorWaveOut = null;
-
-                _monitorAudioReader?.Dispose();
-                _monitorAudioReader = null;
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "Error stopping sound");
-            }
+            try { monitorOut?.Stop(); } catch (Exception ex) { _logger?.LogError(ex, "Error stopping monitor sound"); }
+            DisposeQuietly(monitorOut);
+            DisposeQuietly(monitorReader);
         }
 
         public SoundboardItem AddSound(string name, string filePath)
@@ -231,7 +257,7 @@ namespace CenterHubNew.MVVM.Services
             try
             {
                 var json = JsonConvert.SerializeObject(_sounds, Formatting.Indented);
-                File.WriteAllText(_configFilePath, json);
+                AtomicFile.WriteAllText(_configFilePath, json);
             }
             catch (Exception ex)
             {
@@ -250,6 +276,12 @@ namespace CenterHubNew.MVVM.Services
                     _logger?.LogInformation("Loaded {Count} sounds", _sounds.Count);
                 }
             }
+            catch (Newtonsoft.Json.JsonException ex)
+            {
+                _logger?.LogError(ex, "Soundboard file is corrupt; quarantining file");
+                AtomicFile.QuarantineCorrupt(_configFilePath);
+                _sounds = new List<SoundboardItem>();
+            }
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Failed to load soundboard");
@@ -267,6 +299,12 @@ namespace CenterHubNew.MVVM.Services
                     _settings = JsonConvert.DeserializeObject<SoundboardSettings>(json) ?? new SoundboardSettings();
                 }
             }
+            catch (Newtonsoft.Json.JsonException ex)
+            {
+                _logger?.LogError(ex, "Soundboard settings file is corrupt; quarantining file");
+                AtomicFile.QuarantineCorrupt(_settingsFilePath);
+                _settings = new SoundboardSettings();
+            }
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Failed to load soundboard settings");
@@ -279,7 +317,7 @@ namespace CenterHubNew.MVVM.Services
             try
             {
                 var json = JsonConvert.SerializeObject(_settings, Formatting.Indented);
-                File.WriteAllText(_settingsFilePath, json);
+                AtomicFile.WriteAllText(_settingsFilePath, json);
             }
             catch (Exception ex)
             {

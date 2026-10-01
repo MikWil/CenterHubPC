@@ -53,7 +53,14 @@
     </Application.DataTemplates>
 
     <Application.Styles>
-        <FluentTheme/>
+        <!-- Pin Fluent's accent to CenterHub's sky blue. Without this Fluent uses the
+             user's Windows accent (e.g. purple), so sliders/checkboxes/toggles clash. -->
+        <FluentTheme>
+            <FluentTheme.Palettes>
+                <ColorPaletteResources x:Key="Dark"  Accent="#FF4CC2FF"/>
+                <ColorPaletteResources x:Key="Light" Accent="#FF4CC2FF"/>
+            </FluentTheme.Palettes>
+        </FluentTheme>
         <StyleInclude Source="avares://CenterHubNew/Resources/Styles/Theme.axaml"/>
     </Application.Styles>
 

@@ -101,7 +101,7 @@ Defined in `App.axaml` under `<Application.DataTemplates>`. Each ViewModel type 
 ### Themes
 - Base: `<FluentTheme/>` in App.axaml Styles
 - Override: `avares://CenterHubNew/Resources/Styles/Theme.axaml`
-- Design tokens: dark charcoal palette with sky-blue accent (#7DD3FC)
+- Design tokens: dark charcoal palette with sky-blue accent (#4CC2FF); Fluent's accent is pinned to it in `App.axaml` (otherwise it follows the Windows accent)
 
 ## Compact Favorites Window
 
@@ -114,8 +114,17 @@ Defined in `App.axaml` under `<Application.DataTemplates>`. Each ViewModel type 
 ## Key Conventions
 
 - Version bumped in `CenterHubNew.csproj` → `<Version>`
-- `appsettings.json` is the only user-facing config; never hard-code paths
-- Toast notifications via the singleton `ToastService.Instance`
-- GlobalHotkeyService requires a window HWND — initialized after MainWindow loads
-- Single-instance enforced via `Mutex` ("CenterHubNew_SingleInstance_Mutex")
+- User data and settings live in `%AppData%\CenterHub\*.json` — never next to the exe (Program Files is read-only for users and wiped by MSI upgrades). Write with `AtomicFile.WriteAllText`; on a JSON parse failure call `AtomicFile.QuarantineCorrupt` before falling back to defaults
+- Toast notifications via the singleton `ToastService.Instance` (shown bottom-right)
+- GlobalHotkeyService requires a window HWND — initialized after MainWindow loads. Map keys with `GlobalHotkeyService.KeyToVirtualKey` (Avalonia `Key` is not a Win32 VK code)
+- View-models that global hotkeys act on (Sound, Standing, Clipboard, AutoClicker, Soundboard) are **singletons**
+- Single-instance enforced in `Program.Main` via `Mutex` ("CenterHubNew_SingleInstance_Mutex"); a second launch signals the first to restore its window
+- Minimize hides to the tray (`Hide()`); closing the main window quits (`ShutdownMode.OnMainWindowClose`), no confirmation
 - Build/installer via `build-installer.ps1`
+
+## Testing
+
+- Unit tests: `dotnet test tests/CenterHubNew.Tests/CenterHubNew.Tests.csproj` (xUnit; fakes in `Fakes.cs`; never touch the real `%AppData%`)
+- UI regression: `powershell -ExecutionPolicy Bypass -File tools/regression.ps1` — drives the real app via UI Automation and asserts behaviour (navigation, Notes autosave, tray, single instance, close)
+- Page screenshots: `tools/ui-smoke.ps1`
+- Builds must stay at 0 warnings. See `.claude/skills/centerhub-dev/SKILL.md` for gotchas and the release checklist.

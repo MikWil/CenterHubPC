@@ -15,11 +15,20 @@ namespace CenterHubNew.MVVM.ViewModel
         [ObservableProperty] private float cpuUsage;
         [ObservableProperty] private float gpuUsage;
         [ObservableProperty] private float memoryUsagePercent;
-        [ObservableProperty] private long usedMemory;
-        [ObservableProperty] private long totalMemory;
+        [ObservableProperty] private double usedMemory;
+        [ObservableProperty] private double totalMemory;
         [ObservableProperty] private float cpuTemperature;
         [ObservableProperty] private float gpuTemperature;
         [ObservableProperty] private string gpuName = string.Empty;
+
+        // GpuUsage is -1 when unavailable: show "N/A" and an empty bar rather than "-1.0%".
+        public string GpuUsageText => GpuUsage < 0 ? "N/A" : $"{GpuUsage:F1}%";
+        public float GpuUsageBar => Math.Max(0f, GpuUsage);
+        partial void OnGpuUsageChanged(float value)
+        {
+            OnPropertyChanged(nameof(GpuUsageText));
+            OnPropertyChanged(nameof(GpuUsageBar));
+        }
 
         public SoundViewModel Sound { get; }
 
@@ -54,7 +63,7 @@ namespace CenterHubNew.MVVM.ViewModel
                     GpuName = info.GpuInfo.Name;
                     TotalMemory = info.MemoryInfo.TotalPhysicalMemory;
                     UsedMemory = info.MemoryInfo.UsedPhysicalMemory;
-                    MemoryUsagePercent = TotalMemory > 0 ? (float)UsedMemory / TotalMemory * 100f : 0f;
+                    MemoryUsagePercent = TotalMemory > 0 ? (float)(UsedMemory / TotalMemory * 100.0) : 0f;
                 });
             }
             catch (InvalidOperationException) { /* dispatcher shut down — app is closing */ }

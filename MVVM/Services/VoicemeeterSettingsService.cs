@@ -32,10 +32,14 @@ namespace CenterHubNew.MVVM.Services
         private readonly object _gate = new();
 
         public VoicemeeterSettingsService(ILogger<VoicemeeterSettingsService>? logger = null)
+            : this(logger, storageFolder: null) { }
+
+        /// <param name="storageFolder">Override for tests; defaults to %AppData%\CenterHub.</param>
+        public VoicemeeterSettingsService(ILogger<VoicemeeterSettingsService>? logger, string? storageFolder)
         {
             _logger = logger;
-            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            var folder = Path.Combine(appData, "CenterHub");
+            var folder = storageFolder ?? Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CenterHub");
             Directory.CreateDirectory(folder);
             _filePath = Path.Combine(folder, "voicemeeter.json");
         }
@@ -57,6 +61,11 @@ namespace CenterHubNew.MVVM.Services
                         }
                     }
                 }
+                catch (Newtonsoft.Json.JsonException ex)
+                {
+                    _logger?.LogError(ex, "voicemeeter.json is corrupt; quarantining file");
+                    AtomicFile.QuarantineCorrupt(_filePath);
+                }
                 catch (Exception ex) { _logger?.LogError(ex, "Error loading voicemeeter.json"); }
 
                 return new VoicemeeterState();
@@ -70,7 +79,7 @@ namespace CenterHubNew.MVVM.Services
                 try
                 {
                     var json = JsonConvert.SerializeObject(state, Formatting.Indented);
-                    File.WriteAllText(_filePath, json);
+                    AtomicFile.WriteAllText(_filePath, json);
                 }
                 catch (Exception ex) { _logger?.LogError(ex, "Error saving voicemeeter.json"); }
             }

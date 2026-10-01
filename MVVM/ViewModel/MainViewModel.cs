@@ -351,6 +351,34 @@ namespace CenterHubNew.MVVM.ViewModel
             IsMetronomeSelected = false;
         }
 
+        // ─── Selection flag → navigation ───
+        // The sidebar RadioButtons bind IsChecked TwoWay to these flags. A mouse click also
+        // runs the Command, but keyboard arrows (and accessibility tools) only flip IsChecked —
+        // which used to move the highlight without changing the page. Navigate from the flag too.
+        private bool _navigatingFromFlag;
+
+        private void NavigateFromFlag(bool selected, Action navigate)
+        {
+            if (!selected || _navigatingFromFlag) return;
+            _navigatingFromFlag = true;
+            try { navigate(); }
+            finally { _navigatingFromFlag = false; }
+        }
+
+        partial void OnIsMonitoringSelectedChanged(bool value)       => NavigateFromFlag(value, MonitoringView);
+        partial void OnIsSoundSelectedChanged(bool value)            => NavigateFromFlag(value, SoundView);
+        partial void OnIsSoundboardSelectedChanged(bool value)       => NavigateFromFlag(value, SoundboardView);
+        partial void OnIsUtilitiesSelectedChanged(bool value)        => NavigateFromFlag(value, UtilitiesView);
+        partial void OnIsAutoClickerSelectedChanged(bool value)      => NavigateFromFlag(value, AutoClickerView);
+        partial void OnIsClipboardSelectedChanged(bool value)        => NavigateFromFlag(value, ClipboardView);
+        partial void OnIsStandingSelectedChanged(bool value)         => NavigateFromFlag(value, StandingView);
+        partial void OnIsNotesSelectedChanged(bool value)            => NavigateFromFlag(value, NotesView);
+        partial void OnIsHotkeySettingsSelectedChanged(bool value)   => NavigateFromFlag(value, HotkeySettingsView);
+        partial void OnIsLayoutsSelectedChanged(bool value)          => NavigateFromFlag(value, LayoutsView);
+        partial void OnIsNetworkSelectedChanged(bool value)          => NavigateFromFlag(value, NetworkView);
+        partial void OnIsRandomizerSelectedChanged(bool value)       => NavigateFromFlag(value, RandomizerView);
+        partial void OnIsMetronomeSelectedChanged(bool value)        => NavigateFromFlag(value, MetronomeView);
+
         [RelayCommand]
         private void ToggleSidebar()
         {
@@ -549,28 +577,33 @@ namespace CenterHubNew.MVVM.ViewModel
                 if (_updateService is not null)
                     _updateService.UpdateChanged -= OnUpdateChanged;
 
-                if (CurrentView is IDisposable currentDisposable)
-                {
-                    currentDisposable.Dispose();
-                }
-
-                _monitoringVM?.Dispose();
-                _soundVM?.Dispose();
-                _soundboardVM?.Dispose();
-                _utilitiesVM?.Dispose();
-                _autoClickerVM?.Dispose();
-                _clipboardVM?.Dispose();
-                _standingVM?.Dispose();
-                _notesVM?.Dispose();
-                _hotkeySettingsVM?.Dispose();
-                _layoutsVM?.Dispose();
-                _networkVM?.Dispose();
-                _randomizerVM?.Dispose();
-                _metronomeVM?.Dispose();
+                // Dispose each page independently: one throwing Dispose used to skip the rest
+                // (including Notes, whose Dispose saves the open note). Notes goes first.
+                SafeDispose(_notesVM);
+                SafeDispose(CurrentView as IDisposable);
+                SafeDispose(_monitoringVM);
+                SafeDispose(_soundVM);
+                SafeDispose(_soundboardVM);
+                SafeDispose(_utilitiesVM);
+                SafeDispose(_autoClickerVM);
+                SafeDispose(_clipboardVM);
+                SafeDispose(_standingVM);
+                SafeDispose(_hotkeySettingsVM);
+                SafeDispose(_layoutsVM);
+                SafeDispose(_networkVM);
+                SafeDispose(_randomizerVM);
+                SafeDispose(_metronomeVM);
             }
             base.Dispose(disposing);
         }
 
-        public string AppVersion => $"v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version}";
+        private void SafeDispose(IDisposable? d)
+        {
+            if (d is null) return;
+            try { d.Dispose(); }
+            catch (Exception ex) { Logger?.LogWarning(ex, "Error disposing {Type}", d.GetType().Name); }
+        }
+
+        public string AppVersion => $"v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}";
     }
 }

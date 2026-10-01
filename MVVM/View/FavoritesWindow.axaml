@@ -119,10 +119,10 @@
                                     </Border>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding GpuUsage, StringFormat='{}{0:F1}%'}"
+                                    <TextBlock Text="{Binding GpuUsageText}"
                                                FontSize="26" FontWeight="Bold"
                                                Foreground="{StaticResource GpuBrush}"/>
-                                    <ProgressBar Classes="gpu" Value="{Binding GpuUsage}" Maximum="100"
+                                    <ProgressBar Classes="gpu" Value="{Binding GpuUsageBar}" Maximum="100"
                                                  Height="4" Margin="0,5,0,0"/>
                                     <TextBlock Text="{Binding GpuName}"
                                                FontSize="9" Foreground="{StaticResource TextMutedBrush}"

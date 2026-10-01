@@ -28,7 +28,9 @@ namespace CenterHubNew.MVVM.ViewModel
             ILogger<HotkeySettingsViewModel>? logger = null) : base(logger)
         {
             _hotkeyService = hotkeyService;
-            HotkeysEnabled = _hotkeyService.HotkeysEnabled;
+            // Set the backing field: assigning the property ran OnHotkeysEnabledChanged and
+            // toasted "Global hotkeys enabled" every time the page was merely opened.
+            _hotkeysEnabled = _hotkeyService.HotkeysEnabled;
 
             // Copy the service's bindings into the observable collection
             foreach (var binding in _hotkeyService.Bindings)

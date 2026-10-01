@@ -160,7 +160,7 @@
                         BorderThickness="{TemplateBinding BorderThickness}"
                         CornerRadius="{TemplateBinding CornerRadius}"
                         Padding="{TemplateBinding Padding}">
-                    <ContentPresenter x:Name="PART_ContentPresenter"
+                    <ContentPresenter x:Name="ContentHost"
                                       Content="{TemplateBinding Content}"
                                       ContentTemplate="{TemplateBinding ContentTemplate}"
                                       Foreground="{TemplateBinding Foreground}"
@@ -208,7 +208,7 @@
                         BorderThickness="{TemplateBinding BorderThickness}"
                         CornerRadius="{TemplateBinding CornerRadius}"
                         Padding="{TemplateBinding Padding}">
-                    <ContentPresenter x:Name="PART_ContentPresenter"
+                    <ContentPresenter x:Name="ContentHost"
                                       Content="{TemplateBinding Content}"
                                       ContentTemplate="{TemplateBinding ContentTemplate}"
                                       Foreground="{TemplateBinding Foreground}"
@@ -253,7 +253,7 @@
                         BorderThickness="{TemplateBinding BorderThickness}"
                         CornerRadius="{TemplateBinding CornerRadius}"
                         Padding="{TemplateBinding Padding}">
-                    <ContentPresenter x:Name="PART_ContentPresenter"
+                    <ContentPresenter x:Name="ContentHost"
                                       Content="{TemplateBinding Content}"
                                       ContentTemplate="{TemplateBinding ContentTemplate}"
                                       Foreground="{TemplateBinding Foreground}"
@@ -288,7 +288,7 @@
                         Background="{TemplateBinding Background}"
                         CornerRadius="{TemplateBinding CornerRadius}"
                         Padding="{TemplateBinding Padding}">
-                    <ContentPresenter x:Name="PART_ContentPresenter"
+                    <ContentPresenter x:Name="ContentHost"
                                       Content="{TemplateBinding Content}"
                                       ContentTemplate="{TemplateBinding ContentTemplate}"
                                       Foreground="{TemplateBinding Foreground}"
@@ -322,7 +322,7 @@
         <Setter Property="Template">
             <ControlTemplate>
                 <Border x:Name="Bg" Background="{TemplateBinding Background}" CornerRadius="6">
-                    <ContentPresenter x:Name="PART_ContentPresenter"
+                    <ContentPresenter x:Name="ContentHost"
                                       Content="{TemplateBinding Content}"
                                       ContentTemplate="{TemplateBinding ContentTemplate}"
                                       Foreground="{TemplateBinding Foreground}"

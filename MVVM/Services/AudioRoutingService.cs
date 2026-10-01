@@ -252,6 +252,24 @@ namespace CenterHubNew.MVVM.Services
         /// reassign every device, route and Windows default from the given preset.
         /// Use when Voicemeeter has drifted after sitting idle.
         /// </summary>
+        /// <summary>
+        /// Fully restart the Voicemeeter application (recovers a hung/crazy Banana), then
+        /// reassign every device, route and Windows default. Heavier than <see cref="ResyncAsync"/>.
+        /// </summary>
+        public async Task<VoicemeeterModeResult> RestartVoicemeeterAsync(AudioRoutingPreset preset, System.Threading.CancellationToken ct = default)
+        {
+            if (!_vm.IsInstalled)
+                return VoicemeeterModeResult.Fail("Voicemeeter is not installed.");
+
+            var ok = await _vm.RestartApplicationAsync(ct).ConfigureAwait(false);
+            if (!ok) return VoicemeeterModeResult.Fail("Could not restart Voicemeeter.");
+
+            var result = await ApplyPresetAsync(preset, ct).ConfigureAwait(false);
+            return result.Success
+                ? VoicemeeterModeResult.Ok("Voicemeeter restarted — routing reassigned.")
+                : result;
+        }
+
         public async Task<VoicemeeterModeResult> ResyncAsync(AudioRoutingPreset preset, System.Threading.CancellationToken ct = default)
         {
             if (!_vm.IsInstalled)
@@ -269,6 +287,146 @@ namespace CenterHubNew.MVVM.Services
             return result.Success
                 ? VoicemeeterModeResult.Ok("Re-synced — devices and routing reassigned.")
                 : result;
+        }
+
+        // ─────────────────── Setup health check ───────────────────
+
+        /// <summary>
+        /// Validate the whole audio chain (Voicemeeter install/engine, virtual driver,
+        /// Windows defaults, configured devices, Discord) and return guidance for anything wrong.
+        /// </summary>
+        public List<AudioCheck> RunChecks()
+        {
+            var checks = new List<AudioCheck>();
+
+            // 1) Voicemeeter installed?
+            if (!_vm.IsInstalled)
+            {
+                checks.Add(new AudioCheck
+                {
+                    Title = "Voicemeeter Banana",
+                    Status = AudioCheckStatus.Error,
+                    Detail = "Not installed. The audio router needs Voicemeeter Banana (free).",
+                    Fix = AudioCheckFix.InstallVoicemeeter, FixLabel = "Get Voicemeeter"
+                });
+                return checks; // nothing else is meaningful without it
+            }
+
+            // 2) Engine running + edition
+            var status = _vm.RefreshStatus();
+            if (status != VoicemeeterStatus.Running)
+                checks.Add(new AudioCheck
+                {
+                    Title = "Voicemeeter engine",
+                    Status = AudioCheckStatus.Warning,
+                    Detail = "Banana isn't running. Start it (or apply a preset) to route audio.",
+                    Fix = AudioCheckFix.StartBanana, FixLabel = "Start Banana"
+                });
+            else if (_vm.Kind == VoicemeeterKind.Standard)
+                checks.Add(new AudioCheck
+                {
+                    Title = "Voicemeeter edition",
+                    Status = AudioCheckStatus.Error,
+                    Detail = "Standard edition is running — routing needs Banana or Potato.",
+                });
+            else
+                checks.Add(new AudioCheck
+                {
+                    Title = "Voicemeeter engine",
+                    Status = AudioCheckStatus.Ok,
+                    Detail = $"{_vm.Kind} running. If audio is glitching or stuck, restart it.",
+                    Fix = AudioCheckFix.RestartVoicemeeter, FixLabel = "Restart"
+                });
+
+            // 3) Virtual audio driver present in Windows
+            var render = _audio.GetPlaybackDevices();
+            var capture = _audio.GetRecordingDevices();
+            bool hasVaio = render.Any(d => d.Name.IndexOf(VaioInputName, StringComparison.OrdinalIgnoreCase) >= 0);
+            bool hasB1 = capture.Any(d => d.Name.IndexOf(SendRecordingName, StringComparison.OrdinalIgnoreCase) >= 0);
+            if (!hasVaio || !hasB1)
+                checks.Add(new AudioCheck
+                {
+                    Title = "Virtual audio driver",
+                    Status = AudioCheckStatus.Error,
+                    Detail = "Voicemeeter's virtual devices (Input / Out B1) are missing. Reinstall Voicemeeter and reboot.",
+                    Fix = AudioCheckFix.InstallVoicemeeter, FixLabel = "Get Voicemeeter"
+                });
+            else
+                checks.Add(new AudioCheck
+                {
+                    Title = "Virtual audio devices",
+                    Status = AudioCheckStatus.Ok,
+                    Detail = "Voicemeeter Input and Out B1 are present."
+                });
+
+            // 4) Windows defaults routed through Voicemeeter
+            var play = _audio.GetDefaultPlayback();
+            bool playOk = play?.Name?.IndexOf(VaioInputName, StringComparison.OrdinalIgnoreCase) >= 0;
+            var rec = _audio.GetDefaultRecording();
+            bool recOk = rec?.Name?.IndexOf(SendRecordingName, StringComparison.OrdinalIgnoreCase) >= 0;
+            if (playOk && recOk)
+                checks.Add(new AudioCheck { Title = "Windows audio routing", Status = AudioCheckStatus.Ok, Detail = "Windows output and mic go through Voicemeeter." });
+            else
+                checks.Add(new AudioCheck
+                {
+                    Title = "Windows audio routing",
+                    Status = AudioCheckStatus.Warning,
+                    Detail = "Windows isn't routed through Voicemeeter yet. Apply a preset to set it up.",
+                    Fix = AudioCheckFix.ReapplyRouting, FixLabel = "Apply routing"
+                });
+
+            // 5) Configured devices exist
+            var s = _store.Load().Settings;
+            CheckDevice(checks, "Microphone", s.MicrophoneDeviceName, capture);
+            CheckDevice(checks, "Guitar (Katana)", s.GuitarDeviceName, capture);
+            CheckDevice(checks, "Monitor output", s.MonitorDeviceName, render);
+
+            // 6) Discord reminder (can't read Discord's settings, but nudge if it's open)
+            bool discord = false;
+            try { discord = System.Diagnostics.Process.GetProcessesByName("Discord").Length > 0; } catch { }
+            if (discord)
+                checks.Add(new AudioCheck
+                {
+                    Title = "Discord",
+                    Status = AudioCheckStatus.Warning,
+                    Detail = "Set Discord's Input AND Output to \"Default\" so it follows CenterHub's routing."
+                });
+
+            // 7) Optional extra slot
+            checks.Add(new AudioCheck
+            {
+                Title = "Extra app slot",
+                Status = AudioCheckStatus.Ok,
+                Detail = IsVbCableInstalled
+                    ? "VB-Cable installed — a second application slot is available."
+                    : "Optional: install VB-Cable to add a second application slot.",
+                Fix = IsVbCableInstalled ? AudioCheckFix.None : AudioCheckFix.InstallVbCable,
+                FixLabel = IsVbCableInstalled ? null : "Get VB-Cable"
+            });
+
+            return checks;
+        }
+
+        private static void CheckDevice(List<AudioCheck> checks, string label, string? name, IReadOnlyList<AudioDeviceInfo> devices)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                checks.Add(new AudioCheck
+                {
+                    Title = label,
+                    Status = AudioCheckStatus.Warning,
+                    Detail = $"No {label.ToLowerInvariant()} chosen yet.",
+                    Fix = AudioCheckFix.ConfigureDevices, FixLabel = "Open Setup"
+                });
+            else if (!devices.Any(d => d.Name.IndexOf(name, StringComparison.OrdinalIgnoreCase) >= 0))
+                checks.Add(new AudioCheck
+                {
+                    Title = label,
+                    Status = AudioCheckStatus.Warning,
+                    Detail = $"\"{name}\" isn't connected right now.",
+                    Fix = AudioCheckFix.ConfigureDevices, FixLabel = "Open Setup"
+                });
+            else
+                checks.Add(new AudioCheck { Title = label, Status = AudioCheckStatus.Ok, Detail = name! });
         }
 
         // ─────────────────── Per-app output (handled in-app) ───────────────────

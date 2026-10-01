@@ -378,7 +378,8 @@ namespace CenterHubNew.MVVM.Services
                     };
                 }
                 catch (System.ComponentModel.Win32Exception wex)
-                    when (unchecked((uint)wex.NativeErrorCode) == 0x800704C7 /*ERROR_CANCELLED*/)
+                    when (wex.NativeErrorCode == 1223 /*ERROR_CANCELLED*/
+                          || unchecked((uint)wex.NativeErrorCode) == 0x800704C7 /*HRESULT_FROM_WIN32(ERROR_CANCELLED)*/)
                 {
                     return new NetworkActionResult
                     {

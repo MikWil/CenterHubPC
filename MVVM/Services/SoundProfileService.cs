@@ -46,6 +46,11 @@ namespace CenterHubNew.MVVM.Services
                     }
                 }
             }
+            catch (Newtonsoft.Json.JsonException ex)
+            {
+                _logger?.LogError(ex, "Sound profiles file is corrupt; quarantining file");
+                AtomicFile.QuarantineCorrupt(_profilesFilePath);
+            }
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Error loading sound profiles from file");
@@ -74,7 +79,7 @@ namespace CenterHubNew.MVVM.Services
                 // Ensure we only save up to MaxProfiles
                 var profilesToSave = profiles.Take(MaxProfiles).ToList();
                 var json = JsonConvert.SerializeObject(profilesToSave, Formatting.Indented);
-                File.WriteAllText(_profilesFilePath, json);
+                AtomicFile.WriteAllText(_profilesFilePath, json);
                 _logger?.LogInformation("Saved {Count} sound profiles to file", profilesToSave.Count);
             }
             catch (Exception ex)

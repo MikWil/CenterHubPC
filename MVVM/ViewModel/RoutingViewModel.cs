@@ -65,7 +65,8 @@ namespace CenterHubNew.MVVM.ViewModel
                 ? route!.DisplayName!
                 : src.DefaultName;
             toYou = route?.ToYou ?? false;
-            toOthers = route?.ToOthers ?? false;
+            // A stale preset may still say Desktop & Discord → Others; never honour that.
+            toOthers = (route?.ToOthers ?? false) && src.CanSendToOthers;
             gainDb = route?.GainDb ?? 0f;
             muted = route?.Muted ?? false;
             _onChanged = onChanged;
@@ -126,6 +127,16 @@ namespace CenterHubNew.MVVM.ViewModel
         [ObservableProperty] private string statusText = "Checking…";
         [ObservableProperty] private bool isBusy;
 
+        // ── Setup health check ──
+        [ObservableProperty] private ObservableCollection<AudioCheck> checks = new();
+        [ObservableProperty] private bool isDiagnosticsOpen;
+        [ObservableProperty] private int issueCount;
+        [ObservableProperty] private string diagnosticsSummary = "";
+        [ObservableProperty] private bool isSetupOpen;
+
+        public string CheckSetupLabel => IssueCount > 0 ? $"Check setup ({IssueCount})" : "Check setup";
+        partial void OnIssueCountChanged(int value) => OnPropertyChanged(nameof(CheckSetupLabel));
+
         public RoutingViewModel(
             AudioRoutingService routing,
             VoicemeeterViewModel? devices = null,
@@ -143,6 +154,7 @@ namespace CenterHubNew.MVVM.ViewModel
             LoadSourcesFor(_current);          // populate board, but do NOT auto-apply on startup
             RecomputeSummaries();
             RefreshState();
+            _ = ReloadChecksAsync();           // compute the setup-issue badge in the background
         }
 
         private void RebuildChips()
@@ -267,6 +279,44 @@ namespace CenterHubNew.MVVM.ViewModel
             finally { IsBusy = false; }
         }
 
+        /// <summary>Apply the next (+1) / previous (-1) preset, wrapping. Used by the global preset hotkeys.</summary>
+        public void CyclePreset(int delta)
+        {
+            if (IsDisposed || IsBusy || PresetChips.Count == 0) return;
+            var idx = PresetChips.ToList().FindIndex(c => c.Id == _current.Id);
+            if (idx < 0) idx = 0;
+            var next = PresetChips[((idx + delta) % PresetChips.Count + PresetChips.Count) % PresetChips.Count];
+            ApplyPresetCommand.Execute(next);
+        }
+
+        [RelayCommand]
+        private async Task RestartVoicemeeter()
+        {
+            if (IsBusy || IsDisposed) return;
+            if (!_routing.IsInstalled)
+            {
+                ToastService.Instance.Warning("Voicemeeter is not installed.");
+                return;
+            }
+
+            IsBusy = true;
+            try
+            {
+                ToastService.Instance.Info("Restarting Voicemeeter — audio will drop for a moment…");
+                var result = await _routing.RestartVoicemeeterAsync(_current).ConfigureAwait(true);
+                if (result.Success) ToastService.Instance.Success(result.Message);
+                else ToastService.Instance.Error(result.Message);
+                RefreshState();
+                _ = ReloadChecksAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "Restart Voicemeeter failed");
+                ToastService.Instance.Error($"Restart failed: {ex.Message}");
+            }
+            finally { IsBusy = false; }
+        }
+
         [RelayCommand]
         private async Task Resync()
         {
@@ -344,6 +394,84 @@ namespace CenterHubNew.MVVM.ViewModel
             _routing.OpenAppVolumeSettings();
             if (row?.WindowsPlaybackName is { } name)
                 ToastService.Instance.Info($"Windows opened — under the app, set Output to \"{name}\", then toggle You/Others here.");
+        }
+
+        // ─────────────────── Setup health check ───────────────────
+
+        private async Task ReloadChecksAsync()
+        {
+            try
+            {
+                var results = await Task.Run(() => _routing.RunChecks()).ConfigureAwait(true);
+                if (IsDisposed) return;
+                Checks = new ObservableCollection<AudioCheck>(results);
+                IssueCount = results.Count(c => c.IsProblem);
+                DiagnosticsSummary = IssueCount == 0
+                    ? "Everything looks good."
+                    : $"{IssueCount} thing{(IssueCount == 1 ? "" : "s")} to review.";
+            }
+            catch (Exception ex) { Logger?.LogWarning(ex, "Setup check failed"); }
+        }
+
+        [RelayCommand]
+        private async Task RunDiagnostics()
+        {
+            IsDiagnosticsOpen = true;
+            await ReloadChecksAsync();
+        }
+
+        [RelayCommand]
+        private void CloseDiagnostics() => IsDiagnosticsOpen = false;
+
+        [RelayCommand]
+        private async Task ApplyFix(AudioCheck? check)
+        {
+            if (check is null || IsBusy) return;
+            try
+            {
+                switch (check.Fix)
+                {
+                    case AudioCheckFix.InstallVoicemeeter:
+                        OpenUrl("https://vb-audio.com/Voicemeeter/banana.htm");
+                        break;
+                    case AudioCheckFix.InstallVbCable:
+                        OpenUrl("https://vb-audio.com/Cable/");
+                        break;
+                    case AudioCheckFix.ConfigureDevices:
+                        IsSetupOpen = true;
+                        break;
+                    case AudioCheckFix.StartBanana:
+                    case AudioCheckFix.ReapplyRouting:
+                        IsBusy = true;
+                        var result = await _routing.ApplyPresetAsync(_current).ConfigureAwait(true);
+                        if (result.Success) ToastService.Instance.Success(result.Message);
+                        else ToastService.Instance.Error(result.Message);
+                        RefreshState();
+                        break;
+                    case AudioCheckFix.RestartVoicemeeter:
+                        IsBusy = true;
+                        ToastService.Instance.Info("Restarting Voicemeeter…");
+                        var rr = await _routing.RestartVoicemeeterAsync(_current).ConfigureAwait(true);
+                        if (rr.Success) ToastService.Instance.Success(rr.Message);
+                        else ToastService.Instance.Error(rr.Message);
+                        RefreshState();
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "Applying setup fix failed");
+                ToastService.Instance.Error($"Couldn't apply fix: {ex.Message}");
+            }
+            finally { IsBusy = false; }
+
+            await ReloadChecksAsync(); // re-check after the fix
+        }
+
+        private void OpenUrl(string url)
+        {
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); }
+            catch (Exception ex) { Logger?.LogWarning(ex, "Could not open {Url}", url); }
         }
 
         [RelayCommand]

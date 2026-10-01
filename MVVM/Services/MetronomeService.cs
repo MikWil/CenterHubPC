@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 using NAudio.Wave;
 
 namespace CenterHubNew.MVVM.Services
@@ -31,8 +32,11 @@ namespace CenterHubNew.MVVM.Services
         private WaveOutEvent? _output;
         private BufferedWaveProvider? _buffer;
 
-        public MetronomeService()
+        private readonly ILogger<MetronomeService>? _logger;
+
+        public MetronomeService(ILogger<MetronomeService>? logger = null)
         {
+            _logger = logger;
             // ── Clock — high, light mechanical tick; deeper tock on beat 1 ──
             _samples[MetronomeSound.Clock] = (
                 GenerateClockTick(bodyHz: 1800, clickHz: 4000, durationSec: 0.028, amplitude: 0.70, bodyDecay: 280, clickDecay: 600),
@@ -68,37 +72,63 @@ namespace CenterHubNew.MVVM.Services
         public void Prime()
         {
             if (_output is not null) return;
-            _buffer = new BufferedWaveProvider(_format)
+
+            WaveOutEvent? output = null;
+            try
             {
-                BufferLength = _format.AverageBytesPerSecond, // 1 s ring buffer
-                DiscardOnBufferOverflow = true,
-            };
-            _output = new WaveOutEvent { DesiredLatency = 60 };
-            _output.Init(_buffer);
-            _output.Play();
+                var buffer = new BufferedWaveProvider(_format)
+                {
+                    BufferLength = _format.AverageBytesPerSecond, // 1 s ring buffer
+                    DiscardOnBufferOverflow = true,
+                };
+                output = new WaveOutEvent { DesiredLatency = 60 };
+                output.Init(buffer);
+                output.Play();
+
+                // Publish only once everything succeeded.
+                _buffer = buffer;
+                _output = output;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Metronome: failed to start audio output");
+                try { output?.Dispose(); } catch { }
+                _output = null;
+                _buffer = null;
+            }
         }
 
         /// <summary>Queue one click. accent=true plays the brighter beat-1 sound.</summary>
         public void Tick(bool accent, float volume = 1.0f, MetronomeSound sound = MetronomeSound.Clock)
         {
-            Prime();
-            var pair = _samples.TryGetValue(sound, out var p) ? p : _samples[MetronomeSound.Clock];
-            var src = accent ? pair.accent : pair.tick;
+            try
+            {
+                Prime();
+                var buffer = _buffer;
+                if (buffer is null) return;
 
-            if (Math.Abs(volume - 1.0f) < 0.005f)
-            {
-                _buffer?.AddSamples(src, 0, src.Length);
-                return;
+                var pair = _samples.TryGetValue(sound, out var p) ? p : _samples[MetronomeSound.Clock];
+                var src = accent ? pair.accent : pair.tick;
+
+                if (Math.Abs(volume - 1.0f) < 0.005f)
+                {
+                    buffer.AddSamples(src, 0, src.Length);
+                    return;
+                }
+                // Scale amplitude by volume without allocating a cached buffer
+                var scaled = new byte[src.Length];
+                for (int i = 0; i < src.Length - 1; i += 2)
+                {
+                    short s = (short)(BitConverter.ToInt16(src, i) * volume);
+                    scaled[i]     = (byte)(s & 0xFF);
+                    scaled[i + 1] = (byte)((s >> 8) & 0xFF);
+                }
+                buffer.AddSamples(scaled, 0, scaled.Length);
             }
-            // Scale amplitude by volume without allocating a cached buffer
-            var scaled = new byte[src.Length];
-            for (int i = 0; i < src.Length - 1; i += 2)
+            catch (Exception ex)
             {
-                short s = (short)(BitConverter.ToInt16(src, i) * volume);
-                scaled[i]     = (byte)(s & 0xFF);
-                scaled[i + 1] = (byte)((s >> 8) & 0xFF);
+                _logger?.LogError(ex, "Metronome: failed to play tick");
             }
-            _buffer?.AddSamples(scaled, 0, scaled.Length);
         }
 
         /// <summary>Stop and dispose the output (keeps the cached PCM).</summary>

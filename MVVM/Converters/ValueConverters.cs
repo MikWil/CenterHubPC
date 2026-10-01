@@ -21,6 +21,23 @@ namespace CenterHubNew.MVVM.Converters
         public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotImplementedException();
     }
 
+    /// <summary>
+    /// Percent (0–100) → pixel width, where ConverterParameter is the full width.
+    /// Used for small fixed-width meters where ProgressBar mis-sizes its fill.
+    /// </summary>
+    public class PercentToWidthConverter : IValueConverter
+    {
+        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            double pct = value switch { double d => d, float f => f, int i => i, long l => l, _ => 0 };
+            double full = double.TryParse(parameter?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var w) ? w : 100;
+            if (double.IsNaN(pct)) pct = 0;
+            return Math.Round(Math.Clamp(pct, 0, 100) / 100.0 * full, 1);
+        }
+
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotImplementedException();
+    }
+
     public class InverseBooleanConverter : IValueConverter
     {
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)

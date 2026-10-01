@@ -85,6 +85,11 @@ namespace CenterHubNew.MVVM.Services
                 var c = JsonSerializer.Deserialize<UpdateCheckCache>(json);
                 if (c != null) _cache = c;
             }
+            catch (System.Text.Json.JsonException ex)
+            {
+                _logger?.LogWarning(ex, "Update cache is corrupt; quarantining file");
+                AtomicFile.QuarantineCorrupt(_cachePath);
+            }
             catch (Exception ex)
             {
                 _logger?.LogWarning(ex, "Failed to load update cache");
@@ -95,7 +100,7 @@ namespace CenterHubNew.MVVM.Services
         {
             try
             {
-                File.WriteAllText(_cachePath,
+                AtomicFile.WriteAllText(_cachePath,
                     JsonSerializer.Serialize(_cache, new JsonSerializerOptions { WriteIndented = true }));
             }
             catch (Exception ex)

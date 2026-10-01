@@ -11,6 +11,7 @@
 
     <UserControl.Resources>
         <conv:TempToDisplayConverter x:Key="TempToDisplayConverter"/>
+        <conv:PercentToWidthConverter x:Key="PercentToWidth"/>
     </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24,20" Background="Transparent">
@@ -55,7 +56,8 @@
 
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"
                                         Margin="0,8,0,0" Spacing="6">
-                                <Border Background="{StaticResource CardInnerBrush}" CornerRadius="6" Padding="10,4">
+                                <Border Background="{StaticResource CardInnerBrush}" CornerRadius="6" Padding="10,4"
+                                        ToolTip.Tip="{Binding CpuTemperatureHint}">
                                     <StackPanel Orientation="Horizontal" Spacing="4">
                                         <TextBlock Text="NOW" FontSize="9" FontWeight="Bold" LetterSpacing="0.5"
                                                    Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
@@ -64,7 +66,8 @@
                                                    Foreground="{StaticResource TextPrimaryBrush}"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Background="{StaticResource AccentSubtleBrush}" CornerRadius="6" Padding="10,4">
+                                <Border Background="{StaticResource AccentSubtleBrush}" CornerRadius="6" Padding="10,4"
+                                        ToolTip.Tip="{Binding CpuTemperatureHint}">
                                     <StackPanel Orientation="Horizontal" Spacing="4">
                                         <TextBlock Text="MAX" FontSize="9" FontWeight="Bold" LetterSpacing="0.5"
                                                    Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
@@ -99,7 +102,7 @@
                                            VerticalAlignment="Center"/>
                             </StackPanel>
 
-                            <TextBlock Text="{Binding GpuUsage, StringFormat='{}{0:F1}%'}"
+                            <TextBlock Text="{Binding GpuUsageText}"
                                        FontSize="44" FontWeight="Bold"
                                        HorizontalAlignment="Center"
                                        Foreground="{StaticResource GpuBrush}"/>
@@ -130,7 +133,7 @@
                                        FontSize="10" Foreground="{StaticResource TextMutedBrush}"
                                        HorizontalAlignment="Center" Margin="0,6,0,0"
                                        TextTrimming="CharacterEllipsis"/>
-                            <ProgressBar Classes="gpu" Value="{Binding GpuUsage}" Maximum="100"
+                            <ProgressBar Classes="gpu" Value="{Binding GpuUsageBar}" Maximum="100"
                                          Height="6" Margin="0,12,0,0"/>
                         </StackPanel>
                     </StackPanel>
@@ -216,10 +219,15 @@
                                             <TextBlock Text="{Binding TotalSize, StringFormat='of {0:F1} GB'}"
                                                        FontSize="10" HorizontalAlignment="Center"
                                                        Foreground="{StaticResource TextMutedBrush}"/>
-                                            <ProgressBar Classes="disk"
-                                                         Value="{Binding UsedSpace}" Maximum="{Binding TotalSize}"
-                                                         Height="4" Margin="0,8,0,0"
-                                                         HorizontalAlignment="Stretch"/>
+                                            <!-- Hand-drawn meter: ProgressBar mis-sized its fill in these
+                                                 fixed-width, frequently rebuilt cards (C:\ showed empty).
+                                                 94 = card width 124 − padding 2×14 − border 2×1. -->
+                                            <Grid Height="4" Width="94" Margin="0,8,0,0" HorizontalAlignment="Left">
+                                                <Border Background="#22FFFFFF" CornerRadius="2"/>
+                                                <Border Background="{StaticResource DiskBrush}" CornerRadius="2"
+                                                        HorizontalAlignment="Left"
+                                                        Width="{Binding UsedPercent, Converter={StaticResource PercentToWidth}, ConverterParameter=94}"/>
+                                            </Grid>
                                         </StackPanel>
                                     </Border>
                                 </DataTemplate>
