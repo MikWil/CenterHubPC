@@ -192,6 +192,10 @@ namespace CenterHubNew.MVVM.Services
             Add(HotkeyAction.ApplyLayout1, "Apply Layout 1", "WINDOW LAYOUTS");
             Add(HotkeyAction.ApplyLayout2, "Apply Layout 2", "WINDOW LAYOUTS");
             Add(HotkeyAction.ApplyLayout3, "Apply Layout 3", "WINDOW LAYOUTS");
+            Add(HotkeyAction.MetronomeStartStop, "Start / Stop", "METRONOME");
+            Add(HotkeyAction.MetronomeFill, "Drum Fill", "METRONOME");
+            Add(HotkeyAction.MetronomeNextPart, "Next Song Part", "METRONOME");
+            Add(HotkeyAction.MetronomeTapTempo, "Tap Tempo", "METRONOME");
             ApplyDefaults();
         }
 

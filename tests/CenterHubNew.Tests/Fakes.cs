@@ -11,6 +11,17 @@ internal sealed class FakeVoicemeeter : IVoicemeeterService
     public VoicemeeterKind KindValue = VoicemeeterKind.Banana;
     public readonly List<(int Strip, VoicemeeterBus Bus, bool On)> Routes = new();
 
+    /// <summary>What Banana "really" has on A1: null = can't be read, "" = no device.</summary>
+    public string? MonitorDevice;
+    /// <summary>False simulates Banana failing to open the requested headphones.</summary>
+    public bool MonitorDeviceSticks = true;
+    public int MonitorDeviceSets;
+    public readonly Dictionary<int, string> InputDevices = new();
+    public int InputDeviceSets;
+    public bool StartSucceeds = true;
+    public bool RestartSucceeds = true;
+    public string? Error;
+
     public int MicStripIndex => 0;
     public int GuitarStripIndex => 1;
     public int LineInStripIndex => 2;
@@ -23,18 +34,45 @@ internal sealed class FakeVoicemeeter : IVoicemeeterService
     public VoicemeeterStatus Status => StatusValue;
     public VoicemeeterKind Kind => KindValue;
     public bool IsConnected => true;
+    public string? LastError => Error;
 
     public VoicemeeterStatus RefreshStatus() => StatusValue;
-    public Task<bool> EnsureRunningAsync(CancellationToken ct = default) => Task.FromResult(true);
+    public Task<bool> EnsureRunningAsync(CancellationToken ct = default) => Task.FromResult(StartSucceeds);
     public bool Connect() => true;
     public void Disconnect() { }
     public void Reconnect() { }
     public bool RestartAudioEngine() => true;
-    public Task<bool> RestartApplicationAsync(CancellationToken ct = default) => Task.FromResult(true);
+    public Task<bool> RestartApplicationAsync(CancellationToken ct = default) => Task.FromResult(RestartSucceeds);
+
+    public bool ShutdownSucceeds = true;
+    public int Shutdowns;
+    public Task<bool> ShutdownAsync(CancellationToken ct = default)
+    {
+        Shutdowns++;
+        if (ShutdownSucceeds) StatusValue = VoicemeeterStatus.Stopped;
+        return Task.FromResult(ShutdownSucceeds);
+    }
     public void OpenUi() { }
 
-    public bool SetHardwareInput(int stripIndex, string deviceName) => true;
-    public bool SetMonitorDevice(string deviceName) => true;
+    public bool SetHardwareInput(int stripIndex, string deviceName)
+    {
+        InputDeviceSets++;
+        InputDevices[stripIndex] = deviceName;
+        return true;
+    }
+
+    /// <summary>How the headphones were last opened: true = shared (MME), false = exclusive (WDM).</summary>
+    public bool? MonitorShared;
+
+    public bool SetMonitorDevice(string deviceName, bool shared)
+    {
+        MonitorDeviceSets++;
+        if (MonitorDeviceSticks) { MonitorDevice = deviceName; MonitorShared = shared; }
+        return true;
+    }
+
+    public string? GetMonitorDeviceName() => MonitorDevice;
+    public string? GetHardwareInputName(int stripIndex) => InputDevices.TryGetValue(stripIndex, out var name) ? name : "";
     public bool SetStripGain(int stripIndex, float gainDb) => true;
     public bool SetStripMute(int stripIndex, bool mute) => true;
     public bool SetRoute(int stripIndex, VoicemeeterBus bus, bool on) { Routes.Add((stripIndex, bus, on)); return true; }
@@ -59,6 +97,10 @@ internal sealed class FakeAudio : IAudioDeviceService
     public AudioEndpointRef? DefaultPlay;
     public AudioEndpointRef? DefaultRec;
 
+    /// <summary>Whether some app holds the headphones exclusively (null = can't tell).</summary>
+    public bool? Locked;
+    public bool? IsPlaybackDeviceLocked(AudioEndpointRef device) => Locked;
+
     public IReadOnlyList<AudioDeviceInfo> GetPlaybackDevices() => Playback;
     public IReadOnlyList<AudioDeviceInfo> GetRecordingDevices() => Recording;
     public AudioEndpointRef? GetDefaultPlayback() => DefaultPlay;
@@ -70,8 +112,19 @@ internal sealed class FakeAudio : IAudioDeviceService
         DefaultPlayback = DefaultPlay, DefaultCommunicationsPlayback = DefaultPlay,
         DefaultRecording = DefaultRec, DefaultCommunicationsRecording = DefaultRec,
     };
-    public Task<bool> SetDefaultPlaybackAsync(AudioEndpointRef device, bool communicationsToo) => Task.FromResult(true);
-    public Task<bool> SetDefaultRecordingAsync(AudioEndpointRef device, bool communicationsToo) => Task.FromResult(true);
+    public Task<bool> SetDefaultPlaybackAsync(AudioEndpointRef device, bool communicationsToo)
+    {
+        if (!Playback.Any(d => d.Name == device.Name)) return Task.FromResult(false);
+        DefaultPlay = device;
+        return Task.FromResult(true);
+    }
+
+    public Task<bool> SetDefaultRecordingAsync(AudioEndpointRef device, bool communicationsToo)
+    {
+        if (!Recording.Any(d => d.Name == device.Name)) return Task.FromResult(false);
+        DefaultRec = device;
+        return Task.FromResult(true);
+    }
     public Task<bool> SetDefaultPlaybackByNameAsync(string nameSubstring, bool communicationsToo)
         => Task.FromResult(Playback.Any(d => d.Name.Contains(nameSubstring, StringComparison.OrdinalIgnoreCase)));
     public Task<bool> SetDefaultRecordingByNameAsync(string nameSubstring, bool communicationsToo)
@@ -91,7 +144,10 @@ internal sealed class RoutingHarness : IDisposable
     public RoutingHarness()
     {
         Store = new VoicemeeterSettingsService(null, Folder);
-        Routing = new AudioRoutingService(Vm, Audio, Store, new PerAppAudioService());
+        Routing = new AudioRoutingService(Vm, Audio, Store, new PerAppAudioService())
+        {
+            DeviceSettleDelay = TimeSpan.Zero,   // no real hardware to wait for
+        };
     }
 
     public void Dispose()

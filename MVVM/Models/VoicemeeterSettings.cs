@@ -33,6 +33,13 @@ namespace CenterHubNew.MVVM.Models
         public string? MonitorDeviceId { get; set; }
         public string? MonitorDeviceName { get; set; }
 
+        /// <summary>
+        /// True (default): Banana opens the headphones in shared mode (its MME driver), so other
+        /// apps — a game or Teams pointed straight at the headset — can play to them too.
+        /// False: exclusive mode (WDM) — the lowest monitoring delay, but only Banana can use them.
+        /// </summary>
+        public bool ShareMonitorDevice { get; set; } = true;
+
         // ── Gains (dB, matching Voicemeeter's Strip[].Gain range ~ -60..+12) ──
         public float MicGainDb { get; set; }
         public float GuitarGainDb { get; set; }

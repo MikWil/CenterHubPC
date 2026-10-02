@@ -36,6 +36,12 @@ namespace CenterHubNew.MVVM.Models
         ApplyLayout1,
         ApplyLayout2,
         ApplyLayout3,
+
+        // Metronome / drum machine (a USB footswitch that sends keys works as a pedal)
+        MetronomeStartStop,
+        MetronomeFill,
+        MetronomeNextPart,
+        MetronomeTapTempo,
     }
 
     /// <summary>

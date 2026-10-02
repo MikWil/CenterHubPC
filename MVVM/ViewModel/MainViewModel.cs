@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace CenterHubNew.MVVM.ViewModel
@@ -14,6 +15,8 @@ namespace CenterHubNew.MVVM.ViewModel
     {
         private readonly UpdateService? _updateService;
         private readonly VoicemeeterModeService? _modeService;
+        private readonly IVoicemeeterService? _voicemeeter;
+        private readonly AudioRoutingService? _routing;
 
         private MonitoringViewModel? _monitoringVM;
         private SoundViewModel? _soundVM;
@@ -46,7 +49,8 @@ namespace CenterHubNew.MVVM.ViewModel
         // ─── Voicemeeter crash-recovery prompt ───
         [ObservableProperty] private bool   _isAudioRestoreOpen;
         [ObservableProperty] private string _audioRestoreBody =
-            "CenterHub closed while Voicemeeter audio mode was active. Restore your previous Windows audio devices?";
+            "Windows audio is still routed through Voicemeeter, but Voicemeeter isn't running — you may hear nothing. " +
+            "Start Voicemeeter to bring your routing back, or switch back to your previous audio devices.";
 
         [ObservableProperty]
         private object? _currentView;
@@ -102,11 +106,17 @@ namespace CenterHubNew.MVVM.ViewModel
         public MainViewModel(
             UpdateService? updateService = null,
             VoicemeeterModeService? modeService = null,
+            IVoicemeeterService? voicemeeter = null,
+            AudioRoutingService? routing = null,
             ILogger<MainViewModel>? logger = null) : base(logger)
         {
             _updateService = updateService;
             _modeService = modeService
                 ?? App.Services?.GetService(typeof(VoicemeeterModeService)) as VoicemeeterModeService;
+            _voicemeeter = voicemeeter
+                ?? App.Services?.GetService(typeof(IVoicemeeterService)) as IVoicemeeterService;
+            _routing = routing
+                ?? App.Services?.GetService(typeof(AudioRoutingService)) as AudioRoutingService;
 
             // Set initial view to Monitoring
             MonitoringView();
@@ -126,25 +136,64 @@ namespace CenterHubNew.MVVM.ViewModel
 
         // ─── Voicemeeter crash-recovery ───
 
+        /// <summary>
+        /// With the Sound board, Voicemeeter routing being active at exit is the normal state, so
+        /// only speak up when it's actually broken: routing is engaged but Banana isn't running
+        /// (Windows still points at Voicemeeter's virtual devices → silence).
+        /// </summary>
         private void CheckInterruptedVoicemeeterSession()
         {
+            if (_modeService is null || _voicemeeter is null) return;
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    if (!_modeService.HasInterruptedSession(out _)) return;
+                    if (!_voicemeeter.IsInstalled) return;
+
+                    // Banana often starts alongside CenterHub (both at sign-in) and needs a few
+                    // seconds; only prompt if it's still down after ~12 s.
+                    for (int i = 0; i < 12; i++)
+                    {
+                        if (_voicemeeter.RefreshStatus() == VoicemeeterStatus.Running) return; // routing intact
+                        System.Threading.Thread.Sleep(1000);
+                    }
+                    if (_voicemeeter.RefreshStatus() == VoicemeeterStatus.Running) return;
+
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        if (IsDisposed) return;
+                        if (_modeService.AutoRestoreEnabled) _ = RestoreAudioNowAsync();
+                        else IsAudioRestoreOpen = true;
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Logger?.LogWarning(ex, "Voicemeeter startup check failed");
+                }
+            });
+        }
+
+        /// <summary>Bring routing back: relaunch Banana and reapply the active Sound preset.</summary>
+        [RelayCommand]
+        private async Task StartVoicemeeterNowAsync()
+        {
+            IsAudioRestoreOpen = false;
+            if (_routing is null) return;
             try
             {
-                if (_modeService is null) return;
-                if (!_modeService.HasInterruptedSession(out _)) return;
-
-                if (_modeService.AutoRestoreEnabled)
-                {
-                    _ = RestoreAudioNowAsync();
-                }
-                else
-                {
-                    IsAudioRestoreOpen = true;
-                }
+                var presets = _routing.LoadPresets();
+                var active = presets.FirstOrDefault(p => p.Id == _routing.ActivePresetId) ?? presets.FirstOrDefault();
+                if (active is null) return;
+                ToastService.Instance.Info("Starting Voicemeeter…");
+                var result = await _routing.ApplyPresetAsync(active);
+                if (result.Success) ToastService.Instance.Success(result.Message);
+                else ToastService.Instance.Error(result.Message);
             }
             catch (Exception ex)
             {
-                Logger?.LogWarning(ex, "Voicemeeter crash-recovery check failed");
+                Logger?.LogError(ex, "Failed to start Voicemeeter from the startup prompt");
+                ToastService.Instance.Error("Could not start Voicemeeter.");
             }
         }
 
@@ -169,9 +218,9 @@ namespace CenterHubNew.MVVM.ViewModel
         [RelayCommand]
         private void DismissAudioRestore()
         {
+            // Leave everything as-is. The prompt only appears while Voicemeeter is down, so if it
+            // still is next launch, asking again is the right thing to do.
             IsAudioRestoreOpen = false;
-            // Leave audio as-is, but clear the flag so we don't prompt again next launch.
-            try { _modeService?.ClearInterruptedSession(); } catch { }
         }
 
         // ─── "What's new" popup ───

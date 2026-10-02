@@ -46,6 +46,9 @@ namespace CenterHubNew.MVVM.Services
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int GetStringDelegate([MarshalAs(UnmanagedType.LPStr)] string param, byte[] buffer);
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int SetStringDelegate([MarshalAs(UnmanagedType.LPStr)] string param, [MarshalAs(UnmanagedType.LPStr)] string value);
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int SetParametersDelegate([MarshalAs(UnmanagedType.LPStr)] string script);
+        // Wide (UTF-16) variants: device names are often non-ASCII ("Högtalare (…)" on a Swedish Windows).
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int GetStringWDelegate([MarshalAs(UnmanagedType.LPStr)] string param, byte[] buffer);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int SetStringWDelegate([MarshalAs(UnmanagedType.LPStr)] string param, [MarshalAs(UnmanagedType.LPWStr)] string value);
 
         private LoginDelegate? _login;
         private LogoutDelegate? _logout;
@@ -58,6 +61,8 @@ namespace CenterHubNew.MVVM.Services
         private GetStringDelegate? _getString;
         private SetStringDelegate? _setString;
         private SetParametersDelegate? _setParameters;
+        private GetStringWDelegate? _getStringW;
+        private SetStringWDelegate? _setStringW;
 
         public VoicemeeterRemote(ILogger? logger = null) => _logger = logger;
 
@@ -102,6 +107,9 @@ namespace CenterHubNew.MVVM.Services
                 _getString = Get<GetStringDelegate>("VBVMR_GetParameterStringA");
                 _setString = Get<SetStringDelegate>("VBVMR_SetParameterStringA");
                 _setParameters = Get<SetParametersDelegate>("VBVMR_SetParameters");
+                // Optional: fall back to the ANSI calls on a Remote DLL too old to have these.
+                _getStringW = TryGet<GetStringWDelegate>("VBVMR_GetParameterStringW");
+                _setStringW = TryGet<SetStringWDelegate>("VBVMR_SetParameterStringW");
 
                 _logger?.LogInformation("Loaded VoicemeeterRemote64.dll from {Path}", path);
                 return true;
@@ -119,6 +127,11 @@ namespace CenterHubNew.MVVM.Services
             var proc = NativeLibrary.GetExport(_handle, name);
             return Marshal.GetDelegateForFunctionPointer<T>(proc);
         }
+
+        private T? TryGet<T>(string name) where T : Delegate =>
+            NativeLibrary.TryGetExport(_handle, name, out var proc)
+                ? Marshal.GetDelegateForFunctionPointer<T>(proc)
+                : null;
 
         // ── raw calls ──
         public int Login() => _login!();
@@ -148,16 +161,30 @@ namespace CenterHubNew.MVVM.Services
 
         public bool SetFloat(string param, float value) => _setFloat != null && _setFloat(param, value) == 0;
 
-        public bool SetString(string param, string value) => _setString != null && _setString(param, value) == 0;
+        public bool SetString(string param, string value)
+        {
+            if (_setStringW != null) return _setStringW(param, value) == 0;
+            return _setString != null && _setString(param, value) == 0;
+        }
 
         public string? GetString(string param)
         {
+            if (_getStringW != null)
+            {
+                // The API writes up to 512 UTF-16 characters, zero-terminated.
+                var wide = new byte[1028];
+                if (_getStringW(param, wide) != 0) return null;
+                int chars = 0;
+                while (chars < 512 && (wide[chars * 2] != 0 || wide[chars * 2 + 1] != 0)) chars++;
+                return Encoding.Unicode.GetString(wide, 0, chars * 2);
+            }
+
             if (_getString is null) return null;
             var buffer = new byte[512];
             if (_getString(param, buffer) != 0) return null;
             int len = Array.IndexOf(buffer, (byte)0);
             if (len < 0) len = buffer.Length;
-            return Encoding.ASCII.GetString(buffer, 0, len);
+            return Encoding.Latin1.GetString(buffer, 0, len);
         }
 
         /// <summary>Apply a multi-line parameter script in one call (atomic-ish).</summary>
@@ -208,7 +235,7 @@ namespace CenterHubNew.MVVM.Services
         {
             _login = null; _logout = null; _run = null; _getType = null; _getVersion = null;
             _isDirty = null; _getFloat = null; _setFloat = null; _getString = null;
-            _setString = null; _setParameters = null;
+            _setString = null; _setParameters = null; _getStringW = null; _setStringW = null;
 
             if (_handle != IntPtr.Zero)
             {

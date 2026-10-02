@@ -16,9 +16,62 @@ namespace CenterHubNew.MVVM.Services
     {
         private readonly ILogger<AudioDeviceService>? _logger;
 
+        // Windows hands every caller in the process the SAME device-enumerator COM object, and
+        // .NET keeps one wrapper per COM object. This service uses two libraries on it: NAudio
+        // (typed wrapper) and AudioSwitcher (generic wrapper). If AudioSwitcher gets there first,
+        // its generic wrapper is the one .NET remembers and every later NAudio enumeration throws
+        // InvalidCastException for the rest of the session — device lists come back empty and the
+        // setup check claims Voicemeeter's devices are missing. Holding one NAudio enumerator for
+        // the service's lifetime keeps the typed wrapper in place, which both libraries can use.
+        private static MMDeviceEnumerator? _comAnchor;
+        private static readonly object _comAnchorGate = new();
+
         public AudioDeviceService(ILogger<AudioDeviceService>? logger = null)
         {
             _logger = logger;
+            EnsureComAnchor(logger);
+        }
+
+        private static void EnsureComAnchor(ILogger? logger)
+        {
+            lock (_comAnchorGate)
+            {
+                if (_comAnchor != null) return;
+                try { _comAnchor = new MMDeviceEnumerator(); }
+                catch (Exception ex) { logger?.LogWarning(ex, "Could not create the audio device enumerator"); }
+            }
+        }
+
+        private static CoreAudioController? _sharedController;
+
+        /// <summary>
+        /// The one AudioSwitcher controller for the whole app. A controller enumerates every device
+        /// and subscribes to Windows' device notifications when it is created and is never released,
+        /// so creating one per switch leaked them and made each switch slower than the last
+        /// (1.6 s growing to 5.7 s over ten preset changes). It tracks device changes by itself.
+        /// </summary>
+        internal static CoreAudioController SharedController
+        {
+            get
+            {
+                lock (_comAnchorGate)
+                {
+                    if (_sharedController != null) return _sharedController;
+                }
+                EnsureComAnchor(null);   // the typed NAudio wrapper must exist first (see above)
+                lock (_comAnchorGate)
+                {
+                    return _sharedController ??= new CoreAudioController();
+                }
+            }
+        }
+
+        /// <summary>Drop the shared controller after a failure so the next switch starts from a fresh one.</summary>
+        internal static void ResetSharedController()
+        {
+            CoreAudioController? old;
+            lock (_comAnchorGate) { old = _sharedController; _sharedController = null; }
+            try { old?.Dispose(); } catch { /* best effort */ }
         }
 
         // ─────────────────── Enumeration (NAudio) ───────────────────
@@ -65,6 +118,49 @@ namespace CenterHubNew.MVVM.Services
             }
         }
 
+        private const uint AudclntDeviceInUse = 0x8889000A;   // AUDCLNT_E_DEVICE_IN_USE
+
+        public bool? IsPlaybackDeviceLocked(AudioEndpointRef device)
+        {
+            if (device is null || !device.HasValue) return null;
+            try
+            {
+                using var en = new MMDeviceEnumerator();
+                MMDevice? match = null;
+                foreach (var d in en.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active))
+                {
+                    bool isMatch = match is null &&
+                        ((!string.IsNullOrEmpty(device.Id) && string.Equals(d.ID, device.Id, StringComparison.OrdinalIgnoreCase)) ||
+                         (!string.IsNullOrEmpty(device.Name) && string.Equals(d.FriendlyName, device.Name, StringComparison.OrdinalIgnoreCase)));
+                    if (isMatch) match = d; else d.Dispose();
+                }
+                if (match is null) return null;
+
+                using (match)
+                {
+                    // Asking for a shared stream (never started, so nothing is heard) fails with
+                    // "device in use" exactly when another app has the endpoint exclusively.
+                    var client = match.AudioClient;
+                    try
+                    {
+                        client.Initialize(AudioClientShareMode.Shared, AudioClientStreamFlags.None,
+                            1_000_000 /* 100 ms, in 100-ns units */, 0, client.MixFormat, Guid.Empty);
+                        return false;
+                    }
+                    catch (System.Runtime.InteropServices.COMException ex) when ((uint)ex.HResult == AudclntDeviceInUse)
+                    {
+                        return true;
+                    }
+                    finally { client.Dispose(); }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug(ex, "Could not probe exclusive use of {Device}", device);
+                return null;
+            }
+        }
+
         public AudioDeviceSnapshot CaptureSnapshot() => new()
         {
             DefaultPlayback = GetDefaultPlayback(),
@@ -93,7 +189,7 @@ namespace CenterHubNew.MVVM.Services
             if (device is null || !device.HasValue) return false;
             try
             {
-                var controller = new CoreAudioController();
+                var controller = SharedController;
                 var devices = await controller.GetDevicesAsync(type, AsDeviceState.Active).ConfigureAwait(false);
                 var match = MatchDevice(devices, device);
                 if (match is null)
@@ -110,6 +206,7 @@ namespace CenterHubNew.MVVM.Services
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Failed to set {Type} default to {Device}", type, device);
+                ResetSharedController();
                 return false;
             }
         }
@@ -119,7 +216,7 @@ namespace CenterHubNew.MVVM.Services
             if (string.IsNullOrWhiteSpace(nameSubstring)) return false;
             try
             {
-                var controller = new CoreAudioController();
+                var controller = SharedController;
                 var devices = await controller.GetDevicesAsync(type, AsDeviceState.Active).ConfigureAwait(false);
                 var match = devices.FirstOrDefault(d =>
                     (d.FullName?.IndexOf(nameSubstring, StringComparison.OrdinalIgnoreCase) >= 0) ||
@@ -138,6 +235,7 @@ namespace CenterHubNew.MVVM.Services
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Failed to set {Type} default by name '{Name}'", type, nameSubstring);
+                ResetSharedController();
                 return false;
             }
         }

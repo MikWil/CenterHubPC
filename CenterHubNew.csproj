@@ -11,7 +11,7 @@
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <EnableComHosting>true</EnableComHosting>
     <EnableGeneratedComInterfaceComImportInterop>true</EnableGeneratedComInterfaceComImportInterop>
-    <Version>6.0.0</Version>
+    <Version>6.1.0</Version>
     <!-- AVLN3001: windows are created through DI (constructor injection), never by the XAML runtime loader. -->
     <NoWarn>$(NoWarn);AVLN3001</NoWarn>
     <Authors>CenterHub</Authors>
@@ -27,6 +27,11 @@
     <None Remove="tests\**" />
     <EmbeddedResource Remove="tests\**" />
     <AvaloniaXaml Remove="tests\**" />
+    <!-- tools\page-render is its own (headless) project -->
+    <Compile Remove="tools\**" />
+    <None Remove="tools\**" />
+    <EmbeddedResource Remove="tools\**" />
+    <AvaloniaXaml Remove="tools\**" />
     <InternalsVisibleTo Include="CenterHubNew.Tests" />
   </ItemGroup>
 

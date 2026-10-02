@@ -1,270 +1,289 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using Avalonia.Threading;
+using CenterHubNew.MVVM.Models;
 using Microsoft.Extensions.Logging;
+using NAudio.CoreAudioApi;
 using NAudio.Wave;
 
 namespace CenterHubNew.MVVM.Services
 {
-    /// <summary>The selectable click timbres for the metronome.</summary>
-    public enum MetronomeSound
-    {
-        Clock,
-        WoodBlock,
-        Beep,
-        Click,
-        Cowbell,
-        Rim,
-    }
-
     /// <summary>
-    /// Synthesises a small in-memory click sample for each <see cref="MetronomeSound"/>
-    /// (a normal "tick" plus a brighter/heavier accent for beat 1). One shared
-    /// WaveOutEvent + BufferedWaveProvider so every click goes through the same
-    /// low-latency pipeline — no per-tick device allocation.
+    /// Hosts the <see cref="DrumMachineEngine"/>: owns the audio output (opened on demand,
+    /// closed once the engine has been silent for a while) and pumps the engine's position
+    /// events to the UI thread at the moment they become audible.
+    /// All public members are meant to be called on the UI thread.
     /// </summary>
     public sealed class MetronomeService : IDisposable
     {
-        private readonly WaveFormat _format = new(44100, 16, 1); // 44.1 kHz mono 16-bit
-
-        // Pre-rendered (tick, accent) PCM pair for every sound.
-        private readonly Dictionary<MetronomeSound, (byte[] tick, byte[] accent)> _samples = new();
-
-        private WaveOutEvent? _output;
-        private BufferedWaveProvider? _buffer;
+        private static readonly TimeSpan PumpInterval = TimeSpan.FromMilliseconds(15);
+        private static readonly TimeSpan IdleShutdownAfter = TimeSpan.FromSeconds(1.5);
 
         private readonly ILogger<MetronomeService>? _logger;
+        private readonly Dictionary<DrumKitKind, DrumKit> _kits = new();
 
+        private IWavePlayer? _output;
+        private long _framesAtOpen;
+        private DispatcherTimer? _pump;
+        private long _idleSinceTimestamp; // 0 = not currently idle
+        private bool _disposed;
+
+        /// <summary>Creates the engine with the Rock kit. Opens no audio device and touches no dispatcher.</summary>
         public MetronomeService(ILogger<MetronomeService>? logger = null)
         {
             _logger = logger;
-            // ── Clock — high, light mechanical tick; deeper tock on beat 1 ──
-            _samples[MetronomeSound.Clock] = (
-                GenerateClockTick(bodyHz: 1800, clickHz: 4000, durationSec: 0.028, amplitude: 0.70, bodyDecay: 280, clickDecay: 600),
-                GenerateClockTick(bodyHz:  900, clickHz: 2800, durationSec: 0.040, amplitude: 0.95, bodyDecay: 180, clickDecay: 400));
-
-            // ── Wood block — warm, woody knock with a couple of harmonics ──
-            _samples[MetronomeSound.WoodBlock] = (
-                GenerateDecayTone(new[] { 1200.0, 2400.0, 3600.0 }, new[] { 1.0, 0.45, 0.20 }, 0.045, 0.78, 95),
-                GenerateDecayTone(new[] {  820.0, 1640.0, 2460.0 }, new[] { 1.0, 0.45, 0.20 }, 0.055, 0.98, 75));
-
-            // ── Beep — clean digital metronome tone (flat envelope) ──
-            _samples[MetronomeSound.Beep] = (
-                GenerateSustainTone(1320, 0.045, 0.55),
-                GenerateSustainTone( 880, 0.060, 0.78));
-
-            // ── Click — short, snappy sine click ──
-            _samples[MetronomeSound.Click] = (
-                GenerateDecayTone(new[] { 2000.0 }, new[] { 1.0 }, 0.022, 0.60, 360),
-                GenerateDecayTone(new[] { 1500.0 }, new[] { 1.0 }, 0.030, 0.88, 260));
-
-            // ── Cowbell — metallic 808-style pair of detuned square tones ──
-            _samples[MetronomeSound.Cowbell] = (
-                GenerateSquarePair(540, 800, 0.110, 0.50, 30),
-                GenerateSquarePair(480, 720, 0.140, 0.65, 26));
-
-            // ── Rim — tight, bright rimshot-like blip ──
-            _samples[MetronomeSound.Rim] = (
-                GenerateDecayTone(new[] { 2400.0, 3200.0 }, new[] { 1.0, 0.7 }, 0.018, 0.65, 520),
-                GenerateDecayTone(new[] { 1700.0, 2550.0 }, new[] { 1.0, 0.7 }, 0.024, 0.90, 380));
+            var kit = new DrumKit(DrumKitKind.Rock);
+            _kits[DrumKitKind.Rock] = kit;
+            KitKind = DrumKitKind.Rock;
+            Engine = new DrumMachineEngine(kit);
         }
 
-        /// <summary>Start the output stream if not already running.</summary>
-        public void Prime()
-        {
-            if (_output is not null) return;
+        /// <summary>The sequencer. The view-model configures tempo/style/click options directly on it.</summary>
+        public DrumMachineEngine Engine { get; }
 
-            WaveOutEvent? output = null;
+        /// <summary>The drum kit currently loaded in the engine.</summary>
+        public DrumKitKind KitKind { get; private set; }
+
+        /// <summary>True while the engine is sequencing.</summary>
+        public bool IsPlaying => Engine.IsPlaying;
+
+        /// <summary>Raised on the UI thread for each engine position event, when it becomes audible.</summary>
+        public event Action<DrumEngineEvent>? PositionChanged;
+
+        /// <summary>Switches the drum kit. Kits are cached per kind because building one synthesizes audio.</summary>
+        public void SetKit(DrumKitKind kind)
+        {
+            if (kind == KitKind) return;
+            if (!_kits.TryGetValue(kind, out var kit))
+            {
+                kit = new DrumKit(kind);
+                _kits[kind] = kit;
+            }
+            Engine.SetKit(kit);
+            KitKind = kind;
+        }
+
+        /// <summary>Opens the output if needed and starts the sequencer.</summary>
+        public void Start()
+        {
+            // Without an output nothing would ever pull samples, so the engine would never advance.
+            if (!EnsureOutput()) return;
+            Engine.Start();
+        }
+
+        /// <summary>
+        /// Stops the sequencer. The output stays open until the idle shutdown closes it after
+        /// the tails ring out; the final "Stopped" event is delivered by the pump.
+        /// </summary>
+        public void Stop() => Engine.Stop();
+
+        /// <summary>Plays the accent hit (e.g. tap/crash) through the output.</summary>
+        public void AccentHit()
+        {
+            if (!EnsureOutput()) return;
+            Engine.TriggerAccentHit();
+        }
+
+        /// <summary>Plays one click so the user can audition a sound.</summary>
+        public void PreviewClick(MetronomeSound sound, bool accent = false)
+        {
+            if (!EnsureOutput()) return;
+            Engine.PreviewClick(sound, accent);
+        }
+
+        /// <summary>Plays one drum piece so the user can audition it.</summary>
+        public void PreviewVoice(DrumVoice voice)
+        {
+            if (!EnsureOutput()) return;
+            Engine.PreviewVoice(voice);
+        }
+
+        /// <summary>Stops playback, the pump and the output. Safe to call more than once; never throws.</summary>
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+
+            try { _pump?.Stop(); } catch { /* best effort */ }
+            _pump = null;
+            try { Engine.Stop(); } catch { /* best effort */ }
+            CloseOutput();
+        }
+
+        // Returns true when an output is open and running.
+        private bool EnsureOutput()
+        {
+            if (_disposed) return false;
+
+            if (_output == null)
+            {
+                // Stale events belong to the previous output's clock; drop them unraised.
+                while (Engine.TryDequeueEvent(out _)) { }
+                long framesAtOpen = Engine.FramesRendered;
+
+                var output = OpenOutput();
+                if (output == null) return false;
+
+                // Publish only after Play() succeeded. The device position restarts at 0 per output.
+                output.PlaybackStopped += OnPlaybackStopped;
+                _framesAtOpen = framesAtOpen;
+                _output = output;
+            }
+
+            _idleSinceTimestamp = 0;
+            if (_pump == null)
+            {
+                _pump = new DispatcherTimer { Interval = PumpInterval };
+                _pump.Tick += OnPumpTick;
+            }
+            if (!_pump.IsEnabled) _pump.Start();
+            return true;
+        }
+
+        /// <summary>
+        /// Opens and starts an output on the default device, or returns null when none works.
+        /// WASAPI (event-driven: the device pulls exactly what it needs) comes first. WaveOut is the
+        /// fallback, with three buffers — measured on a Voicemeeter virtual device, the usual
+        /// two-buffer / 80 ms WaveOut setup under-ran and audibly dragged the tempo.
+        /// </summary>
+        private IWavePlayer? OpenOutput()
+        {
             try
             {
-                var buffer = new BufferedWaveProvider(_format)
-                {
-                    BufferLength = _format.AverageBytesPerSecond, // 1 s ring buffer
-                    DiscardOnBufferOverflow = true,
-                };
-                output = new WaveOutEvent { DesiredLatency = 60 };
-                output.Init(buffer);
-                output.Play();
+                return StartOutput(new WasapiOut(AudioClientShareMode.Shared, useEventSync: true, latency: 50),
+                                   convertTo16Bit: false);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Metronome: WASAPI output unavailable, falling back to WaveOut");
+            }
 
-                // Publish only once everything succeeded.
-                _buffer = buffer;
-                _output = output;
+            try
+            {
+                // 16-bit for maximum device compatibility.
+                return StartOutput(new WaveOutEvent { DesiredLatency = 100, NumberOfBuffers = 3 },
+                                   convertTo16Bit: true);
             }
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Metronome: failed to start audio output");
-                try { output?.Dispose(); } catch { }
-                _output = null;
-                _buffer = null;
+                return null;
             }
         }
 
-        /// <summary>Queue one click. accent=true plays the brighter beat-1 sound.</summary>
-        public void Tick(bool accent, float volume = 1.0f, MetronomeSound sound = MetronomeSound.Clock)
+        private IWavePlayer StartOutput(IWavePlayer output, bool convertTo16Bit)
         {
             try
             {
-                Prime();
-                var buffer = _buffer;
-                if (buffer is null) return;
-
-                var pair = _samples.TryGetValue(sound, out var p) ? p : _samples[MetronomeSound.Clock];
-                var src = accent ? pair.accent : pair.tick;
-
-                if (Math.Abs(volume - 1.0f) < 0.005f)
-                {
-                    buffer.AddSamples(src, 0, src.Length);
-                    return;
-                }
-                // Scale amplitude by volume without allocating a cached buffer
-                var scaled = new byte[src.Length];
-                for (int i = 0; i < src.Length - 1; i += 2)
-                {
-                    short s = (short)(BitConverter.ToInt16(src, i) * volume);
-                    scaled[i]     = (byte)(s & 0xFF);
-                    scaled[i + 1] = (byte)((s >> 8) & 0xFF);
-                }
-                buffer.AddSamples(scaled, 0, scaled.Length);
+                output.Init(Engine, convertTo16Bit);
+                output.Play();
+                return output;
             }
-            catch (Exception ex)
+            catch
             {
-                _logger?.LogError(ex, "Metronome: failed to play tick");
+                try { output.Dispose(); } catch { /* half-built output */ }
+                throw;
             }
         }
 
-        /// <summary>Stop and dispose the output (keeps the cached PCM).</summary>
-        public void Stop()
+        /// <summary>The device went away under us (unplugged, Voicemeeter restarted…): stop cleanly.</summary>
+        private void OnPlaybackStopped(object? sender, StoppedEventArgs e)
         {
-            try { _output?.Stop(); } catch { }
-            try { _output?.Dispose(); } catch { }
+            if (!Dispatcher.UIThread.CheckAccess())
+            {
+                try { Dispatcher.UIThread.Post(() => OnPlaybackStopped(sender, e)); }
+                catch (InvalidOperationException) { /* dispatcher already shut down */ }
+                return;
+            }
+
+            if (_disposed || !ReferenceEquals(sender, _output)) return;
+
+            _logger?.LogWarning(e.Exception, "Metronome: audio output stopped unexpectedly");
+            Engine.Stop();
+            while (Engine.TryDequeueEvent(out var rest)) Raise(rest);
+            _pump?.Stop();
+            CloseOutput();
+            _idleSinceTimestamp = 0;
+        }
+
+        private void OnPumpTick(object? sender, EventArgs e)
+        {
+            var output = _output;
+            if (output == null)
+            {
+                _pump?.Stop();
+                return;
+            }
+
+            // 1. How far the device has actually played.
+            long rendered = Engine.FramesRendered;
+            long playedFrames;
+            try
+            {
+                // The position is in bytes of the DEVICE format, which may not be the engine's.
+                var position = (IWavePosition)output;
+                double seconds = (double)position.GetPosition() / Math.Max(1, position.OutputWaveFormat.AverageBytesPerSecond);
+                playedFrames = _framesAtOpen + (long)(seconds * Engine.WaveFormat.SampleRate);
+                if (playedFrames > rendered) playedFrames = rendered;
+            }
+            catch
+            {
+                playedFrames = rendered;
+            }
+
+            // 2. Deliver every event whose frame has become audible. The output never buffers
+            //    anywhere near half a second, so an event older than that is delivered regardless —
+            //    a misbehaving device position counter must not freeze the beat display.
+            long overdue = rendered - Engine.WaveFormat.SampleRate / 2;
+            //    Strictly "<": the very first beat is frame 0 of a fresh output, and must wait until
+            //    the device clock actually starts moving rather than light up a latency early.
+            while (Engine.TryPeekEvent(out var ev) && (ev.Frame < playedFrames || ev.Frame < overdue))
+            {
+                if (!Engine.TryDequeueEvent(out ev)) break;
+                Raise(ev);
+            }
+
+            // 3. Close the output once the engine has been silent for a while.
+            if (Engine.IsIdle)
+            {
+                long now = Stopwatch.GetTimestamp();
+                if (_idleSinceTimestamp == 0)
+                    _idleSinceTimestamp = now;
+                else if (Stopwatch.GetElapsedTime(_idleSinceTimestamp, now) > IdleShutdownAfter)
+                {
+                    while (Engine.TryDequeueEvent(out var rest)) Raise(rest);
+                    _pump?.Stop();
+                    CloseOutput();
+                    _idleSinceTimestamp = 0;
+                }
+            }
+            else
+            {
+                _idleSinceTimestamp = 0;
+            }
+        }
+
+        // A throwing subscriber must not kill the pump or starve the other subscribers.
+        private void Raise(DrumEngineEvent ev)
+        {
+            var handlers = PositionChanged;
+            if (handlers == null) return;
+            foreach (var handler in handlers.GetInvocationList())
+            {
+                try { ((Action<DrumEngineEvent>)handler)(ev); }
+                catch (Exception ex) { _logger?.LogError(ex, "Metronome: PositionChanged handler threw"); }
+            }
+        }
+
+        private void CloseOutput()
+        {
+            var output = _output;
             _output = null;
-            _buffer = null;
+            if (output == null) return;
+            output.PlaybackStopped -= OnPlaybackStopped;
+            try { output.Stop(); } catch { /* best effort */ }
+            try { output.Dispose(); } catch { /* best effort */ }
         }
-
-        // ─────────────────── Tone synthesis ───────────────────
-
-        /// <summary>
-        /// Clock tick: a high "click" transient (fast decay) layered over a
-        /// mid-frequency resonant "body", mimicking a mechanical escapement.
-        /// </summary>
-        private byte[] GenerateClockTick(
-            double bodyHz, double clickHz, double durationSec, double amplitude,
-            double bodyDecay, double clickDecay)
-        {
-            int samples       = (int)(_format.SampleRate * durationSec);
-            int attackSamples = Math.Max(1, (int)(_format.SampleRate * 0.0005));
-            var shorts = new short[samples];
-
-            double bodyPhase = 0, bodyInc = 2 * Math.PI * bodyHz / _format.SampleRate;
-            double clickPhase = 0, clickInc = 2 * Math.PI * clickHz / _format.SampleRate;
-
-            for (int i = 0; i < samples; i++)
-            {
-                double t      = (double)i / _format.SampleRate;
-                double attack = i < attackSamples ? (double)i / attackSamples : 1.0;
-
-                double body  = Math.Sin(bodyPhase)  * Math.Exp(-bodyDecay  * t);
-                double click = Math.Sin(clickPhase) * Math.Exp(-clickDecay * t);
-
-                double v = (body * 0.70 + click * 0.30) * amplitude * attack;
-                shorts[i] = (short)(Math.Clamp(v, -1.0, 1.0) * short.MaxValue);
-
-                bodyPhase  += bodyInc;
-                clickPhase += clickInc;
-            }
-            return ToBytes(shorts);
-        }
-
-        /// <summary>Percussive additive tone: sum of sine partials under a shared
-        /// exponential decay envelope with a short anti-pop attack.</summary>
-        private byte[] GenerateDecayTone(double[] freqs, double[] amps, double durationSec,
-                                         double amplitude, double decay, double attackSec = 0.0008)
-        {
-            int samples       = (int)(_format.SampleRate * durationSec);
-            int attackSamples = Math.Max(1, (int)(_format.SampleRate * attackSec));
-            var shorts = new short[samples];
-            var phases = new double[freqs.Length];
-
-            double norm = 0;
-            foreach (var a in amps) norm += a;
-            if (norm <= 0) norm = 1;
-
-            for (int i = 0; i < samples; i++)
-            {
-                double t      = (double)i / _format.SampleRate;
-                double env    = Math.Exp(-decay * t);
-                double attack = i < attackSamples ? (double)i / attackSamples : 1.0;
-
-                double v = 0;
-                for (int k = 0; k < freqs.Length; k++)
-                {
-                    v += Math.Sin(phases[k]) * amps[k];
-                    phases[k] += 2 * Math.PI * freqs[k] / _format.SampleRate;
-                }
-                v = v / norm * amplitude * env * attack;
-                shorts[i] = (short)(Math.Clamp(v, -1.0, 1.0) * short.MaxValue);
-            }
-            return ToBytes(shorts);
-        }
-
-        /// <summary>Flat-envelope sine "beep" with short attack/release ramps.</summary>
-        private byte[] GenerateSustainTone(double freq, double durationSec, double amplitude)
-        {
-            int samples = (int)(_format.SampleRate * durationSec);
-            int ramp    = Math.Max(1, (int)(_format.SampleRate * 0.005));
-            var shorts  = new short[samples];
-
-            double phase = 0, inc = 2 * Math.PI * freq / _format.SampleRate;
-            for (int i = 0; i < samples; i++)
-            {
-                double env = 1.0;
-                if (i < ramp)                 env = (double)i / ramp;
-                else if (i > samples - ramp)  env = (double)(samples - i) / ramp;
-
-                double v = Math.Sin(phase) * amplitude * env;
-                shorts[i] = (short)(v * short.MaxValue);
-                phase += inc;
-            }
-            return ToBytes(shorts);
-        }
-
-        /// <summary>Two detuned square oscillators under an exponential decay —
-        /// the basis of a classic cowbell timbre.</summary>
-        private byte[] GenerateSquarePair(double f1, double f2, double durationSec,
-                                          double amplitude, double decay)
-        {
-            int samples = (int)(_format.SampleRate * durationSec);
-            int ramp    = Math.Max(1, (int)(_format.SampleRate * 0.001));
-            var shorts  = new short[samples];
-
-            double p1 = 0, p2 = 0;
-            double i1 = 2 * Math.PI * f1 / _format.SampleRate;
-            double i2 = 2 * Math.PI * f2 / _format.SampleRate;
-
-            for (int i = 0; i < samples; i++)
-            {
-                double t      = (double)i / _format.SampleRate;
-                double env    = Math.Exp(-decay * t);
-                double attack = i < ramp ? (double)i / ramp : 1.0;
-
-                // Soft squares (0.6 weight) keep the metallic edge without harsh clipping
-                double s1 = Math.Sign(Math.Sin(p1));
-                double s2 = Math.Sign(Math.Sin(p2));
-                double v  = (s1 + s2) / 2 * 0.6 * amplitude * env * attack;
-                shorts[i] = (short)(Math.Clamp(v, -1.0, 1.0) * short.MaxValue);
-
-                p1 += i1;
-                p2 += i2;
-            }
-            return ToBytes(shorts);
-        }
-
-        private byte[] ToBytes(short[] shorts)
-        {
-            var bytes = new byte[shorts.Length * sizeof(short)];
-            Buffer.BlockCopy(shorts, 0, bytes, 0, bytes.Length);
-            return bytes;
-        }
-
-        public void Dispose() => Stop();
     }
 }

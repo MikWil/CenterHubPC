@@ -133,7 +133,7 @@ namespace CenterHubNew.MVVM.ViewModel
 
             try
             {
-                var controller = new CoreAudioController();
+                var controller = AudioDeviceService.SharedController;   // one for the app; a new one per switch leaks
                 var device = (await controller.GetDevicesAsync(AudioSwitcher.AudioApi.DeviceType.Playback, AudioSwitcher.AudioApi.DeviceState.Active))
                     .FirstOrDefault(d => d.FullName == SelectedSoundSource);
                 if (device != null)
@@ -165,7 +165,7 @@ namespace CenterHubNew.MVVM.ViewModel
 
             try
             {
-                var controller = new CoreAudioController();
+                var controller = AudioDeviceService.SharedController;   // one for the app; a new one per switch leaks
                 var devices = await controller.GetDevicesAsync(AudioSwitcher.AudioApi.DeviceType.Playback, AudioSwitcher.AudioApi.DeviceState.Active);
                 var device = devices.FirstOrDefault(d => d.FullName == SelectedSoundSource)
                            ?? devices.FirstOrDefault(d => d.Name == SelectedSoundSource);
@@ -351,7 +351,7 @@ namespace CenterHubNew.MVVM.ViewModel
 
             try
             {
-                var controller = new CoreAudioController();
+                var controller = AudioDeviceService.SharedController;   // one for the app; a new one per switch leaks
                 var device = (await controller.GetDevicesAsync(AudioSwitcher.AudioApi.DeviceType.Playback, AudioSwitcher.AudioApi.DeviceState.Active))
                     .FirstOrDefault(d => d.FullName == SelectedSoundSource);
                 if (device != null)
@@ -572,7 +572,7 @@ namespace CenterHubNew.MVVM.ViewModel
                     return;
                 }
 
-                var controller = new CoreAudioController();
+                var controller = AudioDeviceService.SharedController;   // one for the app; a new one per switch leaks
                 var devices = await controller.GetDevicesAsync(AudioSwitcher.AudioApi.DeviceType.Playback, AudioSwitcher.AudioApi.DeviceState.Active);
 
                 // Apply audio device

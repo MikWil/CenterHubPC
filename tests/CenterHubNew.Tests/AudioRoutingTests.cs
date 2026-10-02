@@ -111,6 +111,236 @@ public class AudioRoutingTests
         Assert.Contains(checks, c => c.Fix == AudioCheckFix.RestartVoicemeeter);
     }
 
+    // ── Banana's real device state: assigning a device is a request, not a fact ──
+
+    private static AudioRoutingPreset AnyPreset() => new()
+    {
+        Name = "Any",
+        Routes = { new AudioSourceRoute { Kind = AudioSourceKind.Microphone, ToOthers = true } },
+    };
+
+    private static RoutingHarness HarnessWithHeadphones()
+    {
+        var h = new RoutingHarness();
+        h.Store.SaveSettings(new VoicemeeterSettings
+        {
+            MicrophoneDeviceName = "Microphone (USB)",
+            MonitorDeviceName = "Högtalare (USB headset)",   // non-ASCII, like a Swedish Windows
+        });
+        return h;
+    }
+
+    [Fact]
+    public async Task ApplyPreset_assigns_the_headphones_and_confirms_banana_opened_them()
+    {
+        using var h = HarnessWithHeadphones();
+        h.Vm.MonitorDevice = "";   // Banana starts with no A1 device
+
+        var result = await h.Routing.ApplyPresetAsync(AnyPreset());
+
+        Assert.True(result.Success, result.Message);
+        Assert.Equal("Högtalare (USB headset)", h.Vm.MonitorDevice);
+        Assert.Equal(1, h.Vm.MonitorDeviceSets);
+    }
+
+    [Fact]
+    public async Task ApplyPreset_does_not_reassign_devices_banana_already_has()
+    {
+        using var h = HarnessWithHeadphones();
+        h.Vm.MonitorDevice = "Högtalare (USB headset)";
+        h.Vm.InputDevices[0] = "Microphone (USB)";
+
+        var result = await h.Routing.ApplyPresetAsync(AnyPreset());
+
+        Assert.True(result.Success, result.Message);
+        Assert.Equal(0, h.Vm.MonitorDeviceSets);   // re-assigning restarts Banana's engine: a dropout per preset switch
+        Assert.Equal(0, h.Vm.InputDeviceSets);
+    }
+
+    [Fact]
+    public async Task ApplyPreset_reports_when_banana_cannot_open_the_headphones()
+    {
+        using var h = HarnessWithHeadphones();
+        h.Vm.MonitorDevice = "";
+        h.Vm.MonitorDeviceSticks = false;   // e.g. headset off, or held by another app
+
+        var result = await h.Routing.ApplyPresetAsync(AnyPreset());
+
+        Assert.False(result.Success);
+        Assert.Contains("couldn't open your headphones", result.Message);
+        Assert.Equal(3, h.Vm.MonitorDeviceSets);   // first assignment + two retries
+    }
+
+    [Fact]
+    public async Task ApplyPreset_skips_the_read_back_when_banana_cannot_be_read()
+    {
+        using var h = HarnessWithHeadphones();
+        h.Vm.MonitorDevice = null;
+        h.Vm.MonitorDeviceSticks = false;
+
+        var result = await h.Routing.ApplyPresetAsync(AnyPreset());
+
+        Assert.True(result.Success, result.Message);   // unknown is not reported as broken
+    }
+
+    [Fact]
+    public async Task Start_and_restart_failures_say_why()
+    {
+        using var h = new RoutingHarness();
+        h.Vm.Error = "Couldn't close Voicemeeter — it is running as administrator.";
+
+        h.Vm.RestartSucceeds = false;
+        var restart = await h.Routing.RestartVoicemeeterAsync(AnyPreset());
+        Assert.False(restart.Success);
+        Assert.Equal(h.Vm.Error, restart.Message);
+
+        h.Vm.StartSucceeds = false;
+        var apply = await h.Routing.ApplyPresetAsync(AnyPreset());
+        Assert.False(apply.Success);
+        Assert.Equal(h.Vm.Error, apply.Message);
+    }
+
+    [Theory]
+    [InlineData("", AudioCheckStatus.Error)]                                                  // no device on A1
+    [InlineData("Voicemeeter In 2 (VB-Audio Voicemeeter VAIO)", AudioCheckStatus.Error)]      // output fed back into itself
+    [InlineData("Speakers (Monitor)", AudioCheckStatus.Warning)]                              // some other device
+    [InlineData("Högtalare (USB headset)", AudioCheckStatus.Ok)]
+    public void Setup_check_reads_the_headphone_output_banana_really_has(string a1, AudioCheckStatus expected)
+    {
+        using var h = HarnessWithHeadphones();
+        h.Vm.MonitorDevice = a1;
+
+        var check = Assert.Single(h.Routing.RunChecks(), c => c.Title == "Headphone output");
+
+        Assert.Equal(expected, check.Status);
+    }
+
+    // ── Sharing the headphones: Banana's exclusive (WDM) output locks them for every other app ──
+
+    [Fact]
+    public async Task Headphones_are_shared_with_other_apps_by_default()
+    {
+        using var h = HarnessWithHeadphones();
+        h.Vm.MonitorDevice = "";
+
+        await h.Routing.ApplyPresetAsync(AnyPreset());
+
+        Assert.True(new VoicemeeterSettings().ShareMonitorDevice);
+        Assert.True(h.Vm.MonitorShared);
+    }
+
+    [Fact]
+    public async Task Exclusive_headphones_are_used_when_sharing_is_switched_off()
+    {
+        using var h = HarnessWithHeadphones();
+        var settings = h.Store.Load().Settings;
+        settings.ShareMonitorDevice = false;
+        h.Store.SaveSettings(settings);
+        h.Vm.MonitorDevice = "";
+
+        await h.Routing.ApplyPresetAsync(AnyPreset());
+
+        Assert.False(h.Vm.MonitorShared);
+    }
+
+    [Theory]
+    [InlineData(true, true, 1)]     // want shared, but Banana has it locked  -> reopen it shared
+    [InlineData(true, false, 0)]    // want shared, already shared            -> leave it (no dropout)
+    [InlineData(false, false, 1)]   // want exclusive, but it is shared       -> reopen it exclusive
+    [InlineData(false, true, 0)]    // want exclusive, already exclusive      -> leave it
+    public async Task Headphones_are_reopened_only_when_the_sharing_mode_is_wrong(bool share, bool locked, int expectedSets)
+    {
+        using var h = HarnessWithHeadphones();
+        var settings = h.Store.Load().Settings;
+        settings.ShareMonitorDevice = share;
+        h.Store.SaveSettings(settings);
+        h.Vm.MonitorDevice = "Högtalare (USB headset)";   // right device already on A1
+        h.Audio.Locked = locked;
+
+        var result = await h.Routing.ApplyPresetAsync(AnyPreset());
+
+        Assert.True(result.Success, result.Message);
+        Assert.Equal(expectedSets, h.Vm.MonitorDeviceSets);
+        if (expectedSets > 0) Assert.Equal(share, h.Vm.MonitorShared);
+    }
+
+    // ── Direct mode: Banana out of the picture (it locks the headset while it runs) ──
+
+    private static RoutingHarness HarnessWithRealDevices()
+    {
+        var h = new RoutingHarness();
+        h.Store.SaveSettings(new VoicemeeterSettings
+        {
+            MicrophoneDeviceName = "Microphone (USB)",
+            MonitorDeviceName = "Headphones (USB)",
+        });
+        h.Audio.DefaultPlay = new AudioEndpointRef { Name = "Voicemeeter Input (VB-Audio Voicemeeter VAIO)" };
+        h.Audio.DefaultRec = new AudioEndpointRef { Name = "Voicemeeter Out B1 (VB-Audio Voicemeeter VAIO)" };
+        return h;
+    }
+
+    [Fact]
+    public async Task Direct_mode_closes_banana_and_hands_the_headset_and_mic_to_windows()
+    {
+        using var h = HarnessWithRealDevices();
+
+        var result = await h.Routing.BypassAsync();
+
+        Assert.True(result.Success, result.Message);
+        Assert.Equal(1, h.Vm.Shutdowns);
+        Assert.Equal("Headphones (USB)", h.Audio.DefaultPlay?.Name);
+        Assert.Equal("Microphone (USB)", h.Audio.DefaultRec?.Name);
+        Assert.True(h.Routing.IsDirectMode());
+    }
+
+    [Fact]
+    public async Task Direct_mode_needs_headphones_to_switch_to()
+    {
+        using var h = new RoutingHarness();   // nothing chosen in Setup
+
+        var result = await h.Routing.BypassAsync();
+
+        Assert.False(result.Success);
+        Assert.Equal(0, h.Vm.Shutdowns);      // Banana is left alone
+    }
+
+    [Fact]
+    public async Task Direct_mode_keeps_the_routing_when_banana_will_not_close()
+    {
+        using var h = HarnessWithRealDevices();
+        h.Vm.ShutdownSucceeds = false;
+        h.Vm.Error = "Couldn't close Voicemeeter — it is running as administrator.";
+
+        var result = await h.Routing.BypassAsync();
+
+        Assert.False(result.Success);
+        Assert.Equal(h.Vm.Error, result.Message);
+        Assert.StartsWith("Voicemeeter Input", h.Audio.DefaultPlay?.Name);   // still routed through Banana
+        Assert.False(h.Routing.IsDirectMode());
+    }
+
+    [Fact]
+    public async Task Applying_a_preset_leaves_direct_mode()
+    {
+        using var h = HarnessWithRealDevices();
+        await h.Routing.BypassAsync();
+        h.Vm.StatusValue = VoicemeeterStatus.Running;   // what EnsureRunningAsync does for real
+
+        var result = await h.Routing.ApplyPresetAsync(AnyPreset());
+
+        Assert.True(result.Success, result.Message);
+        Assert.False(h.Routing.IsDirectMode());
+    }
+
+    [Theory]
+    [InlineData("Voicemeeter Input (VB-Audio Voicemeeter VAIO)", true)]
+    [InlineData("Voicemeeter Out B1 (VB-Audio Voicemeeter VAIO)", true)]
+    [InlineData("Högtalare (PRO X 2 LIGHTSPEED)", false)]
+    [InlineData("PRIMARY (KATANA3)", false)]
+    [InlineData(null, false)]
+    public void Voicemeeter_virtual_devices_are_recognised(string? name, bool expected)
+        => Assert.Equal(expected, AudioRoutingService.IsVoicemeeterDevice(name));
+
     [Fact]
     public void Setup_check_reports_a_disconnected_guitar()
     {

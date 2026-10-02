@@ -47,6 +47,12 @@ namespace CenterHubNew.MVVM.Services
         public bool IsInstalled => _vm.IsInstalled;
         public bool IsRunning => _vm.Status == VoicemeeterStatus.Running;
 
+        /// <summary>
+        /// How long Banana gets to (re)open a device after it is assigned, and the pause between
+        /// retries while Windows' device list settles after a restart. Tests set it to zero.
+        /// </summary>
+        internal TimeSpan DeviceSettleDelay { get; set; } = TimeSpan.FromMilliseconds(700);
+
         /// <summary>Re-detect Voicemeeter install/running state; returns true when running.</summary>
         public bool RefreshStatus() => _vm.RefreshStatus() == VoicemeeterStatus.Running;
         public string? ActivePresetId => _store.Load().ActivePresetId;
@@ -184,7 +190,21 @@ namespace CenterHubNew.MVVM.Services
 
         // ─────────────────── Apply ───────────────────
 
-        public async Task<VoicemeeterModeResult> ApplyPresetAsync(AudioRoutingPreset preset, System.Threading.CancellationToken ct = default)
+        // One apply / re-sync / restart at a time. Two overlapping ones (hotkey + button, a double
+        // click) fight over Banana and over Windows' default-device switch, which then never returns.
+        private readonly System.Threading.SemaphoreSlim _applyGate = new(1, 1);
+
+        private async Task<VoicemeeterModeResult> ExclusiveAsync(Func<Task<VoicemeeterModeResult>> work, System.Threading.CancellationToken ct)
+        {
+            await _applyGate.WaitAsync(ct).ConfigureAwait(false);
+            try { return await work().ConfigureAwait(false); }
+            finally { _applyGate.Release(); }
+        }
+
+        public Task<VoicemeeterModeResult> ApplyPresetAsync(AudioRoutingPreset preset, System.Threading.CancellationToken ct = default)
+            => ExclusiveAsync(() => ApplyPresetCoreAsync(preset, ct), ct);
+
+        private async Task<VoicemeeterModeResult> ApplyPresetCoreAsync(AudioRoutingPreset preset, System.Threading.CancellationToken ct)
         {
             if (!_vm.IsInstalled)
                 return VoicemeeterModeResult.Fail("Voicemeeter is not installed.");
@@ -203,23 +223,23 @@ namespace CenterHubNew.MVVM.Services
             if (!ready)
             {
                 _store.SetSessionActive(false);
-                return VoicemeeterModeResult.Fail("Could not start Voicemeeter Banana.");
+                return VoicemeeterModeResult.Fail(_vm.LastError ?? "Could not start Voicemeeter Banana.");
             }
             if (_vm.Kind == VoicemeeterKind.Standard)
                 return VoicemeeterModeResult.Fail("This needs Voicemeeter Banana (or Potato).");
 
-            // Hardware device assignments + monitor output (from the shared settings).
+            // Hardware device assignments + monitor output (from the shared settings). Only assign
+            // what Banana doesn't already have: every assignment makes it reopen the device, which
+            // is an audible dropout on each preset switch.
             var settings = state.Settings;
-            if (!string.IsNullOrWhiteSpace(settings.MicrophoneDeviceName))
-                _vm.SetHardwareInput(_vm.MicStripIndex, settings.MicrophoneDeviceName!);
-            if (!string.IsNullOrWhiteSpace(settings.GuitarDeviceName))
-                _vm.SetHardwareInput(_vm.GuitarStripIndex, settings.GuitarDeviceName!);
-            if (!string.IsNullOrWhiteSpace(settings.MonitorDeviceName))
-                _vm.SetMonitorDevice(settings.MonitorDeviceName!);
+            bool reassigned = false;
+            reassigned |= EnsureInput(_vm.MicStripIndex, settings.MicrophoneDeviceName);
+            reassigned |= EnsureInput(_vm.GuitarStripIndex, settings.GuitarDeviceName);
+            reassigned |= EnsureMonitor(settings);
 
             // Feed the extra app slot: point the spare physical strip at the VB-Cable output.
             if (IsVbCableInstalled)
-                _vm.SetHardwareInput(_vm.LineInStripIndex, VbCableCaptureName);
+                reassigned |= EnsureInput(_vm.LineInStripIndex, VbCableCaptureName);
 
             // Per-source routing.
             foreach (var route in preset.Routes)
@@ -234,17 +254,94 @@ namespace CenterHubNew.MVVM.Services
                 _vm.SetRoute(strip, VoicemeeterBus.B2, false);
             }
 
-            // Switch Windows so Discord (on Default) follows.
-            var playOk = await _audio.SetDefaultPlaybackByNameAsync(VaioInputName, communicationsToo: true).ConfigureAwait(false);
-            var recOk = await _audio.SetDefaultRecordingByNameAsync(SendRecordingName, communicationsToo: true).ConfigureAwait(false);
+            // Switch Windows so Discord (on Default) follows. Right after a Banana restart Windows'
+            // device list is still settling and a lookup can come back empty — retry before giving up.
+            var playOk = await RetryAsync(() => _audio.SetDefaultPlaybackByNameAsync(VaioInputName, communicationsToo: true), ct).ConfigureAwait(false);
+            var recOk = await RetryAsync(() => _audio.SetDefaultRecordingByNameAsync(SendRecordingName, communicationsToo: true), ct).ConfigureAwait(false);
 
             _store.SetActivePreset(preset.Id);
+
+            // Assigning a device is only a request. Read back what Banana really opened on A1:
+            // with no device there, nothing sent to "You" is audible however the board looks.
+            if (reassigned) await Task.Delay(DeviceSettleDelay, ct).ConfigureAwait(false);
+            var monitorProblem = await VerifyMonitorAsync(settings.MonitorDeviceName, settings.ShareMonitorDevice, ct).ConfigureAwait(false);
 
             if (!playOk || !recOk)
                 return VoicemeeterModeResult.Fail(
                     "Routing applied, but the Voicemeeter virtual devices weren't found in Windows. Check the virtual driver is installed.");
+            if (monitorProblem != null)
+                return VoicemeeterModeResult.Fail(monitorProblem);
 
             return VoicemeeterModeResult.Ok($"Applied '{preset.Name}'.");
+        }
+
+        private bool EnsureInput(int strip, string? wanted)
+        {
+            if (string.IsNullOrWhiteSpace(wanted)) return false;
+            if (SameDevice(_vm.GetHardwareInputName(strip), wanted)) return false;
+            _vm.SetHardwareInput(strip, wanted);
+            return true;
+        }
+
+        private bool EnsureMonitor(VoicemeeterSettings settings)
+        {
+            var wanted = settings.MonitorDeviceName;
+            if (string.IsNullOrWhiteSpace(wanted)) return false;
+
+            if (SameDevice(_vm.GetMonitorDeviceName(), wanted))
+            {
+                // Right device — but is it open the right way? Banana can't be asked which driver it
+                // uses, so look at the effect: exclusive (WDM) locks the endpoint, shared (MME) doesn't.
+                var locked = _audio.IsPlaybackDeviceLocked(new AudioEndpointRef { Id = settings.MonitorDeviceId, Name = wanted });
+                if (locked is null || locked.Value != settings.ShareMonitorDevice) return false;
+            }
+
+            _vm.SetMonitorDevice(wanted, settings.ShareMonitorDevice);
+            return true;
+        }
+
+        /// <summary>Returns null when A1 has the wanted device (or can't be read); otherwise what to tell the user.</summary>
+        private async Task<string?> VerifyMonitorAsync(string? wanted, bool shared, System.Threading.CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(wanted)) return null;
+
+            const int attempts = 3;
+            for (int attempt = 1; ; attempt++)
+            {
+                var actual = _vm.GetMonitorDeviceName();
+                if (actual is null || SameDevice(actual, wanted)) return null;
+
+                if (attempt == attempts)
+                {
+                    _logger?.LogWarning("Banana A1 is '{Actual}', wanted '{Wanted}'", actual, wanted);
+                    return actual.Length == 0
+                        ? $"Routing applied, but Banana couldn't open your headphones \"{wanted}\" — you won't hear anything. Check they are on and not in use by another app, then apply again."
+                        : $"Routing applied, but Banana is playing through \"{actual}\" instead of \"{wanted}\".";
+                }
+
+                _vm.SetMonitorDevice(wanted, shared);
+                await Task.Delay(DeviceSettleDelay, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>Voicemeeter may report a device name truncated, so a prefix match counts.</summary>
+        private static bool SameDevice(string? actual, string wanted)
+        {
+            if (string.IsNullOrWhiteSpace(actual)) return false;
+            actual = actual.Trim();
+            wanted = wanted.Trim();
+            return actual.StartsWith(wanted, StringComparison.OrdinalIgnoreCase)
+                || wanted.StartsWith(actual, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private async Task<bool> RetryAsync(Func<Task<bool>> action, System.Threading.CancellationToken ct)
+        {
+            for (int attempt = 1; ; attempt++)
+            {
+                if (await action().ConfigureAwait(false)) return true;
+                if (attempt == 3) return false;
+                await Task.Delay(DeviceSettleDelay, ct).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -256,38 +353,81 @@ namespace CenterHubNew.MVVM.Services
         /// Fully restart the Voicemeeter application (recovers a hung/crazy Banana), then
         /// reassign every device, route and Windows default. Heavier than <see cref="ResyncAsync"/>.
         /// </summary>
-        public async Task<VoicemeeterModeResult> RestartVoicemeeterAsync(AudioRoutingPreset preset, System.Threading.CancellationToken ct = default)
+        public Task<VoicemeeterModeResult> RestartVoicemeeterAsync(AudioRoutingPreset preset, System.Threading.CancellationToken ct = default)
+            => ExclusiveAsync(async () =>
+            {
+                if (!_vm.IsInstalled)
+                    return VoicemeeterModeResult.Fail("Voicemeeter is not installed.");
+
+                var ok = await _vm.RestartApplicationAsync(ct).ConfigureAwait(false);
+                if (!ok) return VoicemeeterModeResult.Fail(_vm.LastError ?? "Could not restart Voicemeeter.");
+
+                var result = await ApplyPresetCoreAsync(preset, ct).ConfigureAwait(false);
+                return result.Success
+                    ? VoicemeeterModeResult.Ok("Voicemeeter restarted — routing reassigned.")
+                    : result;
+            }, ct);
+
+        /// <summary>
+        /// Direct mode: take Banana out of the picture. It holds the headphones in exclusive mode
+        /// while it runs, so an app that talks to the headset itself (Teams at work) gets silence.
+        /// This closes Banana and makes the configured headphones and microphone the Windows
+        /// defaults. Applying any preset starts Banana again.
+        /// </summary>
+        public Task<VoicemeeterModeResult> BypassAsync(System.Threading.CancellationToken ct = default)
+            => ExclusiveAsync(async () =>
+            {
+                var s = _store.Load().Settings;
+                var headphones = new AudioEndpointRef { Id = s.MonitorDeviceId, Name = s.MonitorDeviceName };
+                var microphone = new AudioEndpointRef { Id = s.MicrophoneDeviceId, Name = s.MicrophoneDeviceName };
+                if (!headphones.HasValue)
+                    return VoicemeeterModeResult.Fail("Choose your headphones in Setup first, so CenterHub knows what to switch to.");
+
+                if (_vm.IsInstalled && !await _vm.ShutdownAsync(ct).ConfigureAwait(false))
+                    return VoicemeeterModeResult.Fail(_vm.LastError ?? "Couldn't close Voicemeeter.");
+
+                var playOk = await RetryAsync(() => _audio.SetDefaultPlaybackAsync(headphones, communicationsToo: true), ct).ConfigureAwait(false);
+                var recOk = !microphone.HasValue
+                    || await RetryAsync(() => _audio.SetDefaultRecordingAsync(microphone, communicationsToo: true), ct).ConfigureAwait(false);
+
+                // Banana being closed is intended now: no "Voicemeeter isn't running" prompt at next launch.
+                _store.SetSessionActive(false);
+
+                if (!playOk)
+                    return VoicemeeterModeResult.Fail($"Voicemeeter is closed, but \"{headphones.Name}\" couldn't be made the Windows output. Is it switched on?");
+                if (!recOk)
+                    return VoicemeeterModeResult.Fail($"Your headphones are the Windows output now, but \"{microphone.Name}\" couldn't be made the microphone.");
+
+                return VoicemeeterModeResult.Ok("Direct mode — headset and mic go straight to Windows. Pick a preset to use Banana again.");
+            }, ct);
+
+        /// <summary>True when Banana is out of the picture: not running and Windows plays to a real device.</summary>
+        public bool IsDirectMode()
         {
-            if (!_vm.IsInstalled)
-                return VoicemeeterModeResult.Fail("Voicemeeter is not installed.");
-
-            var ok = await _vm.RestartApplicationAsync(ct).ConfigureAwait(false);
-            if (!ok) return VoicemeeterModeResult.Fail("Could not restart Voicemeeter.");
-
-            var result = await ApplyPresetAsync(preset, ct).ConfigureAwait(false);
-            return result.Success
-                ? VoicemeeterModeResult.Ok("Voicemeeter restarted — routing reassigned.")
-                : result;
+            if (_vm.IsInstalled && _vm.RefreshStatus() == VoicemeeterStatus.Running) return false;
+            var play = _audio.GetDefaultPlayback()?.Name;
+            return !string.IsNullOrEmpty(play) && !IsVoicemeeterDevice(play);
         }
 
-        public async Task<VoicemeeterModeResult> ResyncAsync(AudioRoutingPreset preset, System.Threading.CancellationToken ct = default)
-        {
-            if (!_vm.IsInstalled)
-                return VoicemeeterModeResult.Fail("Voicemeeter is not installed.");
+        public Task<VoicemeeterModeResult> ResyncAsync(AudioRoutingPreset preset, System.Threading.CancellationToken ct = default)
+            => ExclusiveAsync(async () =>
+            {
+                if (!_vm.IsInstalled)
+                    return VoicemeeterModeResult.Fail("Voicemeeter is not installed.");
 
-            _vm.Reconnect();
+                _vm.Reconnect();
 
-            var ready = await _vm.EnsureRunningAsync(ct).ConfigureAwait(false);
-            if (!ready) return VoicemeeterModeResult.Fail("Could not reach Voicemeeter Banana.");
+                var ready = await _vm.EnsureRunningAsync(ct).ConfigureAwait(false);
+                if (!ready) return VoicemeeterModeResult.Fail(_vm.LastError ?? "Could not reach Voicemeeter Banana.");
 
-            _vm.RestartAudioEngine();
-            await Task.Delay(1500, ct).ConfigureAwait(false); // let the engine come back up
+                _vm.RestartAudioEngine();
+                await Task.Delay(1500, ct).ConfigureAwait(false); // let the engine come back up
 
-            var result = await ApplyPresetAsync(preset, ct).ConfigureAwait(false);
-            return result.Success
-                ? VoicemeeterModeResult.Ok("Re-synced — devices and routing reassigned.")
-                : result;
-        }
+                var result = await ApplyPresetCoreAsync(preset, ct).ConfigureAwait(false);
+                return result.Success
+                    ? VoicemeeterModeResult.Ok("Re-synced — devices and routing reassigned.")
+                    : result;
+            }, ct);
 
         // ─────────────────── Setup health check ───────────────────
 
@@ -381,6 +521,55 @@ namespace CenterHubNew.MVVM.Services
             CheckDevice(checks, "Guitar (Katana)", s.GuitarDeviceName, capture);
             CheckDevice(checks, "Monitor output", s.MonitorDeviceName, render);
 
+            // 5b) …and Banana really has the headphones open. This is the "everything looks right
+            //     but I hear nothing" case: A1 empty, or pointed back at Voicemeeter itself.
+            if (status == VoicemeeterStatus.Running && _vm.GetMonitorDeviceName() is { } a1)
+            {
+                bool configured = !string.IsNullOrWhiteSpace(s.MonitorDeviceName);
+                var fix = configured ? AudioCheckFix.ReapplyRouting : AudioCheckFix.ConfigureDevices;
+                var fixLabel = configured ? "Apply routing" : "Open Setup";
+
+                if (a1.Length == 0)
+                    checks.Add(new AudioCheck
+                    {
+                        Title = "Headphone output",
+                        Status = AudioCheckStatus.Error,
+                        Detail = "Banana has no output device, so nothing can be heard.",
+                        Fix = fix, FixLabel = fixLabel
+                    });
+                else if (IsVoicemeeterDevice(a1))
+                    checks.Add(new AudioCheck
+                    {
+                        Title = "Headphone output",
+                        Status = AudioCheckStatus.Error,
+                        Detail = $"Banana is sending its output back into itself (\"{a1}\") — you hear nothing and it can loop. Pick your real headphones in Setup.",
+                        Fix = AudioCheckFix.ConfigureDevices, FixLabel = "Open Setup"
+                    });
+                else if (configured && !SameDevice(a1, s.MonitorDeviceName!))
+                    checks.Add(new AudioCheck
+                    {
+                        Title = "Headphone output",
+                        Status = AudioCheckStatus.Warning,
+                        Detail = $"Banana is playing through \"{a1}\", not \"{s.MonitorDeviceName}\".",
+                        Fix = fix, FixLabel = fixLabel
+                    });
+                else
+                {
+                    var locked = _audio.IsPlaybackDeviceLocked(new AudioEndpointRef { Id = s.MonitorDeviceId, Name = s.MonitorDeviceName ?? a1 });
+                    checks.Add(new AudioCheck
+                    {
+                        Title = "Headphone output",
+                        Status = AudioCheckStatus.Ok,
+                        Detail = locked switch
+                        {
+                            true => $"Banana plays through {a1} and has it to itself — apps set to that device directly are silent. Turn on \"Other apps can use it too\" in Setup to share it.",
+                            false => $"Banana plays through {a1}, shared with other apps.",
+                            _ => $"Banana plays through {a1}.",
+                        }
+                    });
+                }
+            }
+
             // 6) Discord reminder (can't read Discord's settings, but nudge if it's open)
             bool discord = false;
             try { discord = System.Diagnostics.Process.GetProcessesByName("Discord").Length > 0; } catch { }
@@ -406,6 +595,13 @@ namespace CenterHubNew.MVVM.Services
 
             return checks;
         }
+
+        /// <summary>
+        /// True for Voicemeeter's own virtual endpoints. They must never be chosen as the mic,
+        /// guitar or headphone device: that routes Voicemeeter into itself.
+        /// </summary>
+        public static bool IsVoicemeeterDevice(string? name) =>
+            !string.IsNullOrEmpty(name) && name.IndexOf("Voicemeeter", StringComparison.OrdinalIgnoreCase) >= 0;
 
         private static void CheckDevice(List<AudioCheck> checks, string label, string? name, IReadOnlyList<AudioDeviceInfo> devices)
         {

@@ -66,7 +66,7 @@ namespace CenterHubNew.MVVM.Services
             if (!ready)
             {
                 _settingsService.SetSessionActive(false);
-                return VoicemeeterModeResult.Fail("Could not start Voicemeeter Banana.");
+                return VoicemeeterModeResult.Fail(_voicemeeter.LastError ?? "Could not start Voicemeeter Banana.");
             }
             if (_voicemeeter.Kind == VoicemeeterKind.Standard)
             {
@@ -125,7 +125,7 @@ namespace CenterHubNew.MVVM.Services
 
             // ── Monitor output device (A1 hardware out) ──
             if (!string.IsNullOrWhiteSpace(settings.MonitorDeviceName))
-                _voicemeeter.SetMonitorDevice(settings.MonitorDeviceName!);
+                _voicemeeter.SetMonitorDevice(settings.MonitorDeviceName!, settings.ShareMonitorDevice);
         }
 
         public async Task<VoicemeeterModeResult> DisableAsync(CancellationToken ct = default)

@@ -173,6 +173,16 @@ namespace CenterHubNew
                 hotkeyService.SetCallback(HotkeyAction.ApplyLayout1, () => ApplyLayoutSlot(0));
                 hotkeyService.SetCallback(HotkeyAction.ApplyLayout2, () => ApplyLayoutSlot(1));
                 hotkeyService.SetCallback(HotkeyAction.ApplyLayout3, () => ApplyLayoutSlot(2));
+
+                // ── Metronome / drum machine: hands stay on the guitar
+                hotkeyService.SetCallback(HotkeyAction.MetronomeStartStop,
+                    () => TryPost(() => Services.GetService<MetronomeViewModel>()?.TogglePlayCommand.Execute(null)));
+                hotkeyService.SetCallback(HotkeyAction.MetronomeFill,
+                    () => TryPost(() => Services.GetService<MetronomeViewModel>()?.FillCommand.Execute(null)));
+                hotkeyService.SetCallback(HotkeyAction.MetronomeNextPart,
+                    () => TryPost(() => Services.GetService<MetronomeViewModel>()?.NextPartCommand.Execute(null)));
+                hotkeyService.SetCallback(HotkeyAction.MetronomeTapTempo,
+                    () => TryPost(() => Services.GetService<MetronomeViewModel>()?.TapTempoCommand.Execute(null)));
             }
             catch (Exception ex)
             {
@@ -253,6 +263,7 @@ namespace CenterHubNew
                     services.AddSingleton<WindowsNotificationService>();
                     services.AddSingleton<WifiService>();
                     services.AddSingleton<MetronomeService>();
+                    services.AddSingleton<MetronomeSettingsService>();
                     services.AddSingleton<RandomizerSoundService>();
                     services.AddSingleton<IAudioDeviceService, AudioDeviceService>();
                     services.AddSingleton<IVoicemeeterService, VoicemeeterService>();
@@ -287,7 +298,7 @@ namespace CenterHubNew
                     services.AddTransient<WindowLayoutsViewModel>();
                     services.AddTransient<NetworkViewModel>();
                     services.AddTransient<RandomizerViewModel>();
-                    services.AddTransient<MetronomeViewModel>();
+                    services.AddSingleton<MetronomeViewModel>(); // hotkeys (start/stop, fill, next part) act on it
                     services.AddTransient<VoicemeeterViewModel>();
                     services.AddTransient<RoutingViewModel>();
 

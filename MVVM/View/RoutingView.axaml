@@ -74,7 +74,7 @@
         <!-- PRESET BAR -->
         <Border Classes="card">
             <StackPanel Spacing="12">
-                <Grid ColumnDefinitions="Auto,*,Auto">
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                     <TextBlock Grid.Column="0" Text="PRESETS" FontSize="10" FontWeight="Bold" LetterSpacing="1"
                                Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
                     <ItemsControl Grid.Column="1" ItemsSource="{Binding PresetChips}">
@@ -92,7 +92,13 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                    <TextBlock Grid.Column="2" Text="{Binding StatusText}" FontSize="11" FontWeight="SemiBold"
+                    <!-- Not a preset: takes Banana out of the picture altogether -->
+                    <Button Grid.Column="2" Classes="chip" Classes.active="{Binding IsDirect}"
+                            Content="Direct (no Banana)" Margin="8,0,12,0" VerticalAlignment="Center"
+                            Command="{Binding GoDirectCommand}"
+                            IsEnabled="{Binding !IsBusy}"
+                            ToolTip.Tip="Closes Voicemeeter so your headset is free, and makes the headset and its mic the Windows devices — for Teams and other apps that use the headset directly. Pick a preset to come back."/>
+                    <TextBlock Grid.Column="3" Text="{Binding StatusText}" FontSize="11" FontWeight="SemiBold"
                                Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
                 </Grid>
 
@@ -326,6 +332,9 @@
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
                         </ComboBox>
+                        <CheckBox Content="Other apps can use it too" FontSize="12"
+                                  IsChecked="{Binding Devices.ShareHeadset, Mode=TwoWay}"
+                                  ToolTip.Tip="On: games, Teams and anything else set to this device directly still play. Off: Voicemeeter takes the device for itself — the shortest delay when you monitor your guitar, but apps pointed straight at it are silent."/>
                     </StackPanel>
                 </Grid>
 

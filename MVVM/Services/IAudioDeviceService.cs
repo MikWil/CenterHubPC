@@ -32,6 +32,13 @@ namespace CenterHubNew.MVVM.Services
         AudioEndpointRef? GetDefaultRecording();
         AudioEndpointRef? GetDefaultCommunicationsRecording();
 
+        /// <summary>
+        /// True when some app holds this playback device in exclusive mode (so nothing else can
+        /// play to it), false when it is free to share, null when it can't be determined.
+        /// Opens no audible stream.
+        /// </summary>
+        bool? IsPlaybackDeviceLocked(AudioEndpointRef device);
+
         /// <summary>Capture the four current default endpoints (by ID + name).</summary>
         AudioDeviceSnapshot CaptureSnapshot();
 

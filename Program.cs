@@ -6,8 +6,13 @@ namespace CenterHubNew
 {
     internal sealed class Program
     {
-        private const string MutexName = "CenterHubNew_SingleInstance_Mutex";
-        private const string ActivateEventName = "CenterHubNew_Activate_Event";
+        // CENTERHUB_DEV_INSTANCE=1 gives a development/test build its own single-instance scope, so
+        // it can run beside the installed app (used by tools/smoke-quiet.ps1 before a release).
+        private static readonly string InstanceScope =
+            Environment.GetEnvironmentVariable("CENTERHUB_DEV_INSTANCE") == "1" ? "_Dev" : "";
+
+        private static readonly string MutexName = "CenterHubNew_SingleInstance_Mutex" + InstanceScope;
+        private static readonly string ActivateEventName = "CenterHubNew_Activate_Event" + InstanceScope;
 
         private static Mutex? _mutex;
         private static bool _ownsMutex;

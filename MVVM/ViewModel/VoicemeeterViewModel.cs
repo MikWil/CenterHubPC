@@ -45,6 +45,12 @@ namespace CenterHubNew.MVVM.ViewModel
         [ObservableProperty] private bool monitorMicrophone;
         [ObservableProperty] private bool monitorGuitar;
 
+        /// <summary>
+        /// On (default): Banana shares the headphones, so apps pointed straight at them still play.
+        /// Off: Banana takes them exclusively — the shortest delay, but nothing else can use them.
+        /// </summary>
+        [ObservableProperty] private bool shareHeadset = true;
+
         [ObservableProperty] private bool guitarUnavailable;
         [ObservableProperty] private string guitarUnavailableText = "";
 
@@ -73,8 +79,12 @@ namespace CenterHubNew.MVVM.ViewModel
             _ = Task.Run(() =>
             {
                 var settings = _settingsService.Load().Settings;
-                var mics = _audio.GetRecordingDevices();
-                var monitors = _audio.GetPlaybackDevices();
+                // Never offer Voicemeeter's own virtual endpoints: picking one as the headphones (or
+                // the mic) routes Voicemeeter into itself — silence at best, a feedback loop at worst.
+                var mics = _audio.GetRecordingDevices()
+                    .Where(d => !AudioRoutingService.IsVoicemeeterDevice(d.Name)).ToList();
+                var monitors = _audio.GetPlaybackDevices()
+                    .Where(d => !AudioRoutingService.IsVoicemeeterDevice(d.Name)).ToList();
 
                 try
                 {
@@ -96,6 +106,7 @@ namespace CenterHubNew.MVVM.ViewModel
                             GuitarGainDb = settings.GuitarGainDb;
                             MonitorMicrophone = settings.MonitorMicrophone;
                             MonitorGuitar = settings.MonitorGuitar;
+                            ShareHeadset = settings.ShareMonitorDevice;
 
                             // "Boss Katana is unavailable" when a saved guitar can't be found.
                             if (SelectedGuitar is null && !string.IsNullOrWhiteSpace(settings.GuitarDeviceName))
@@ -172,6 +183,7 @@ namespace CenterHubNew.MVVM.ViewModel
                 GuitarDeviceName = SelectedGuitar?.Name,
                 MonitorDeviceId = SelectedMonitor?.Id,
                 MonitorDeviceName = SelectedMonitor?.Name,
+                ShareMonitorDevice = ShareHeadset,
                 MicGainDb = (float)MicGainDb,
                 GuitarGainDb = (float)GuitarGainDb,
                 MonitorMicrophone = MonitorMicrophone,
@@ -199,6 +211,28 @@ namespace CenterHubNew.MVVM.ViewModel
         partial void OnGuitarGainDbChanged(double value) => Persist();
         partial void OnMonitorMicrophoneChanged(bool value) => Persist();
         partial void OnMonitorGuitarChanged(bool value) => Persist();
+
+        partial void OnShareHeadsetChanged(bool value)
+        {
+            if (_isLoading || IsDisposed) return;
+            Persist();
+
+            // Take effect now rather than at the next preset switch: reopen the headphones the new way.
+            var name = SelectedMonitor?.Name;
+            if (string.IsNullOrWhiteSpace(name)) return;
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    if (_voicemeeter.RefreshStatus() != VoicemeeterStatus.Running) return;
+                    if (_voicemeeter.SetMonitorDevice(name, value))
+                        ToastService.Instance.Info(value
+                            ? "Headset is shared — other apps can play to it too."
+                            : "Headset is exclusive to Voicemeeter — lowest delay.");
+                }
+                catch (Exception ex) { Logger?.LogWarning(ex, "Could not switch the headphone sharing mode"); }
+            });
+        }
         partial void OnIsModeEnabledChanged(bool value) => OnPropertyChanged(nameof(EnableButtonText));
 
         // ─────────────────── Commands ───────────────────

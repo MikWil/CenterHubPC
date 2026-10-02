@@ -45,6 +45,9 @@ namespace CenterHubNew.MVVM.Services
         VoicemeeterKind Kind { get; }
         bool IsConnected { get; }
 
+        /// <summary>Why the last start / restart failed, in words fit for the user (null when it succeeded).</summary>
+        string? LastError { get; }
+
         /// <summary>Re-detect install / running state (and edition when running).</summary>
         VoicemeeterStatus RefreshStatus();
 
@@ -65,12 +68,33 @@ namespace CenterHubNew.MVVM.Services
         /// <summary>Fully close and relaunch the Voicemeeter application — recovers a hung/misbehaving Banana.</summary>
         Task<bool> RestartApplicationAsync(CancellationToken ct = default);
 
+        /// <summary>
+        /// Close Voicemeeter (politely, by force if it is hung) so it lets go of the audio devices —
+        /// it holds the headphones exclusively while it runs. True when no engine is left running.
+        /// </summary>
+        Task<bool> ShutdownAsync(CancellationToken ct = default);
+
         /// <summary>Bring up the Voicemeeter Banana window.</summary>
         void OpenUi();
 
         // ── strongly-typed parameters ──
         bool SetHardwareInput(int stripIndex, string deviceName);
-        bool SetMonitorDevice(string deviceName);
+        /// <summary>
+        /// Put a device on the A1 (headphone) output. <paramref name="shared"/> = true uses Banana's
+        /// MME driver, which leaves the device usable by other apps; false uses WDM, which takes it
+        /// exclusively (lowest delay, but nothing else can play to it).
+        /// </summary>
+        bool SetMonitorDevice(string deviceName, bool shared);
+
+        /// <summary>
+        /// The device Banana actually has on its A1 (headphone) output: "" when A1 has no device,
+        /// null when it can't be read (not running). Setting a device is only a request — read it
+        /// back to know it was opened.
+        /// </summary>
+        string? GetMonitorDeviceName();
+
+        /// <summary>The device Banana actually has on a hardware input strip ("" = none, null = unknown).</summary>
+        string? GetHardwareInputName(int stripIndex);
         bool SetStripGain(int stripIndex, float gainDb);
         bool SetStripMute(int stripIndex, bool mute);
         bool SetRoute(int stripIndex, VoicemeeterBus bus, bool on);

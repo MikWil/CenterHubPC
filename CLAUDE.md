@@ -111,13 +111,23 @@ Defined in `App.axaml` under `<Application.DataTemplates>`. Each ViewModel type 
 - Draggable, snaps to screen corners
 - Opened via File menu or global hotkey (Alt+F9 default)
 
+## Metronome / Drum Machine
+
+The Metronome page is a click **and** a BeatBuddy-style drum machine, all synthesized (no sample files):
+- `DrumMachineEngine` (an NAudio `ISampleProvider`) is the sample-accurate sequencer + mixer: 48 ticks per beat, song state machine (count-in → intro → part grooves → fills → transition to next part → outro + final hit), click layer (accents, subdivisions), gap trainer. It has no UI or device dependency — unit tests render it offline.
+- `DrumKit` synthesizes every drum voice and click sound (Rock / Electro / Jazz kits); deterministic.
+- `DrumStyleLibrary` (+ `.RockPop.cs`, `.Groove.cs`) holds the styles, written as drum tabs — see `DrumBar.Parse` in `MVVM/Models/DrumModels.cs`. Every bar of a style must have `Beats × StepsPerBeat` steps; `DrumStyleLibrary.Validate` (unit-tested) catches typos. Fills keep the groove for the first half of the bar because they can be triggered mid-bar.
+- `MetronomeService` owns the audio output (WASAPI shared/event, WaveOut fallback; opened on demand, closed ~1.5 s after going idle) and delivers the engine's position events on the UI thread *when they become audible*, so the lights match the sound.
+- Settings persist in `%AppData%\CenterHub\metronome.json` via `MetronomeSettingsService`.
+- Hotkeys (unbound by default): Start/Stop, Drum Fill, Next Song Part, Tap Tempo — a USB footswitch that sends keys works as a pedal.
+
 ## Key Conventions
 
 - Version bumped in `CenterHubNew.csproj` → `<Version>`
 - User data and settings live in `%AppData%\CenterHub\*.json` — never next to the exe (Program Files is read-only for users and wiped by MSI upgrades). Write with `AtomicFile.WriteAllText`; on a JSON parse failure call `AtomicFile.QuarantineCorrupt` before falling back to defaults
 - Toast notifications via the singleton `ToastService.Instance` (shown bottom-right)
 - GlobalHotkeyService requires a window HWND — initialized after MainWindow loads. Map keys with `GlobalHotkeyService.KeyToVirtualKey` (Avalonia `Key` is not a Win32 VK code)
-- View-models that global hotkeys act on (Sound, Standing, Clipboard, AutoClicker, Soundboard) are **singletons**
+- View-models that global hotkeys act on (Sound, Standing, Clipboard, AutoClicker, Soundboard, Metronome) are **singletons**
 - Single-instance enforced in `Program.Main` via `Mutex` ("CenterHubNew_SingleInstance_Mutex"); a second launch signals the first to restore its window
 - Minimize hides to the tray (`Hide()`); closing the main window quits (`ShutdownMode.OnMainWindowClose`), no confirmation
 - Build/installer via `build-installer.ps1`
@@ -127,4 +137,6 @@ Defined in `App.axaml` under `<Application.DataTemplates>`. Each ViewModel type 
 - Unit tests: `dotnet test tests/CenterHubNew.Tests/CenterHubNew.Tests.csproj` (xUnit; fakes in `Fakes.cs`; never touch the real `%AppData%`)
 - UI regression: `powershell -ExecutionPolicy Bypass -File tools/regression.ps1` — drives the real app via UI Automation and asserts behaviour (navigation, Notes autosave, tray, single instance, close)
 - Page screenshots: `tools/ui-smoke.ps1`
+- Headless (no window, no sound — safe while the PC is in use): `dotnet run --project tools/page-render -- <outDir>` renders the Metronome page to PNGs; add `audio` to check beat timing on the real audio device at volume 0, or `com-probe` to check audio-device enumeration
+- Real Voicemeeter start/restart/crash/hang recovery: `dotnet run --project tools/page-render -- <outDir> voicemeeter` — **restarts Banana repeatedly (audio drops)**; only when asked
 - Builds must stay at 0 warnings. See `.claude/skills/centerhub-dev/SKILL.md` for gotchas and the release checklist.

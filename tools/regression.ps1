@@ -9,7 +9,10 @@
 # Your quick-notes.json is backed up before and restored after. Exit code = failures.
 
 param(
-    [string]$Exe = "$PSScriptRoot\..\bin\x64\Debug\net10.0-windows10.0.22621.0\CenterHubNew.exe"
+    [string]$Exe = "$PSScriptRoot\..\bin\x64\Debug\net10.0-windows10.0.22621.0\CenterHubNew.exe",
+    # Opt-in: closes your running Voicemeeter Banana, then checks CenterHub can start it
+    # again from the Sound page (regression for the stale-login "Could not start" bug).
+    [switch]$Voicemeeter
 )
 
 $ErrorActionPreference = 'Stop'
@@ -149,6 +152,29 @@ try {
         -not ($summary -like '*Desktop & Discord*')
     }
 
+    if ($Voicemeeter) {
+        # Banana closed while CenterHub is connected → applying a preset must relaunch it.
+        Get-Process voicemeeter* -ErrorAction SilentlyContinue | Stop-Process -Force
+        Start-Sleep -Seconds 3   # let the keep-alive notice the engine is gone
+        # The preset chips are the buttons on the same row as the "PRESETS" label.
+        $label = Texts $win | Where-Object { $_.Current.Name -eq 'PRESETS' } | Select-Object -First 1
+        $ly = $label.Current.BoundingRectangle.Y; $lx = $label.Current.BoundingRectangle.X
+        $chipCond = New-Object System.Windows.Automation.PropertyCondition($AE::ControlTypeProperty, $CT::Button)
+        $chip = @($win.FindAll('Descendants', $chipCond) |
+                  Where-Object { [Math]::Abs($_.Current.BoundingRectangle.Y + $_.Current.BoundingRectangle.Height / 2 - ($ly + $label.Current.BoundingRectangle.Height / 2)) -lt 20 -and
+                                 $_.Current.BoundingRectangle.X -gt $lx } |
+                  Sort-Object { $_.Current.BoundingRectangle.X })[0]
+        Click-Element $win $chip
+        $sw = [Diagnostics.Stopwatch]::StartNew(); $started = $false; $failedToast = $false
+        while ($sw.Elapsed.TotalSeconds -lt 25 -and -not $started) {
+            Start-Sleep -Milliseconds 500
+            $failedToast = $failedToast -or (@(Texts $win | Where-Object { $_.Current.Name -like '*Could not start*' }).Count -gt 0)
+            $started = @(Get-Process voicemeeter* -ErrorAction SilentlyContinue).Count -gt 0 -and
+                       @(Texts $win | Where-Object { $_.Current.Name -like 'Applied*' }).Count -gt 0
+        }
+        Check 'Voicemeeter: applying a preset relaunches a closed Banana' { $started -and -not $failedToast }
+    }
+
     # Notes: autosave + persistence across switching notes.
     Click-Element $win (Nav-Item $win 'Notes'); Wait-Heading $win 'Notes' | Out-Null
     $btnCond = New-Object System.Windows.Automation.AndCondition(
@@ -187,6 +213,10 @@ try {
 }
 finally {
     Procs | Stop-Process -Force -ErrorAction SilentlyContinue
+    if ($Voicemeeter -and -not (Get-Process voicemeeter* -ErrorAction SilentlyContinue)) {
+        $vm = 'C:\Program Files (x86)\VB\Voicemeeter\voicemeeterpro.exe'
+        if (Test-Path $vm) { Start-Process $vm }   # never leave the user's Banana closed
+    }
     Start-Sleep -Milliseconds 500
     if (Test-Path $notesBackup) { Move-Item $notesBackup $notesFile -Force }
     elseif (Test-Path $notesFile) { Remove-Item $notesFile -Force }

@@ -420,7 +420,7 @@
                                            HorizontalAlignment="Center" VerticalAlignment="Center"
                                            Foreground="{StaticResource AccentBrush}"/>
                             </Border>
-                            <TextBlock Text="Restore audio?"
+                            <TextBlock Text="Voicemeeter isn't running"
                                        FontSize="18" FontWeight="SemiBold"
                                        Foreground="{StaticResource TextPrimaryBrush}"
                                        VerticalAlignment="Center"/>
@@ -432,12 +432,15 @@
                                    Margin="0,0,0,22"/>
 
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
-                            <Button Content="Keep current" Classes="secondary"
+                            <Button Content="Not now" Classes="secondary"
                                     Padding="18,10"
                                     Command="{Binding DismissAudioRestoreCommand}"/>
-                            <Button Content="Restore" Classes="primary"
+                            <Button Content="Use previous devices" Classes="secondary"
                                     Padding="18,10"
                                     Command="{Binding RestoreAudioNowCommand}"/>
+                            <Button Content="Start Voicemeeter" Classes="primary"
+                                    Padding="18,10"
+                                    Command="{Binding StartVoicemeeterNowCommand}"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>

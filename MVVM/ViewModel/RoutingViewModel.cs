@@ -127,6 +127,11 @@ namespace CenterHubNew.MVVM.ViewModel
         [ObservableProperty] private string statusText = "Checking…";
         [ObservableProperty] private bool isBusy;
 
+        /// <summary>Banana is bypassed: closed, with the headset and mic as the Windows defaults.</summary>
+        [ObservableProperty] private bool isDirect;
+
+        partial void OnIsDirectChanged(bool value) => HighlightChips();
+
         // ── Setup health check ──
         [ObservableProperty] private ObservableCollection<AudioCheck> checks = new();
         [ObservableProperty] private bool isDiagnosticsOpen;
@@ -159,7 +164,13 @@ namespace CenterHubNew.MVVM.ViewModel
 
         private void RebuildChips()
         {
-            PresetChips = new ObservableCollection<PresetChip>(_presets.Select(p => new PresetChip(p) { IsActive = p.Id == _current.Id }));
+            PresetChips = new ObservableCollection<PresetChip>(_presets.Select(p => new PresetChip(p) { IsActive = !IsDirect && p.Id == _current.Id }));
+        }
+
+        /// <summary>In direct mode no preset is in effect, so none is lit.</summary>
+        private void HighlightChips()
+        {
+            foreach (var c in PresetChips) c.IsActive = !IsDirect && c.Id == _current.Id;
         }
 
         private void LoadSourcesFor(AudioRoutingPreset preset)
@@ -230,14 +241,17 @@ namespace CenterHubNew.MVVM.ViewModel
             {
                 var installed = _routing.IsInstalled;
                 var running = installed && _routing.RefreshStatus();
+                var direct = installed && !running && _routing.IsDirectMode();
                 try
                 {
                     Dispatcher.UIThread.Post(() =>
                     {
                         if (IsDisposed) return;
                         IsInstalled = installed;
+                        IsDirect = direct;
                         StatusText = !installed ? "Banana: Not installed"
                                    : running ? "Banana: Running"
+                                   : direct ? "Direct — Banana off"
                                    : "Banana: Stopped";
                     });
                 }
@@ -253,7 +267,8 @@ namespace CenterHubNew.MVVM.ViewModel
             if (preset is null) return;
 
             _current = preset;
-            foreach (var c in PresetChips) c.IsActive = c.Id == preset.Id;
+            IsDirect = false;
+            HighlightChips();
             LoadSourcesFor(preset);
             RecomputeSummaries();
 
@@ -275,6 +290,36 @@ namespace CenterHubNew.MVVM.ViewModel
             {
                 Logger?.LogError(ex, "Apply preset failed");
                 ToastService.Instance.Error($"Routing error: {ex.Message}");
+            }
+            finally { IsBusy = false; }
+        }
+
+        /// <summary>
+        /// Bypass Banana: close it (it locks the headset while it runs) and make the headset and
+        /// its mic the Windows defaults — for apps that talk to the headset themselves, e.g. Teams.
+        /// </summary>
+        [RelayCommand]
+        private async Task GoDirect()
+        {
+            if (IsBusy || IsDisposed) return;
+
+            IsBusy = true;
+            try
+            {
+                var result = await _routing.BypassAsync().ConfigureAwait(true);
+                if (result.Success)
+                {
+                    IsDirect = true;
+                    ToastService.Instance.Success(result.Message);
+                }
+                else ToastService.Instance.Error(result.Message);
+                RefreshState();
+                _ = ReloadChecksAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "Direct mode failed");
+                ToastService.Instance.Error($"Couldn't switch to direct mode: {ex.Message}");
             }
             finally { IsBusy = false; }
         }
