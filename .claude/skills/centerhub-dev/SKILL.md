@@ -75,6 +75,10 @@ something "works", and when releasing.
    foreground) and screenshots with `PrintWindow`. Read the PNGs.
 3. Copy `installer/bin/x64/Release/CenterHub.msi` → `CenterHub-vX.Y.Z.msi` (release asset name).
 4. Stage everything **except** `AGENTS.md` (untracked dev-guide copy), commit `Release vX.Y.Z — …`.
+   Commit with `git commit -F <message file>` (or from the Bash tool): Windows PowerShell 5.1
+   mangles double quotes inside a `-m` here-string, the commit fails, and anything chained after it
+   with `;` still runs — in v6.1.0 that tagged and pushed the *previous* commit. Run commit, tag
+   and push as separate steps and check `git rev-parse vX.Y.Z^{commit}` equals `HEAD` before pushing.
 5. `git tag -a vX.Y.Z`, push `master` and the tag.
 6. `gh release create vX.Y.Z --title "vX.Y.Z — …" --notes-file … <msi> <zip> <portable zip>`.
 7. Existing installs auto-update from GitHub Releases — only publish what passed tests.
