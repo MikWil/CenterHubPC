@@ -28,7 +28,7 @@ namespace CenterHubNew.MVVM.Services
     /// (same slot on Win10 and Win11 — only the activation IID differs). Strings cross
     /// as hand-made HSTRINGs; everything else as IntPtr/int/uint.
     /// </summary>
-    public sealed class PerAppAudioService : IDisposable
+    public class PerAppAudioService : IDisposable
     {
         private readonly ILogger<PerAppAudioService>? _logger;
 
@@ -93,7 +93,7 @@ namespace CenterHubNew.MVVM.Services
         /// Prefer the captured PID only if it still belongs to a same-named audio session;
         /// otherwise fall back to any current audio session with that process name.
         /// </summary>
-        public int? ResolveLivePid(int preferredPid, string processName)
+        public virtual int? ResolveLivePid(int preferredPid, string processName)
         {
             if (string.IsNullOrWhiteSpace(processName)) return null;
             var live = GetAudioApps();
@@ -118,7 +118,13 @@ namespace CenterHubNew.MVVM.Services
 
         // ─────────────────── Set / clear per-app output ───────────────────
 
-        public bool SetAppRenderDevice(int processId, string mmDeviceId)
+        /// <summary>
+        /// WARNING: the underlying interface is undocumented and its method table moves between
+        /// Windows builds. On build 26200 this very call was measured to change Windows' MAIN
+        /// output device instead of the app's, while reporting success. Callers must check what it
+        /// actually did (see <c>AudioRoutingService.AssignAppToSlot</c>).
+        /// </summary>
+        public virtual bool SetAppRenderDevice(int processId, string mmDeviceId)
         {
             if (string.IsNullOrWhiteSpace(mmDeviceId)) return false;
             return SetPersisted(processId, mmDeviceId);
@@ -202,6 +208,7 @@ namespace CenterHubNew.MVVM.Services
 
         public void Dispose()
         {
+            GC.SuppressFinalize(this);
             if (_factory != IntPtr.Zero)
             {
                 try { Marshal.Release(_factory); } catch { }

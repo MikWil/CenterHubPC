@@ -19,6 +19,12 @@ namespace CenterHubNew.MVVM.Services
 
         /// <summary>Id of the preset currently applied (for restoring board selection).</summary>
         public string? ActivePresetId { get; set; }
+
+        /// <summary>
+        /// Windows build number on which the in-app "send an app to a slot" call was caught moving
+        /// Windows' MAIN output instead of the app's (0 = never). The picker stays off on that build.
+        /// </summary>
+        public int InAppAssignBrokenOnBuild { get; set; }
     }
 
     /// <summary>
@@ -115,6 +121,13 @@ namespace CenterHubNew.MVVM.Services
             var state = Load();
             state.Presets = presets;
             state.ActivePresetId = activeId;
+            Save(state);
+        }
+
+        public void SetInAppAssignBrokenOnBuild(int build)
+        {
+            var state = Load();
+            state.InAppAssignBrokenOnBuild = build;
             Save(state);
         }
 

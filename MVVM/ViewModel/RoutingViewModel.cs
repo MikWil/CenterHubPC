@@ -47,14 +47,38 @@ namespace CenterHubNew.MVVM.ViewModel
         public ObservableCollection<AudioAppInfo> Apps { get; }
         [ObservableProperty] private AudioAppInfo? selectedApp;
 
+        /// <summary>
+        /// Whether the "Send an app here…" picker is offered. Off on Windows builds where moving an
+        /// app from inside CenterHub doesn't work (there it moved Windows' main output instead).
+        /// </summary>
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(WindowsButtonText))]
+        [NotifyPropertyChangedFor(nameof(SlotHint))]
+        private bool showAppPicker;
+
+        public string WindowsButtonText => ShowAppPicker ? "…or in Windows" : "Send an app here (opens Windows)…";
+
+        public string SlotHint
+        {
+            get
+            {
+                var target = $"set that app’s own output to “{WindowsPlaybackName}” — not the main Output device at the top";
+                return ShowAppPicker
+                    ? $"Only apps you send here use this slot. Pick one above; if it doesn’t move, use “…or in Windows” and {target}."
+                    : $"Only apps you send here use this slot. In Windows, find the app in the list and {target}.";
+            }
+        }
+
         private readonly Action<RoutingSourceRow>? _onChanged;
         private readonly Func<AudioSourceKind, AudioAppInfo, bool>? _assignApp;
 
         public RoutingSourceRow(
             AudioSource src, AudioSourceRoute? route, Action<RoutingSourceRow>? onChanged,
             System.Collections.Generic.IReadOnlyList<AudioAppInfo>? apps = null,
-            Func<AudioSourceKind, AudioAppInfo, bool>? assignApp = null)
+            Func<AudioSourceKind, AudioAppInfo, bool>? assignApp = null,
+            bool canPickApp = true)
         {
+            showAppPicker = src.IsVirtualApp && assignApp is not null && canPickApp;
             Kind = src.Kind;
             Icon = src.Icon;
             IsVirtualApp = src.IsVirtualApp;
@@ -86,7 +110,7 @@ namespace CenterHubNew.MVVM.ViewModel
             if (_assignApp(Kind, value))
                 ToastService.Instance.Success($"{value.DisplayName} → {DisplayName}");
             else
-                ToastService.Instance.Warning($"Couldn't set {value.DisplayName} automatically on this Windows build — use \"Assign app in Windows…\" instead.");
+                ToastService.Instance.Warning($"CenterHub can't move {value.DisplayName} on this Windows build — use the Windows button on the slot instead.");
         }
 
         public AudioSourceRoute ToRoute() => new()
@@ -184,7 +208,7 @@ namespace CenterHubNew.MVVM.ViewModel
                 {
                     var route = preset.Routes.FirstOrDefault(r => r.Kind == src.Kind);
                     return src.IsVirtualApp
-                        ? new RoutingSourceRow(src, route, OnRowChanged, _apps, AssignAppToSlot)
+                        ? new RoutingSourceRow(src, route, OnRowChanged, _apps, AssignAppToSlot, _routing.CanAssignAppsInApp)
                         : new RoutingSourceRow(src, route, OnRowChanged);
                 });
                 Sources = new ObservableCollection<RoutingSourceRow>(rows);
@@ -199,7 +223,14 @@ namespace CenterHubNew.MVVM.ViewModel
         }
 
         private bool AssignAppToSlot(AudioSourceKind kind, AudioAppInfo app)
-            => _routing.AssignAppToSlot(app, kind);
+        {
+            bool ok = _routing.AssignAppToSlot(app, kind);
+
+            // The attempt may have just shown that this Windows build can't do it: take the picker away.
+            if (!ok && !_routing.CanAssignAppsInApp)
+                foreach (var row in Sources) row.ShowAppPicker = false;
+            return ok;
+        }
 
         [RelayCommand]
         private void RefreshApps()

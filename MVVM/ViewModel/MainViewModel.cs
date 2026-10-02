@@ -130,6 +130,7 @@ namespace CenterHubNew.MVVM.ViewModel
             }
 
             CheckInterruptedVoicemeeterSession();
+            GuardDesktopOutput();
 
             Logger?.LogInformation("MainViewModel initialized");
         }
@@ -173,6 +174,36 @@ namespace CenterHubNew.MVVM.ViewModel
                 }
             });
         }
+
+        /// <summary>
+        /// Windows' main output must not sit on an app slot (everything on the PC would then go
+        /// wherever that slot is routed — e.g. to Discord). The routing service corrects it whenever
+        /// the default device changes; this also checks once at startup and tells the user.
+        /// </summary>
+        private void GuardDesktopOutput()
+        {
+            if (_routing is null) return;
+
+            _routing.DesktopOutputRestored += OnDesktopOutputRestored;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    // Banana may still be starting alongside us at sign-in.
+                    for (int i = 0; i < 15 && !IsDisposed; i++)
+                    {
+                        if (_routing.RefreshStatus()) break;
+                        await Task.Delay(1000).ConfigureAwait(false);
+                    }
+                    if (!IsDisposed) await _routing.KeepDesktopOutputAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex) { Logger?.LogWarning(ex, "Startup check of Windows' main output failed"); }
+            });
+        }
+
+        private void OnDesktopOutputRestored(string slotDevice) =>
+            ToastService.Instance.Warning(
+                $"Windows was playing everything into an app slot ({slotDevice}), so others could hear all your apps. Moved it back to Desktop & Discord.");
 
         /// <summary>Bring routing back: relaunch Banana and reapply the active Sound preset.</summary>
         [RelayCommand]
@@ -625,6 +656,8 @@ namespace CenterHubNew.MVVM.ViewModel
             {
                 if (_updateService is not null)
                     _updateService.UpdateChanged -= OnUpdateChanged;
+                if (_routing is not null)
+                    _routing.DesktopOutputRestored -= OnDesktopOutputRestored;
 
                 // Dispose each page independently: one throwing Dispose used to skip the rest
                 // (including Notes, whose Dispose saves the open note). Notes goes first.

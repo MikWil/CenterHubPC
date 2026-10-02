@@ -42,6 +42,82 @@ namespace CenterHubNew.MVVM.Services
             _store = store;
             _perApp = perApp;
             _logger = logger;
+
+            // If Windows' main output ever lands on an app slot, put it back (see KeepDesktopOutputAsync).
+            _audio.DefaultPlaybackChanged += OnDefaultPlaybackChanged;
+        }
+
+        // ─────────────────── Windows' main output must never be an app slot ───────────────────
+
+        /// <summary>
+        /// Raised (background thread) after CenterHub moved Windows' main output off an app slot.
+        /// The argument names the slot it was on, e.g. "Voicemeeter AUX Input".
+        /// </summary>
+        public event Action<string>? DesktopOutputRestored;
+
+        /// <summary>
+        /// A slot input (AUX, VAIO3, VB-Cable) carries only the apps the user sent there, and may
+        /// be routed to "Others". If Windows' MAIN output points at one, every app on the PC plays
+        /// into that slot — a browser tab ends up in Discord without anyone having assigned it.
+        /// </summary>
+        public static bool IsSlotInput(string? deviceName)
+        {
+            if (string.IsNullOrEmpty(deviceName)) return false;
+            if (deviceName.IndexOf(VbCableRenderName, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            return IsVoicemeeterDevice(deviceName)
+                && !deviceName.StartsWith(VaioInputName, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// While Banana is routing, make sure Windows' main output is "Voicemeeter Input" (the
+        /// Desktop &amp; Discord row, which never reaches Others) and not an app slot. Returns true
+        /// when it had to be moved. Leaves a real device (headset, direct mode) alone.
+        /// </summary>
+        public async Task<bool> KeepDesktopOutputAsync(System.Threading.CancellationToken ct = default)
+        {
+            await _applyGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                if (!_vm.IsInstalled || _vm.RefreshStatus() != VoicemeeterStatus.Running) return false;
+
+                var stray = _audio.GetDefaultPlayback()?.Name;
+                if (!IsSlotInput(stray)) return false;
+
+                // Move the communications default too only if it has strayed the same way.
+                bool commsToo = IsSlotInput(_audio.GetDefaultCommunicationsPlayback()?.Name);
+                if (!await _audio.SetDefaultPlaybackByNameAsync(VaioInputName, commsToo).ConfigureAwait(false))
+                {
+                    _logger?.LogWarning("Windows' main output is the app slot '{Slot}' and could not be moved back", stray);
+                    return false;
+                }
+
+                _logger?.LogWarning("Windows' main output was the app slot '{Slot}' — moved back to {Desktop}", stray, VaioInputName);
+                try { DesktopOutputRestored?.Invoke(stray!); } catch { /* a listener's problem */ }
+                return true;
+            }
+            finally { _applyGate.Release(); }
+        }
+
+        private int _defaultCheckQueued;
+
+        private void OnDefaultPlaybackChanged()
+        {
+            // Collapse a burst of notifications (Windows sends one per role) into one check.
+            if (System.Threading.Interlocked.Exchange(ref _defaultCheckQueued, 1) == 1) return;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(500).ConfigureAwait(false);
+                    System.Threading.Interlocked.Exchange(ref _defaultCheckQueued, 0);
+                    await KeepDesktopOutputAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    System.Threading.Interlocked.Exchange(ref _defaultCheckQueued, 0);
+                    _logger?.LogWarning(ex, "Checking Windows' main output failed");
+                }
+            });
         }
 
         public bool IsInstalled => _vm.IsInstalled;
@@ -506,6 +582,14 @@ namespace CenterHubNew.MVVM.Services
             bool recOk = rec?.Name?.IndexOf(SendRecordingName, StringComparison.OrdinalIgnoreCase) >= 0;
             if (playOk && recOk)
                 checks.Add(new AudioCheck { Title = "Windows audio routing", Status = AudioCheckStatus.Ok, Detail = "Windows output and mic go through Voicemeeter." });
+            else if (IsSlotInput(play?.Name))
+                checks.Add(new AudioCheck
+                {
+                    Title = "Windows audio routing",
+                    Status = AudioCheckStatus.Error,
+                    Detail = $"Windows is playing EVERYTHING into an app slot (\"{play!.Name}\"). If that slot is sent to Others, they hear all your apps. Apply routing to move it back.",
+                    Fix = AudioCheckFix.ReapplyRouting, FixLabel = "Apply routing"
+                });
             else
                 checks.Add(new AudioCheck
                 {
@@ -635,6 +719,8 @@ namespace CenterHubNew.MVVM.Services
         /// </summary>
         public bool AssignAppToSlot(AudioAppInfo app, AudioSourceKind slotKind)
         {
+            if (!CanAssignAppsInApp) return false;
+
             var src = GetAvailableSources().FirstOrDefault(s => s.Kind == slotKind);
             if (src?.WindowsPlaybackName is not { } name) return false;
 
@@ -652,11 +738,76 @@ namespace CenterHubNew.MVVM.Services
                 _logger?.LogWarning("{App} has no live audio session to route", app.DisplayName);
                 return false;
             }
-            return _perApp.SetAppRenderDevice(livePid.Value, dev.Id);
+            var mainBefore = _audio.GetDefaultPlayback();
+            bool ok = _perApp.SetAppRenderDevice(livePid.Value, dev.Id);
+
+            // Don't take the call's word for it. On Windows build 26200 it "succeeds" while moving
+            // Windows' MAIN output to the slot — so every app on the PC plays into the slot and, if
+            // the slot is sent to Others, into Discord. Detect that, undo it, and stop using the
+            // call on this build.
+            if (MainOutputMoved(mainBefore))
+            {
+                int build = WindowsBuild;
+                _logger?.LogError("Per-app assignment moved Windows' main output on build {Build}; disabling it", build);
+                _inAppAssignBroken = true;
+                try { _store.SetInAppAssignBrokenOnBuild(build); } catch { /* still disabled for this session */ }
+
+                var back = IsSlotInput(mainBefore!.Name) ? null : mainBefore;
+                bool restored = back is not null
+                    ? _audio.SetDefaultPlaybackAsync(back, communicationsToo: false).GetAwaiter().GetResult()
+                    : _audio.SetDefaultPlaybackByNameAsync(VaioInputName, communicationsToo: false).GetAwaiter().GetResult();
+                if (!restored) _logger?.LogWarning("Could not put Windows' main output back after the failed per-app assignment");
+                return false;
+            }
+
+            return ok;
+        }
+
+        private bool? _inAppAssignBroken;
+
+        /// <summary>
+        /// False when moving an app from inside CenterHub is known not to work on this Windows build
+        /// (it was caught moving Windows' main output instead). The app is then assigned in Windows.
+        /// </summary>
+        public bool CanAssignAppsInApp
+        {
+            get
+            {
+                _inAppAssignBroken ??= WindowsBuild >= FirstBuildWithMovedPolicyInterface
+                                       || _store.Load().InAppAssignBrokenOnBuild == WindowsBuild;
+                return !_inAppAssignBroken.Value;
+            }
+        }
+
+        /// <summary>
+        /// Measured on build 26200: the per-app call lands on a different method and moves Windows'
+        /// main output. Later builds are assumed to have the same layout (not verified) — the safe
+        /// assumption, since the Windows page always works and a wrong guess the other way leaks
+        /// every app's audio into a slot. Earlier builds are still checked each time they are used.
+        /// </summary>
+        private const int FirstBuildWithMovedPolicyInterface = 26200;
+
+        /// <summary>The running Windows build; tests set it.</summary>
+        internal int WindowsBuild { get; set; } = Environment.OSVersion.Version.Build;
+
+        /// <summary>Did Windows' main output change in the moments after the per-app call?</summary>
+        private bool MainOutputMoved(AudioEndpointRef? before)
+        {
+            if (before is null) return false;
+            for (int i = 0; i < 8; i++)
+            {
+                var now = _audio.GetDefaultPlayback();
+                if (now is not null && !string.Equals(now.Id, before.Id, StringComparison.OrdinalIgnoreCase)
+                                    && !string.Equals(now.Name, before.Name, StringComparison.OrdinalIgnoreCase))
+                    return true;
+                if (DeviceSettleDelay <= TimeSpan.Zero) break;   // tests: nothing to wait for
+                System.Threading.Thread.Sleep(50);
+            }
+            return false;
         }
 
         /// <summary>Revert an app to the Windows default output.</summary>
-        public bool ClearApp(int processId) => _perApp.ClearApp(processId);
+        public bool ClearApp(int processId) => CanAssignAppsInApp && _perApp.ClearApp(processId);
 
         /// <summary>Fallback: open Windows' per-app volume page (kept for troubleshooting).</summary>
         public void OpenAppVolumeSettings()

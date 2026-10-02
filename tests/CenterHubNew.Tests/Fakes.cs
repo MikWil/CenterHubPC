@@ -101,6 +101,14 @@ internal sealed class FakeAudio : IAudioDeviceService
     public bool? Locked;
     public bool? IsPlaybackDeviceLocked(AudioEndpointRef device) => Locked;
 
+    public event Action? DefaultPlaybackChanged;
+    /// <summary>Simulates the user (or Windows) changing the main output device.</summary>
+    public void ChangeDefaultPlayback(string name)
+    {
+        DefaultPlay = new AudioEndpointRef { Name = name };
+        DefaultPlaybackChanged?.Invoke();
+    }
+
     public IReadOnlyList<AudioDeviceInfo> GetPlaybackDevices() => Playback;
     public IReadOnlyList<AudioDeviceInfo> GetRecordingDevices() => Recording;
     public AudioEndpointRef? GetDefaultPlayback() => DefaultPlay;
@@ -126,10 +134,37 @@ internal sealed class FakeAudio : IAudioDeviceService
         return Task.FromResult(true);
     }
     public Task<bool> SetDefaultPlaybackByNameAsync(string nameSubstring, bool communicationsToo)
-        => Task.FromResult(Playback.Any(d => d.Name.Contains(nameSubstring, StringComparison.OrdinalIgnoreCase)));
+    {
+        var match = Playback.FirstOrDefault(d => d.Name.Contains(nameSubstring, StringComparison.OrdinalIgnoreCase));
+        if (match is null) return Task.FromResult(false);
+        DefaultPlay = new AudioEndpointRef { Id = match.Id, Name = match.Name };
+        return Task.FromResult(true);
+    }
     public Task<bool> SetDefaultRecordingByNameAsync(string nameSubstring, bool communicationsToo)
         => Task.FromResult(Recording.Any(d => d.Name.Contains(nameSubstring, StringComparison.OrdinalIgnoreCase)));
     public Task RestoreSnapshotAsync(AudioDeviceSnapshot snapshot) => Task.CompletedTask;
+}
+
+/// <summary>
+/// Stand-in for the undocumented per-app call. <see cref="MovesMainOutputTo"/> reproduces what
+/// Windows build 26200 does: report success while moving Windows' MAIN output to the slot.
+/// </summary>
+internal sealed class FakePerApp : PerAppAudioService
+{
+    private readonly FakeAudio _audio;
+    public string? MovesMainOutputTo;
+    public int Calls;
+
+    public FakePerApp(FakeAudio audio) => _audio = audio;
+
+    public override int? ResolveLivePid(int preferredPid, string processName) => preferredPid;
+
+    public override bool SetAppRenderDevice(int processId, string mmDeviceId)
+    {
+        Calls++;
+        if (MovesMainOutputTo is not null) _audio.DefaultPlay = new AudioEndpointRef { Id = mmDeviceId, Name = MovesMainOutputTo };
+        return true;
+    }
 }
 
 /// <summary>Routing service wired to fakes and a throwaway settings folder.</summary>
@@ -139,14 +174,17 @@ internal sealed class RoutingHarness : IDisposable
     public readonly FakeVoicemeeter Vm = new();
     public readonly FakeAudio Audio = new();
     public readonly VoicemeeterSettingsService Store;
+    public readonly FakePerApp PerApp;
     public readonly AudioRoutingService Routing;
 
     public RoutingHarness()
     {
         Store = new VoicemeeterSettingsService(null, Folder);
-        Routing = new AudioRoutingService(Vm, Audio, Store, new PerAppAudioService())
+        PerApp = new FakePerApp(Audio);
+        Routing = new AudioRoutingService(Vm, Audio, Store, PerApp)
         {
             DeviceSettleDelay = TimeSpan.Zero,   // no real hardware to wait for
+            WindowsBuild = 22631,                // a build where the per-app call is expected to work
         };
     }
 

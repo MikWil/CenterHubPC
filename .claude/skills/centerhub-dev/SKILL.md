@@ -183,9 +183,19 @@ something "works", and when releasing.
 - Discord must have Input **and** Output = Default or it ignores the routing (most "it doesn't
   work" reports). The setup check (`RunChecks`) reminds when Discord is running.
 - Per-app output (`AudioPolicyConfig`, EarTrumpet approach) needs classic COM on .NET 5+ (no
-  HSTRING/IInspectable marshaling) and its vtable shifts between Windows builds (broken on Insider
-  26200). Always keep the "…or in Windows" fallback. Re-resolve the app's PID by name at assign
+  HSTRING/IInspectable marshaling) and its vtable shifts between Windows builds. **On build 26200
+  the call returns success and moves Windows' MAIN output to the slot** (measured with
+  `tools/page-render … perapp-probe`) — every app then plays into the slot, and a slot sent to
+  Others put the user's Chrome tab in Discord. So: `CanAssignAppsInApp` is false on builds ≥ 26200
+  (picker hidden, Windows button only); on other builds `AssignAppToSlot` compares the main output
+  before/after, undoes a move and disables itself for that build (persisted). Never trust an
+  undocumented call's return value — check the effect. Re-resolve the app's PID by name at assign
   time — PIDs get recycled (Spotify's PID once routed Chrome).
+- **Windows' main output must never be a slot input** (AUX / VAIO3 / "Voicemeeter In N" / VB-Cable):
+  `AudioRoutingService.KeepDesktopOutputAsync` moves it back to "Voicemeeter Input" (the Desktop &
+  Discord row, never sent to Others) at startup and whenever `IAudioDeviceService.DefaultPlaybackChanged`
+  fires, while Banana runs; a real device (direct mode) is left alone. `default-guard` in
+  `tools/page-render` exercises it on the real machine.
 - Banana has only 2 virtual inputs; a 3rd app slot needs VB-Cable on spare strip 2.
 
 ## Metronome / drum machine

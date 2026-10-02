@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using CenterHubNew.MVVM.Models;
@@ -38,6 +39,12 @@ namespace CenterHubNew.MVVM.Services
         /// Opens no audible stream.
         /// </summary>
         bool? IsPlaybackDeviceLocked(AudioEndpointRef device);
+
+        /// <summary>
+        /// Raised (on a background thread) whenever Windows' default playback device changes —
+        /// by CenterHub, by the user in Windows' own sound settings, or by Windows itself.
+        /// </summary>
+        event Action? DefaultPlaybackChanged;
 
         /// <summary>Capture the four current default endpoints (by ID + name).</summary>
         AudioDeviceSnapshot CaptureSnapshot();

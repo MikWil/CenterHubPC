@@ -26,10 +26,44 @@ namespace CenterHubNew.MVVM.Services
         private static MMDeviceEnumerator? _comAnchor;
         private static readonly object _comAnchorGate = new();
 
+        private readonly DefaultDeviceListener _listener;
+
+        public event Action? DefaultPlaybackChanged;
+
         public AudioDeviceService(ILogger<AudioDeviceService>? logger = null)
         {
             _logger = logger;
             EnsureComAnchor(logger);
+
+            // Windows calls this back on its own threads; hop to the pool before telling anyone,
+            // because calling back into the audio APIs from inside the notification can deadlock.
+            _listener = new DefaultDeviceListener(() => Task.Run(() =>
+            {
+                try { DefaultPlaybackChanged?.Invoke(); }
+                catch (Exception ex) { _logger?.LogWarning(ex, "A default-device listener threw"); }
+            }));
+            try
+            {
+                lock (_comAnchorGate) _comAnchor?.RegisterEndpointNotificationCallback(_listener);
+            }
+            catch (Exception ex) { _logger?.LogWarning(ex, "Could not watch for default-device changes"); }
+        }
+
+        /// <summary>Forwards "the default playback device changed" from Windows; everything else is ignored.</summary>
+        private sealed class DefaultDeviceListener : NAudio.CoreAudioApi.Interfaces.IMMNotificationClient
+        {
+            private readonly Action _onRenderDefaultChanged;
+            public DefaultDeviceListener(Action onRenderDefaultChanged) => _onRenderDefaultChanged = onRenderDefaultChanged;
+
+            public void OnDefaultDeviceChanged(DataFlow flow, Role role, string defaultDeviceId)
+            {
+                if (flow == DataFlow.Render && role == Role.Multimedia) _onRenderDefaultChanged();
+            }
+
+            public void OnDeviceStateChanged(string deviceId, DeviceState newState) { }
+            public void OnDeviceAdded(string pwstrDeviceId) { }
+            public void OnDeviceRemoved(string deviceId) { }
+            public void OnPropertyValueChanged(string pwstrDeviceId, NAudio.CoreAudioApi.PropertyKey key) { }
         }
 
         private static void EnsureComAnchor(ILogger? logger)

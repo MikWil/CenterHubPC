@@ -215,6 +215,142 @@ public class AudioRoutingTests
         Assert.Equal(expected, check.Status);
     }
 
+    // ── Windows' main output must never be an app slot: every app would play into it, and a
+    //    slot sent to Others would put a browser tab in Discord without anyone assigning it ──
+
+    private const string AuxInput = "Voicemeeter AUX Input (VB-Audio Voicemeeter VAIO)";
+    private const string DesktopInput = "Voicemeeter Input (VB-Audio Voicemeeter VAIO)";
+
+    [Theory]
+    [InlineData(AuxInput, true)]
+    [InlineData("Voicemeeter VAIO3 Input (VB-Audio Voicemeeter VAIO)", true)]
+    [InlineData("Voicemeeter In 2 (VB-Audio Voicemeeter VAIO)", true)]
+    [InlineData("CABLE Input (VB-Audio Virtual Cable)", true)]
+    [InlineData(DesktopInput, false)]                       // the Desktop & Discord row: where it belongs
+    [InlineData("Högtalare (PRO X 2 LIGHTSPEED)", false)]   // a real device: the user's choice (direct mode)
+    [InlineData(null, false)]
+    public void App_slot_inputs_are_recognised(string? device, bool expected)
+        => Assert.Equal(expected, AudioRoutingService.IsSlotInput(device));
+
+    [Fact]
+    public async Task Main_output_on_an_app_slot_is_moved_back_to_the_desktop_input()
+    {
+        using var h = new RoutingHarness();
+        h.Audio.DefaultPlay = new AudioEndpointRef { Name = AuxInput };
+        string? reported = null;
+        h.Routing.DesktopOutputRestored += slot => reported = slot;
+
+        bool moved = await h.Routing.KeepDesktopOutputAsync();
+
+        Assert.True(moved);
+        Assert.Equal(DesktopInput, h.Audio.DefaultPlay?.Name);
+        Assert.Equal(AuxInput, reported);
+    }
+
+    [Theory]
+    [InlineData(DesktopInput)]            // already right
+    [InlineData("Headphones (USB)")]      // the user deliberately bypasses Banana
+    public async Task Main_output_is_left_alone_when_it_is_not_on_a_slot(string device)
+    {
+        using var h = new RoutingHarness();
+        h.Audio.DefaultPlay = new AudioEndpointRef { Name = device };
+
+        Assert.False(await h.Routing.KeepDesktopOutputAsync());
+        Assert.Equal(device, h.Audio.DefaultPlay?.Name);
+    }
+
+    [Fact]
+    public async Task Main_output_is_not_touched_while_banana_is_off()
+    {
+        using var h = new RoutingHarness();
+        h.Vm.StatusValue = VoicemeeterStatus.Stopped;
+        h.Audio.DefaultPlay = new AudioEndpointRef { Name = AuxInput };
+
+        Assert.False(await h.Routing.KeepDesktopOutputAsync());
+        Assert.Equal(AuxInput, h.Audio.DefaultPlay?.Name);
+    }
+
+    [Fact]
+    public async Task Changing_the_main_output_to_a_slot_is_corrected_automatically()
+    {
+        using var h = new RoutingHarness();
+        h.Audio.DefaultPlay = new AudioEndpointRef { Name = DesktopInput };
+        var restored = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        h.Routing.DesktopOutputRestored += slot => restored.TrySetResult(slot);
+
+        h.Audio.ChangeDefaultPlayback(AuxInput);   // e.g. picked as the main Output device in Windows
+
+        var done = await Task.WhenAny(restored.Task, Task.Delay(5000));
+        Assert.Same(restored.Task, done);
+        Assert.Equal(DesktopInput, h.Audio.DefaultPlay?.Name);
+    }
+
+    [Fact]
+    public void Setup_check_calls_out_a_main_output_that_sits_on_a_slot()
+    {
+        using var h = new RoutingHarness();
+        h.Audio.DefaultPlay = new AudioEndpointRef { Name = AuxInput };
+        h.Audio.DefaultRec = new AudioEndpointRef { Name = "Voicemeeter Out B1 (VB-Audio Voicemeeter VAIO)" };
+
+        var check = Assert.Single(h.Routing.RunChecks(), c => c.Title == "Windows audio routing");
+
+        Assert.Equal(AudioCheckStatus.Error, check.Status);
+        Assert.Equal(AudioCheckFix.ReapplyRouting, check.Fix);
+    }
+
+    // ── "Send an app here": the undocumented per-app call must be checked, not trusted ──
+
+    private static RoutingHarness HarnessWithAuxSlot()
+    {
+        var h = new RoutingHarness();
+        h.Audio.Playback.Add(new AudioDeviceInfo { Id = "p-aux", Name = AuxInput });
+        h.Audio.DefaultPlay = new AudioEndpointRef { Id = "p-vaio", Name = DesktopInput };
+        return h;
+    }
+
+    private static readonly AudioAppInfo Chrome = new() { ProcessId = 4242, DisplayName = "chrome" };
+
+    [Fact]
+    public void Sending_an_app_to_a_slot_works_when_windows_does_what_it_says()
+    {
+        using var h = HarnessWithAuxSlot();
+
+        Assert.True(h.Routing.AssignAppToSlot(Chrome, AudioSourceKind.AppAux));
+        Assert.Equal(DesktopInput, h.Audio.DefaultPlay?.Name);   // main output untouched
+        Assert.True(h.Routing.CanAssignAppsInApp);
+    }
+
+    [Fact]
+    public void Sending_an_app_to_a_slot_is_undone_and_disabled_when_it_moves_the_main_output()
+    {
+        using var h = HarnessWithAuxSlot();
+        h.PerApp.MovesMainOutputTo = AuxInput;   // Windows build 26200: "success", but the WHOLE PC now plays into the slot
+
+        bool ok = h.Routing.AssignAppToSlot(Chrome, AudioSourceKind.AppAux);
+
+        Assert.False(ok);
+        Assert.Equal(DesktopInput, h.Audio.DefaultPlay?.Name);   // put back: nothing leaks to Others
+        Assert.False(h.Routing.CanAssignAppsInApp);
+
+        // …and it is not attempted again — not in this session, not after a restart on the same build.
+        Assert.False(h.Routing.AssignAppToSlot(Chrome, AudioSourceKind.AppAux));
+        Assert.Equal(1, h.PerApp.Calls);
+        var afterRestart = new AudioRoutingService(h.Vm, h.Audio, new VoicemeeterSettingsService(null, h.Folder), h.PerApp) { WindowsBuild = 22631 };
+        Assert.False(afterRestart.CanAssignAppsInApp);
+    }
+
+    [Fact]
+    public void Sending_an_app_to_a_slot_is_never_tried_on_builds_known_to_move_the_main_output()
+    {
+        using var h = HarnessWithAuxSlot();
+        var onInsiderBuild = new AudioRoutingService(h.Vm, h.Audio, h.Store, h.PerApp) { WindowsBuild = 26200 };
+
+        Assert.False(onInsiderBuild.CanAssignAppsInApp);
+        Assert.False(onInsiderBuild.AssignAppToSlot(Chrome, AudioSourceKind.AppAux));
+        Assert.Equal(0, h.PerApp.Calls);
+        Assert.Equal(DesktopInput, h.Audio.DefaultPlay?.Name);
+    }
+
     // ── Sharing the headphones: Banana's exclusive (WDM) output locks them for every other app ──
 
     [Fact]

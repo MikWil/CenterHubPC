@@ -60,6 +60,10 @@ internal static class Program
         }
         if (mode == "com-probe")
             return Task.Run(ComProbe).GetAwaiter().GetResult();
+        if (mode == "perapp-probe")
+            return Task.Run(PerAppProbe).GetAwaiter().GetResult();
+        if (mode == "default-guard")
+            return Task.Run(DefaultGuardCheck).GetAwaiter().GetResult();
 
         AppBuilder.Configure<RenderApp>()
             .UseSkia()
@@ -72,6 +76,82 @@ internal static class Program
             case "audio-diag": DeviceRateDiag(); return 0;
             default: RenderMetronome(outDir); return 0;
         }
+    }
+
+    /// <summary>
+    /// Does the in-app "send an app to a slot" call do what it says on this Windows build — or does
+    /// it move Windows' MAIN output? Assigns this probe's own (silent) process, then puts things back.
+    /// </summary>
+    private static async Task<int> PerAppProbe()
+    {
+        Console.OutputEncoding = System.Text.Encoding.UTF8;
+        var audio = new AudioDeviceService();
+        using var perApp = new PerAppAudioService();
+        var before = audio.GetDefaultPlayback();
+        var commsBefore = audio.GetDefaultCommunicationsPlayback();
+        Console.WriteLine($"Windows build {Environment.OSVersion.Version.Build}");
+        Console.WriteLine($"main output before: {before?.Name}; communications: {commsBefore?.Name}");
+
+        // A target that is NOT the current main output, so a change is unmistakable.
+        var target = audio.GetPlaybackDevices().FirstOrDefault(d =>
+            d.Name.StartsWith("Voicemeeter VAIO3 Input", StringComparison.OrdinalIgnoreCase) && d.Id != before?.Id);
+        if (target is null) { Console.WriteLine("no spare device to test with"); return 1; }
+
+        bool reported = perApp.SetAppRenderDevice(Environment.ProcessId, target.Id);
+        await Task.Delay(1200);
+        var after = audio.GetDefaultPlayback();
+        var commsAfter = audio.GetDefaultCommunicationsPlayback();
+        Console.WriteLine($"assign this process -> \"{target.Name}\": call reported {(reported ? "success" : "failure")}");
+        Console.WriteLine($"main output after:  {after?.Name}; communications: {commsAfter?.Name}");
+
+        bool movedMain = after?.Id != before?.Id || commsAfter?.Id != commsBefore?.Id;
+        Console.WriteLine(movedMain
+            ? "RESULT: the call MOVED WINDOWS' MAIN OUTPUT — it is not a per-app assignment on this build"
+            : "RESULT: the main output did not move");
+
+        perApp.ClearApp(Environment.ProcessId);
+        if (movedMain)
+        {
+            if (before is not null) await audio.SetDefaultPlaybackAsync(before, communicationsToo: false);
+            Console.WriteLine($"restored main output: {audio.GetDefaultPlayback()?.Name}");
+        }
+        return 0;
+    }
+
+    /// <summary>
+    /// The real guard on the real machine: if Windows' main output sits on an app slot it is moved
+    /// to "Voicemeeter Input"; then the main output is deliberately put on the AUX slot to see the
+    /// guard move it back by itself. Ends with the main output on "Voicemeeter Input".
+    /// </summary>
+    private static async Task<int> DefaultGuardCheck()
+    {
+        Console.OutputEncoding = System.Text.Encoding.UTF8;
+        string temp = Path.Combine(Path.GetTempPath(), "CenterHubGuard-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(temp);
+
+        using var vm = new VoicemeeterService();
+        var audio = new AudioDeviceService();
+        var routing = new AudioRoutingService(vm, audio, new VoicemeeterSettingsService(null, temp), new PerAppAudioService());
+        var restored = new List<string>();
+        routing.DesktopOutputRestored += slot => { lock (restored) restored.Add(slot); };
+
+        Console.WriteLine($"Banana running: {routing.RefreshStatus()}");
+        Console.WriteLine($"main output now: {audio.GetDefaultPlayback()?.Name}");
+        bool moved = await routing.KeepDesktopOutputAsync();
+        Console.WriteLine($"guard moved it: {moved} -> {audio.GetDefaultPlayback()?.Name}");
+
+        Console.WriteLine("putting the main output on the AUX slot (what happened to you)...");
+        await audio.SetDefaultPlaybackByNameAsync("Voicemeeter AUX Input", communicationsToo: false);
+        var clock = Stopwatch.StartNew();
+        while (clock.ElapsedMilliseconds < 6000 && AudioRoutingService.IsSlotInput(audio.GetDefaultPlayback()?.Name))
+            await Task.Delay(100);
+        string? final = audio.GetDefaultPlayback()?.Name;
+        Console.WriteLine($"after {clock.ElapsedMilliseconds} ms: {final} (guard fired {restored.Count} time(s) in total)");
+
+        try { Directory.Delete(temp, true); } catch { }
+        bool ok = final?.StartsWith("Voicemeeter Input", StringComparison.OrdinalIgnoreCase) == true;
+        Console.WriteLine(ok ? "PASS" : "FAIL");
+        return ok ? 0 : 1;
     }
 
     /// <summary>Does device enumeration keep working after the default device has been switched? (changes nothing)</summary>

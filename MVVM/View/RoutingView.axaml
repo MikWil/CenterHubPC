@@ -205,6 +205,7 @@
                                             <!-- App assignment (own line, aligned) -->
                                             <StackPanel IsVisible="{Binding IsVirtualApp}" Orientation="Horizontal" Spacing="8">
                                                 <ComboBox MinWidth="180" Height="30" VerticalAlignment="Center"
+                                                          IsVisible="{Binding ShowAppPicker}"
                                                           PlaceholderText="Send an app here…"
                                                           ItemsSource="{Binding Apps}"
                                                           SelectedItem="{Binding SelectedApp}">
@@ -215,19 +216,22 @@
                                                     </ComboBox.ItemTemplate>
                                                 </ComboBox>
                                                 <Button Content="↻" Classes="secondary"
+                                                        IsVisible="{Binding ShowAppPicker}"
                                                         Height="30" Width="34" Padding="0" FontSize="14"
                                                         VerticalAlignment="Center"
                                                         ToolTip.Tip="Refresh the app list"
                                                         Command="{Binding $parent[ItemsControl].((viewmodel:RoutingViewModel)DataContext).RefreshAppsCommand}"/>
-                                                <Button Content="…or in Windows" Classes="secondary"
+                                                <Button Content="{Binding WindowsButtonText}" Classes="secondary"
                                                         Height="30" Padding="12,0" FontSize="11" VerticalAlignment="Center"
                                                         Command="{Binding $parent[ItemsControl].((viewmodel:RoutingViewModel)DataContext).OpenAppVolumeCommand}"
                                                         CommandParameter="{Binding}"/>
                                             </StackPanel>
+                                            <!-- MaxWidth: without it the row measures the hint on one line and
+                                                 pushes the whole board wider than the window. -->
                                             <TextBlock IsVisible="{Binding IsVirtualApp}" FontSize="10"
-                                                       TextWrapping="Wrap"
+                                                       TextWrapping="Wrap" MaxWidth="440" HorizontalAlignment="Left"
                                                        Foreground="{StaticResource TextMutedBrush}"
-                                                       Text="{Binding WindowsPlaybackName, StringFormat='Pick an app above. If it doesn’t move, use “…or in Windows” and set its output to “{0}”.'}"/>
+                                                       Text="{Binding SlotHint}"/>
                                         </StackPanel>
 
                                         <ToggleButton Grid.Column="1" Classes="route you" Content="You"
