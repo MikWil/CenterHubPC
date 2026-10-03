@@ -18,8 +18,29 @@ internal sealed class EngineHarness
 
     private readonly List<float> _audio = new();
 
-    public DrumMachineEngine Engine { get; } = new(Kit) { Bpm = 120 };
+    public EngineHarness(DrumKit? kit = null) => Engine = new DrumMachineEngine(kit ?? Kit) { Bpm = 120 };
+
+    public DrumMachineEngine Engine { get; }
     public List<DrumEngineEvent> Events { get; } = new();
+
+    /// <summary>A one-part style whose groove, fills and transition are all <paramref name="bar"/> (no intro/outro).</summary>
+    public static DrumStyle OneBarStyle(DrumBar bar) => new()
+    {
+        Id = "test-bar",
+        Name = "Test bar",
+        Parts = new[] { new DrumPart { Name = "A", Main = new[] { bar }, Fills = new[] { bar }, Transition = bar } },
+    };
+
+    /// <summary>The interleaved stereo samples of the frame range [from, from + frames).</summary>
+    public float[] Slice(long from, int frames) => _audio.GetRange((int)(from * 2), frames * 2).ToArray();
+
+    /// <summary>First frame in [from, to) with any non-zero sample, or -1 when it is silent there.</summary>
+    public long FirstSound(long from, long to)
+    {
+        for (long f = from; f < to && f * 2 + 1 < _audio.Count; f++)
+            if (_audio[(int)(f * 2)] != 0f || _audio[(int)(f * 2 + 1)] != 0f) return f;
+        return -1;
+    }
 
     public void Run(int frames, int block = 512)
     {
@@ -162,7 +183,9 @@ public class DrumKitTests
             return (double)crossings / s.Length;
         }
 
-        foreach (var kind in Enum.GetValues<DrumKitKind>())
+        // Synthesized kits only: a zero-crossing-rate threshold tuned for synthesis doesn't fit real
+        // recordings (the recorded hat is bright but has a low-frequency body, ZCR 0.24 vs the 0.25 bar).
+        foreach (var kind in Enum.GetValues<DrumKitKind>().Where(k => k != DrumKitKind.Acoustic))
         {
             var kit = new DrumKit(kind);
             double kick = Zcr(kit.GetSample(DrumVoice.Kick));
@@ -752,5 +775,232 @@ public class MetronomeServiceTests
         Assert.Equal(buffer.Length, service.Engine.Read(buffer, 0, buffer.Length));
         Assert.True(service.Engine.IsPlaying);
         service.Engine.Stop();
+    }
+}
+
+public class DrumSamplePackTests
+{
+    private static readonly DrumVoice[] Recorded =
+    {
+        DrumVoice.Kick, DrumVoice.Snare, DrumVoice.SideStick, DrumVoice.ClosedHat, DrumVoice.PedalHat,
+        DrumVoice.OpenHat, DrumVoice.Ride, DrumVoice.RideBell, DrumVoice.Crash,
+        DrumVoice.HighTom, DrumVoice.MidTom, DrumVoice.FloorTom,
+    };
+
+    [Fact]
+    public void Pack_loads_with_every_recorded_drum_sorted_soft_to_loud()
+    {
+        var pack = DrumSamplePack.LoadEmbedded("acoustic");
+        Assert.NotNull(pack);
+        Assert.True(pack!.SampleRate >= 8000);
+
+        foreach (var voice in Recorded)
+        {
+            Assert.True(pack.Voices.TryGetValue(voice, out var layers), $"{voice} is missing from the pack");
+            Assert.True(layers!.Count >= 5, $"{voice} has only {layers.Count} hits");
+            Assert.Equal(layers.Select(l => l.Loudness).OrderBy(x => x), layers.Select(l => l.Loudness));
+
+            foreach (var layer in layers)
+            {
+                Assert.True(layer.Frames > 100, $"{voice}: empty hit");
+                Assert.NotNull(layer.Right);
+                Assert.Equal(layer.Frames, layer.Right!.Length);
+                Assert.InRange(layer.Loudness, 0.0001f, 1f);
+                Assert.All(layer.Left, v => Assert.True(float.IsFinite(v) && Math.Abs(v) <= 1f, $"{voice}: left out of range"));
+                Assert.All(layer.Right, v => Assert.True(float.IsFinite(v) && Math.Abs(v) <= 1f, $"{voice}: right out of range"));
+            }
+        }
+    }
+}
+
+public class AcousticKitTests
+{
+    [Fact]
+    public void Recorded_voices_are_sampled_and_the_rest_stay_synthesized()
+    {
+        var kit = new DrumKit(DrumKitKind.Acoustic);
+        foreach (var voice in new[]
+                 {
+                     DrumVoice.Kick, DrumVoice.Snare, DrumVoice.SideStick, DrumVoice.ClosedHat, DrumVoice.PedalHat,
+                     DrumVoice.OpenHat, DrumVoice.Ride, DrumVoice.RideBell, DrumVoice.Crash,
+                     DrumVoice.HighTom, DrumVoice.MidTom, DrumVoice.FloorTom,
+                 })
+        {
+            Assert.True(kit.IsSampled(voice), $"{voice} should be recorded");
+            Assert.True(kit.GetLayers(voice).Count >= 5);
+        }
+
+        foreach (var voice in new[] { DrumVoice.Clap, DrumVoice.Cowbell, DrumVoice.Tambourine, DrumVoice.Shaker, DrumVoice.Sticks })
+        {
+            Assert.False(kit.IsSampled(voice), $"{voice} should be synthesized");
+            Assert.Empty(kit.GetLayers(voice));
+        }
+
+        // The synthesized kits never use recordings.
+        var rock = new DrumKit(DrumKitKind.Rock);
+        Assert.All(Enum.GetValues<DrumVoice>(), v => Assert.False(rock.IsSampled(v)));
+    }
+
+    [Fact]
+    public void Acoustic_kit_is_deterministic()
+    {
+        var a = new DrumKit(DrumKitKind.Acoustic);
+        var b = new DrumKit(DrumKitKind.Acoustic);
+        foreach (var voice in Enum.GetValues<DrumVoice>())
+            Assert.Equal(a.GetSample(voice), b.GetSample(voice));
+    }
+
+    [Fact]
+    public void A_different_sample_rate_falls_back_to_synthesis()
+    {
+        var kit = new DrumKit(DrumKitKind.Acoustic, 48000);
+        Assert.All(Enum.GetValues<DrumVoice>(), v => Assert.False(kit.IsSampled(v)));
+        Assert.True(kit.GetSample(DrumVoice.Snare).Length > 100);
+    }
+}
+
+public class AcousticEngineTests
+{
+    private static readonly DrumKit Real = new(DrumKitKind.Acoustic);
+
+    private static EngineHarness Harness(string snareLine, double bpm = 120, float humanize = 0f)
+    {
+        var h = new EngineHarness(Real);
+        h.Engine.Bpm = bpm;
+        h.Engine.Humanize = humanize;
+        h.Engine.ClickEnabled = false;
+        h.Engine.IntroEnabled = false;
+        h.Engine.SetStyle(EngineHarness.OneBarStyle(DrumBar.Parse(snareLine)));
+        return h;
+    }
+
+    [Fact]
+    public void Velocity_follows_the_recording()
+    {
+        // Ghost note on step 0, accent on step 8 (two beats later).
+        var h = Harness("SD|g-------X-------|");
+        h.Engine.Start();
+        h.Run(EngineHarness.Bar);
+
+        float ghost = h.Peak(0, 6000);
+        float accent = h.Peak(EngineHarness.Beat * 2, EngineHarness.Beat * 2 + 6000);
+        Assert.True(ghost > 0f);
+        Assert.True(accent > ghost * 2f, $"accent {accent} should be more than twice the ghost {ghost}");
+    }
+
+    [Fact]
+    public void Repeated_notes_are_not_identical()
+    {
+        var h = Harness("SD|x---x---x---x---|");
+        h.Engine.Start();
+        h.Run(EngineHarness.Bar);
+
+        var windows = Enumerable.Range(0, 4)
+            .Select(beat => h.Slice((long)beat * EngineHarness.Beat, 4096))
+            .ToList();
+        int distinct = windows.Select(w => string.Join(",", w)).Distinct().Count();
+        Assert.True(distinct >= 2, "four equal snare hits rendered identically");
+    }
+
+    [Fact]
+    public void Consecutive_hits_of_a_drum_use_different_recordings()
+    {
+        // Previews are full-velocity and let each hit ring out, so no tail of the last hit muddies the comparison.
+        var h = new EngineHarness(Real);
+        var windows = new List<float[]>();
+        for (int i = 0; i < 4; i++)
+        {
+            long at = h.Engine.FramesRendered;
+            h.Engine.PreviewVoice(DrumVoice.Snare);
+            h.Run(EngineHarness.SampleRate * 3);
+            windows.Add(h.Slice(at, 4096));
+        }
+
+        for (int i = 1; i < windows.Count; i++)
+            Assert.False(windows[i].SequenceEqual(windows[i - 1]), $"hit {i + 1} repeated hit {i}");
+    }
+
+    [Fact]
+    public void Hits_start_exactly_on_the_tick_without_humanize_and_a_few_ms_late_with_it()
+    {
+        // The recordings may begin with a few exactly-silent frames; that is the recording, not timing.
+        var snare = Real.GetLayers(DrumVoice.Snare);
+        long minLead = snare.Min(Lead), maxLead = snare.Max(Lead);
+
+        // One snare per bar at 30 BPM (8 s bars): every hit has fully died away before the next tick.
+        static List<long> Delays(float humanize)
+        {
+            var h = Harness("SD|X---------------|", bpm: 30, humanize: humanize);
+            h.Engine.Start();
+            h.Run(EngineHarness.SampleRate * 8 * 6);
+
+            var delays = new List<long>();
+            foreach (var tick in h.Events.Where(e => e.Step == 0))
+            {
+                long onset = h.FirstSound(tick.Frame, tick.Frame + EngineHarness.SampleRate);
+                if (onset < 0) continue;     // the last bar may not have been rendered far enough
+                delays.Add(onset - tick.Frame);
+            }
+            Assert.True(delays.Count >= 5, "snare is silent");
+            return delays;
+        }
+
+        // Without Humanize the hit starts on the tick frame: the only offset is the recording's own silent lead-in.
+        Assert.All(Delays(0f), d => Assert.InRange(d, minLead, maxLead));
+
+        var humanized = Delays(0.08f);
+        long max = (long)(0.0064 * EngineHarness.SampleRate) + 2;       // 6.4 ms
+        Assert.All(humanized, d => Assert.InRange(d, minLead, max + maxLead));
+        Assert.Contains(humanized, d => d > maxLead);                    // Random(1) makes this reproducible
+    }
+
+    /// <summary>Frames of exact silence at the start of a recorded hit.</summary>
+    private static long Lead(DrumSampleLayer layer)
+    {
+        for (int i = 0; i < layer.Frames; i++)
+            if (layer.Left[i] != 0f || (layer.Right != null && layer.Right[i] != 0f)) return i;
+        return layer.Frames;
+    }
+
+    public static IEnumerable<object[]> StyleIds => DrumStyleLibrary.All.Select(s => new object[] { s.Id });
+
+    [Theory]
+    [MemberData(nameof(StyleIds))]
+    public void Every_style_plays_through_without_clipping_with_real_drums(string id)
+    {
+        var style = DrumStyleLibrary.Find(id)!;
+        var engine = new DrumMachineEngine(Real)
+        {
+            Bpm = style.DefaultBpm,
+            MasterVolume = 1f,
+            Humanize = 0.1f,
+            AutoFillEveryBars = 2,
+            IntroEnabled = true,
+        };
+        engine.SetStyle(style);
+        engine.Start();
+
+        int framesPerBar = (int)(EngineHarness.SampleRate * 60.0 / style.DefaultBpm * style.Beats);
+        var buffer = new float[1024];
+        float peak = 0;
+        bool nextPartRequested = false, outroRequested = false;
+
+        for (long frame = 0; frame < framesPerBar * 9L && (engine.IsPlaying || !engine.IsIdle); frame += 512)
+        {
+            if (!nextPartRequested && frame > framesPerBar * 4.3) { engine.RequestNextPart(); nextPartRequested = true; }
+            if (!outroRequested && frame > framesPerBar * 6.3) { engine.RequestOutro(); outroRequested = true; }
+
+            engine.Read(buffer, 0, buffer.Length);
+            foreach (float v in buffer)
+            {
+                Assert.True(float.IsFinite(v), $"{id}: non-finite sample");
+                peak = Math.Max(peak, Math.Abs(v));
+            }
+            while (engine.TryDequeueEvent(out _)) { }
+        }
+
+        Assert.True(peak < 1f, $"{id}: clipped ({peak})");
+        Assert.True(peak > 0.2f, $"{id}: too quiet ({peak})");
+        Assert.False(engine.IsPlaying);
     }
 }

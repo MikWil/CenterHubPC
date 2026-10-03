@@ -37,12 +37,14 @@ namespace CenterHubNew.MVVM.Models
         Sticks,
     }
 
-    /// <summary>The synthesized kits. A style suggests one; the user can override it.</summary>
+    /// <summary>The drum kits. A style suggests one; the user can override it.</summary>
     public enum DrumKitKind
     {
         Rock,
         Electro,
         Jazz,
+        /// <summary>Recorded drums (multi-velocity samples; clap, cowbell, tambourine, shaker and sticks stay synthesized).</summary>
+        Acoustic,
     }
 
     /// <summary>What the click plays between the beats.</summary>
@@ -300,7 +302,14 @@ namespace CenterHubNew.MVVM.Models
 
         // ── Drums ──
         public string? StyleId { get; set; }
-        public DrumKitKind Kit { get; set; } = DrumKitKind.Rock;
+        public DrumKitKind Kit { get; set; } = DrumKitKind.Acoustic;
+
+        /// <summary>
+        /// True once the one-time move from the synthesized Rock/Jazz kit to the recorded drums has
+        /// happened, so a user who then picks the synth kit again keeps it.
+        /// </summary>
+        public bool RealDrumsOffered { get; set; }
+
         public bool ClickWithDrums { get; set; }
         public bool CountIn { get; set; }
         public bool IntroFill { get; set; } = true;

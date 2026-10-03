@@ -26,6 +26,8 @@ namespace CenterHubNew.MVVM.Services
         private struct Voice
         {
             public float[]? Data;      // null = free slot
+            public float[]? DataR;     // right channel of a stereo hit; null = mono (Data goes to both via the gains)
+            public int Delay;          // frames of silence before the hit starts (human timing)
             public int Pos;
             public float GainL;
             public float GainR;
@@ -40,6 +42,12 @@ namespace CenterHubNew.MVVM.Services
         private readonly Voice[] _voices = new Voice[MaxVoices];
         private readonly ConcurrentQueue<DrumEngineEvent> _events = new();
         private readonly Random _rng = new(1);
+
+        // Per drum: which recorded hit played last, so the next one is always a different one (-1 = none yet).
+        private readonly int[] _lastLayer = NewLayerMemory();
+
+        /// <summary>Longest start delay of the human-timing feel, in seconds, at Humanize = 1.</summary>
+        private const double HumanDelaySeconds = 0.080;
 
         private DrumKit _kit;
         private long _voiceSeq;
@@ -274,6 +282,7 @@ namespace CenterHubNew.MVVM.Services
                 _barNumber = 0;
                 _pattern = null;
                 _gapMuted = false;
+                Array.Fill(_lastLayer, -1);
 
                 var style = _activeStyle;
                 if (style == null)
@@ -491,13 +500,23 @@ namespace CenterHubNew.MVVM.Services
                 var data = v.Data;
                 if (data == null) continue;
 
-                int n = Math.Min(frames, data.Length - v.Pos);
-                int o = start;
+                // A delayed hit first lets output frames go by in silence.
+                int skip = 0;
+                if (v.Delay > 0)
+                {
+                    skip = Math.Min(v.Delay, frames);
+                    v.Delay -= skip;
+                }
+
+                var dataR = v.DataR;
+                int n = Math.Min(frames - skip, data.Length - v.Pos);
+                int o = start + skip * 2;
                 int i = 0;
                 bool finished = false;
                 for (; i < n; i++)
                 {
                     float s = data[v.Pos + i];
+                    float r = dataR != null ? dataR[v.Pos + i] : s;
                     if (v.FadeStep > 0f)
                     {
                         v.Fade -= v.FadeStep;
@@ -507,9 +526,10 @@ namespace CenterHubNew.MVVM.Services
                             break;
                         }
                         s *= v.Fade;
+                        r *= v.Fade;
                     }
                     buffer[o] += s * v.GainL;
-                    buffer[o + 1] += s * v.GainR;
+                    buffer[o + 1] += r * v.GainR;
                     o += 2;
                 }
 
@@ -537,6 +557,18 @@ namespace CenterHubNew.MVVM.Services
                         FadeVoice(ref _voices[i], ChokeFadeMs);
             }
 
+            // A real drummer is never sample-exact: pattern hits start up to a few ms late.
+            // Drawn after the velocity so the Humanize == 0 stream of random numbers is unchanged.
+            int delay = 0;
+            if (humanize && _humanize > 0f)
+                delay = (int)(_rng.NextDouble() * _humanize * HumanDelaySeconds * _sampleRate);
+
+            if (_kit.IsSampled(voice))
+            {
+                TriggerRecorded(voice, velocity, delay);
+                return;
+            }
+
             // 0.7 leaves headroom for kick + snare + crash landing together, so the limiter
             // only ever shaves the loudest downbeats.
             float gain = MathF.Pow(velocity, 1.5f) * _drumVolume * 0.7f;
@@ -546,7 +578,61 @@ namespace CenterHubNew.MVVM.Services
             float angle = (_kit.GetPan(voice) + 1f) * (MathF.PI / 4f);
             float gl = gain * MathF.Cos(angle) * MathF.Sqrt(2f);
             float gr = gain * MathF.Sin(angle) * MathF.Sqrt(2f);
-            AddVoice(_kit.GetSample(voice), gl, gr, voice);
+            AddVoice(_kit.GetSample(voice), gl, gr, voice, null, delay);
+        }
+
+        /// <summary>
+        /// Plays the recorded hit that fits <paramref name="velocity"/>. The recordings carry their own
+        /// dynamics (a soft hit is quieter and sounds different), so the velocity picks a hit instead of
+        /// scaling one; neighbouring hits alternate so a repeated note never sounds identical.
+        /// </summary>
+        private void TriggerRecorded(DrumVoice voice, float velocity, int delay)
+        {
+            if (velocity <= 0f || _drumVolume <= 0f) return;
+
+            var layers = _kit.GetLayers(voice);
+            int n = layers.Count;
+
+            // Ideal (fractional) position in the soft → loud list; any hit within one step of it will do.
+            float t = velocity * (n - 1);
+            const float eps = 1e-4f;
+            int first = Math.Max(0, (int)MathF.Ceiling(t - 1f - eps));
+            int last = Math.Min(n - 1, (int)MathF.Floor(t + 1f + eps));
+
+            int count = last - first + 1;
+            int previous = _lastLayer[(int)voice];
+            bool skipPrevious = count > 1 && previous >= first && previous <= last;
+            int pool = skipPrevious ? count - 1 : count;
+            int index = first + (pool > 1 ? _rng.Next(pool) : 0);
+            if (skipPrevious && index >= previous) index++;
+            _lastLayer[(int)voice] = index;
+
+            var chosen = layers[index];
+
+            // Match the level the ideal position would have had, so picking a neighbour doesn't change the loudness.
+            int lo = (int)MathF.Floor(t);
+            int hi = Math.Min(n - 1, lo + 1);
+            float desired = layers[lo].Loudness + (layers[hi].Loudness - layers[lo].Loudness) * (t - lo);
+            float gain = _drumVolume * 0.7f * Math.Clamp(desired / Math.Max(chosen.Loudness, 1e-4f), 0.5f, 2f);
+
+            if (chosen.Right != null)
+            {
+                // The recording has its own stereo image.
+                AddVoice(chosen.Left, gain, gain, voice, chosen.Right, delay);
+            }
+            else
+            {
+                float angle = (_kit.GetPan(voice) + 1f) * (MathF.PI / 4f);
+                AddVoice(chosen.Left, gain * MathF.Cos(angle) * MathF.Sqrt(2f), gain * MathF.Sin(angle) * MathF.Sqrt(2f),
+                         voice, null, delay);
+            }
+        }
+
+        private static int[] NewLayerMemory()
+        {
+            var memory = new int[Enum.GetValues<DrumVoice>().Length];
+            Array.Fill(memory, -1);
+            return memory;
         }
 
         private void TriggerClick(bool accent, float velocity)
@@ -556,7 +642,7 @@ namespace CenterHubNew.MVVM.Services
             AddVoice(_kit.GetClick(_clickSound, accent), gain, gain, null);
         }
 
-        private void AddVoice(float[] data, float gainL, float gainR, DrumVoice? kind)
+        private void AddVoice(float[] data, float gainL, float gainR, DrumVoice? kind, float[]? dataR = null, int delay = 0)
         {
             int slot = -1;
             long oldest = long.MaxValue;
@@ -577,6 +663,8 @@ namespace CenterHubNew.MVVM.Services
             _voices[slot] = new Voice
             {
                 Data = data,
+                DataR = dataR,
+                Delay = delay,
                 Pos = 0,
                 GainL = gainL,
                 GainR = gainR,

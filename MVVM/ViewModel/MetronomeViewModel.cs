@@ -252,9 +252,10 @@ namespace CenterHubNew.MVVM.ViewModel
 
         public IReadOnlyList<KitChoice> KitChoices { get; } = new[]
         {
-            new KitChoice { Name = "Rock kit",    Kind = DrumKitKind.Rock },
-            new KitChoice { Name = "Electro kit", Kind = DrumKitKind.Electro },
-            new KitChoice { Name = "Jazz kit",    Kind = DrumKitKind.Jazz },
+            new KitChoice { Name = "Real drums",       Kind = DrumKitKind.Acoustic },
+            new KitChoice { Name = "Rock kit (synth)", Kind = DrumKitKind.Rock },
+            new KitChoice { Name = "Electro kit",      Kind = DrumKitKind.Electro },
+            new KitChoice { Name = "Jazz kit (synth)", Kind = DrumKitKind.Jazz },
         };
 
         public IReadOnlyList<AutoFillChoice> AutoFillChoices { get; } = new[]
@@ -349,7 +350,9 @@ namespace CenterHubNew.MVVM.ViewModel
             _selectedGenre = "All";
             _filteredStyles = allStyles.ToList();
             _selectedStyle = style;
-            _selectedKit = KitChoices.FirstOrDefault(k => k.Kind == s.Kit) ?? KitChoices[0];
+            // One-time move from the synthesized Rock/Jazz kits (the old defaults) to the recorded drums.
+            var kit = !s.RealDrumsOffered && s.Kit is DrumKitKind.Rock or DrumKitKind.Jazz ? DrumKitKind.Acoustic : s.Kit;
+            _selectedKit = KitChoices.FirstOrDefault(k => k.Kind == kit) ?? KitChoices[0];
             _clickWithDrums = s.ClickWithDrums;
             _countIn = s.CountIn;
             _introFill = s.IntroFill;
@@ -714,7 +717,9 @@ namespace CenterHubNew.MVVM.ViewModel
         private void ApplyStyleChoice(DrumStyle style)
         {
             Bpm = style.DefaultBpm;
-            SelectedKit = KitChoices.FirstOrDefault(k => k.Kind == style.SuggestedKit) ?? SelectedKit;
+            // Real drums for everything but the electronic styles.
+            var suggested = style.SuggestedKit == DrumKitKind.Electro ? DrumKitKind.Electro : DrumKitKind.Acoustic;
+            SelectedKit = KitChoices.FirstOrDefault(k => k.Kind == suggested) ?? SelectedKit;
             UpdatePartInfo(0);
 
             if (IsDrumsMode)
@@ -977,7 +982,8 @@ namespace CenterHubNew.MVVM.ViewModel
                     Subdivision = SelectedSubdivision?.Value ?? ClickSubdivision.None,
                     Accents = _accentMemory.ToList(),
                     StyleId = SelectedStyle?.Id,
-                    Kit = SelectedKit?.Kind ?? DrumKitKind.Rock,
+                    Kit = SelectedKit?.Kind ?? DrumKitKind.Acoustic,
+                    RealDrumsOffered = true,
                     ClickWithDrums = ClickWithDrums,
                     CountIn = CountIn,
                     IntroFill = IntroFill,

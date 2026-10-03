@@ -8,11 +8,17 @@ namespace CenterHubNew.MVVM.Services
     /// Pre-rendered mono float samples for every drum voice and click sound.
     /// Everything is synthesised once in the constructor and is fully deterministic
     /// (all noise comes from a fixed per-voice seed), so two kits of the same kind
-    /// hold identical data.
+    /// hold identical data. The <see cref="DrumKitKind.Acoustic"/> kit instead plays recorded
+    /// multi-velocity hits for the drums the sample pack covers (see <see cref="GetLayers"/>)
+    /// and synthesizes the rest like the Rock kit.
     /// </summary>
     public sealed class DrumKit
     {
+        // The pack is big (decoded PCM); decode it once per process, not once per kit instance.
+        private static readonly Lazy<DrumSamplePack?> RecordedPack = new(LoadRecordedPack);
+
         private readonly Dictionary<DrumVoice, float[]> _samples = new();
+        private readonly Dictionary<DrumVoice, IReadOnlyList<DrumSampleLayer>> _layers = new();
         private readonly Dictionary<MetronomeSound, (float[] tick, float[] accent)> _clicks = new();
         private readonly Params _p;
 
@@ -24,8 +30,22 @@ namespace CenterHubNew.MVVM.Services
             SampleRate = sampleRate;
             _p = ParamsFor(kind);
 
+            // Missing pack, load failure or a different sample rate: every voice falls back to the Rock synthesis.
+            var pack = kind == DrumKitKind.Acoustic ? RecordedPack.Value : null;
+            if (pack != null && pack.SampleRate != sampleRate) pack = null;
+
             foreach (DrumVoice voice in Enum.GetValues<DrumVoice>())
-                _samples[voice] = Render(voice);
+            {
+                if (pack != null && pack.Voices.TryGetValue(voice, out var layers) && layers.Count > 0)
+                {
+                    _layers[voice] = layers;
+                    _samples[voice] = MonoMix(layers[layers.Count - 1]);
+                }
+                else
+                {
+                    _samples[voice] = Render(voice);
+                }
+            }
 
             BuildClicks();
         }
@@ -36,9 +56,35 @@ namespace CenterHubNew.MVVM.Services
         /// <summary>Sample rate (Hz) of every buffer this kit returns.</summary>
         public int SampleRate { get; }
 
-        /// <summary>Mono samples for a drum piece, values within [-1, 1].</summary>
+        /// <summary>
+        /// Mono samples for a drum piece, values within [-1, 1]. For a recorded voice this is a mono
+        /// mix of its loudest hit (for previews and tests; the engine plays <see cref="GetLayers"/>).
+        /// </summary>
         public float[] GetSample(DrumVoice voice) =>
             _samples.TryGetValue(voice, out var s) ? s : throw new ArgumentOutOfRangeException(nameof(voice));
+
+        /// <summary>True when this voice plays recorded hits.</summary>
+        public bool IsSampled(DrumVoice voice) => _layers.ContainsKey(voice);
+
+        /// <summary>The recorded hits of a voice, soft → loud; empty for a synthesized voice.</summary>
+        public IReadOnlyList<DrumSampleLayer> GetLayers(DrumVoice voice) =>
+            _layers.TryGetValue(voice, out var l) ? l : Array.Empty<DrumSampleLayer>();
+
+        private static DrumSamplePack? LoadRecordedPack()
+        {
+            try { return DrumSamplePack.LoadEmbedded("acoustic"); }
+            catch { return null; }
+        }
+
+        /// <summary>(L+R)/2 of a hit; a mono hit is copied as is.</summary>
+        private static float[] MonoMix(DrumSampleLayer layer)
+        {
+            var mix = new float[layer.Frames];
+            var right = layer.Right;
+            for (int i = 0; i < mix.Length; i++)
+                mix[i] = right == null ? layer.Left[i] : (layer.Left[i] + right[i]) * 0.5f;
+            return mix;
+        }
 
         /// <summary>Default stereo position of a drum piece: -1 (left) .. +1 (right).</summary>
         public float GetPan(DrumVoice voice) => voice switch
@@ -143,6 +189,7 @@ namespace CenterHubNew.MVVM.Services
                 CrashTau = 0.55, CrashPeak = 0.60f,
                 TomPeak = 0.70f,
             },
+            // Rock, and Acoustic's synthesized voices (clap, cowbell, tambourine, shaker, sticks) / fallback.
             _ => new Params(),
         };
 

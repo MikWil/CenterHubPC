@@ -11,7 +11,7 @@
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <EnableComHosting>true</EnableComHosting>
     <EnableGeneratedComInterfaceComImportInterop>true</EnableGeneratedComInterfaceComImportInterop>
-    <Version>6.1.1</Version>
+    <Version>6.2.0</Version>
     <!-- AVLN3001: windows are created through DI (constructor injection), never by the XAML runtime loader. -->
     <NoWarn>$(NoWarn);AVLN3001</NoWarn>
     <Authors>CenterHub</Authors>
@@ -82,6 +82,13 @@
 
   <ItemGroup>
     <Resource Include="Fonts\Quicksand-VariableFont_wght.ttf" />
+  </ItemGroup>
+
+  <!-- Recorded drum kit for the Metronome's "Real drums" (public domain; see Assets\Drums\README.md).
+       Embedded so the MSI, the portable zip and the tests all carry it with no extra files. -->
+  <ItemGroup>
+    <None Remove="Assets\Drums\**" />
+    <EmbeddedResource Include="Assets\Drums\acoustic.chdk" />
   </ItemGroup>
 
   <ItemGroup>

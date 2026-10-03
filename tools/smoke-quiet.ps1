@@ -76,8 +76,14 @@ try {
     if (-not $win) { throw 'no window' }
     Start-Sleep -Seconds 3
 
-    $version = @($win.FindAll('Descendants', (New-Object System.Windows.Automation.PropertyCondition($AE::ControlTypeProperty, $CT::Text))) |
-        Where-Object { $_.Current.Name -match '^v\d+\.\d+\.\d+$' } | Select-Object -First 1)
+    # UI Automation can answer E_FAIL while the window is still building its tree; retry briefly.
+    $version = $null
+    for ($try = 0; $try -lt 10 -and -not $version; $try++) {
+        try {
+            $version = @($win.FindAll('Descendants', (New-Object System.Windows.Automation.PropertyCondition($AE::ControlTypeProperty, $CT::Text))) |
+                Where-Object { $_.Current.Name -match '^v\d+\.\d+\.\d+$' } | Select-Object -First 1)
+        } catch { Start-Sleep -Milliseconds 500 }
+    }
     "      version shown: $($version.Current.Name)"
 
     foreach ($nav in $pages.Keys) {

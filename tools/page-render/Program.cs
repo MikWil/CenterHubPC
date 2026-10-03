@@ -60,6 +60,10 @@ internal static class Program
         }
         if (mode == "com-probe")
             return Task.Run(ComProbe).GetAwaiter().GetResult();
+        if (mode == "render-demo")
+            return RenderDemos(outDir);
+        if (mode == "build-drumkit")
+            return DrumKitBuilder.Build(args[2], args.Length > 3 ? args[3] : Path.Combine("Assets", "Drums", "acoustic.chdk"));
         if (mode == "perapp-probe")
             return Task.Run(PerAppProbe).GetAwaiter().GetResult();
         if (mode == "default-guard")
@@ -76,6 +80,55 @@ internal static class Program
             case "audio-diag": DeviceRateDiag(); return 0;
             default: RenderMetronome(outDir); return 0;
         }
+    }
+
+    /// <summary>
+    /// Renders a few styles offline with a given kit to WAV files you can listen to — the same
+    /// engine and settings the app uses (humanize 0.08), with a fill and a part change in each.
+    /// </summary>
+    private static int RenderDemos(string outDir)
+    {
+        var demos = new (string Id, DrumKitKind Kit, int Bars)[]
+        {
+            ("rock-8ths", DrumKitKind.Acoustic, 10),
+            ("funk-16ths", DrumKitKind.Acoustic, 8),
+            ("blues-shuffle", DrumKitKind.Acoustic, 8),
+            ("jazz-swing", DrumKitKind.Acoustic, 8),
+            ("rock-8ths", DrumKitKind.Rock, 10),   // the old synthesized kit, for comparison
+        };
+
+        foreach (var (id, kitKind, bars) in demos)
+        {
+            var style = DrumStyleLibrary.Find(id)!;
+            var engine = new DrumMachineEngine(new DrumKit(kitKind))
+            {
+                Bpm = style.DefaultBpm, MasterVolume = 0.8f, Humanize = 0.08f,
+                ClickEnabled = false, IntroEnabled = true, AutoFillEveryBars = 4,
+            };
+            engine.SetStyle(style);
+            engine.Start();
+
+            int framesPerBar = (int)(44100 * 60.0 / style.DefaultBpm * style.Beats);
+            string file = Path.Combine(outDir, $"demo-{id}-{kitKind.ToString().ToLowerInvariant()}.wav");
+            using (var writer = new WaveFileWriter(file, new WaveFormat(44100, 16, 2)))
+            {
+                var buffer = new float[1024];
+                long total = (long)framesPerBar * bars, done = 0;
+                bool partRequested = false, outroRequested = false;
+                while (engine.IsPlaying || !engine.IsIdle)
+                {
+                    if (!partRequested && done > framesPerBar * (bars / 2.0 - 0.5)) { engine.RequestNextPart(); partRequested = true; }
+                    if (!outroRequested && done > total - framesPerBar * 2.5) { engine.RequestOutro(); outroRequested = true; }
+                    engine.Read(buffer, 0, buffer.Length);
+                    writer.WriteSamples(buffer, 0, buffer.Length);
+                    while (engine.TryDequeueEvent(out _)) { }
+                    done += buffer.Length / 2;
+                    if (done > total + 44100 * 4) break;   // ring-out limit
+                }
+            }
+            Console.WriteLine($"{file}  ({new FileInfo(file).Length / 1048576.0:F1} MB)");
+        }
+        return 0;
     }
 
     /// <summary>

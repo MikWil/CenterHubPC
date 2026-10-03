@@ -216,6 +216,15 @@ something "works", and when releasing.
   after any pattern edit. Engine tests render offline and assert exact frames; keep them exact.
 - Events are delivered when audible, so a `Stopped` event from the previous run can arrive after a
   new `Start()` — the view-model ignores it while the engine is playing.
+- **"Real drums" (`DrumKitKind.Acoustic`, the default)** plays recorded hits from
+  `Assets/Drums/acoustic.chdk` (embedded resource; public-domain Open Source Drumkit, see
+  `Assets/Drums/README.md`; rebuild with `tools/page-render … build-drumkit`). Velocity picks the
+  hit (recordings carry their own dynamics — no `velocity^1.5`), neighbouring hits alternate so a
+  repeated note never sounds identical, and humanized pattern hits start 0–6.4 ms late. The user
+  called the synthesized kits "robotic"; that was the fix. Clap/cowbell/tambourine/shaker/sticks
+  are not recorded and stay synthesized.
+- Nobody here can listen: judge sound changes with `tools/page-render -- <dir> render-demo`
+  (offline WAVs through the real engine) and send them to the user before releasing.
 
 ## Working with sub-agents here
 

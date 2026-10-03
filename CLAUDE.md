@@ -115,7 +115,7 @@ Defined in `App.axaml` under `<Application.DataTemplates>`. Each ViewModel type 
 
 The Metronome page is a click **and** a BeatBuddy-style drum machine, all synthesized (no sample files):
 - `DrumMachineEngine` (an NAudio `ISampleProvider`) is the sample-accurate sequencer + mixer: 48 ticks per beat, song state machine (count-in → intro → part grooves → fills → transition to next part → outro + final hit), click layer (accents, subdivisions), gap trainer. It has no UI or device dependency — unit tests render it offline.
-- `DrumKit` synthesizes every drum voice and click sound (Rock / Electro / Jazz kits); deterministic.
+- `DrumKit` provides every drum voice and click sound: "Real drums" (default) plays recorded hits from the embedded `Assets/Drums/acoustic.chdk` (public domain, see `Assets/Drums/README.md`), with velocity layers and alternating hits; Rock / Electro / Jazz are synthesized. Deterministic.
 - `DrumStyleLibrary` (+ `.RockPop.cs`, `.Groove.cs`) holds the styles, written as drum tabs — see `DrumBar.Parse` in `MVVM/Models/DrumModels.cs`. Every bar of a style must have `Beats × StepsPerBeat` steps; `DrumStyleLibrary.Validate` (unit-tested) catches typos. Fills keep the groove for the first half of the bar because they can be triggered mid-bar.
 - `MetronomeService` owns the audio output (WASAPI shared/event, WaveOut fallback; opened on demand, closed ~1.5 s after going idle) and delivers the engine's position events on the UI thread *when they become audible*, so the lights match the sound.
 - Settings persist in `%AppData%\CenterHub\metronome.json` via `MetronomeSettingsService`.
