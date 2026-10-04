@@ -5,6 +5,7 @@
              xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
              xmlns:svc="clr-namespace:CenterHubNew.MVVM.Services"
              xmlns:models="clr-namespace:CenterHubNew.MVVM.Models"
+             xmlns:controls="clr-namespace:CenterHubNew.MVVM.Controls"
              x:Class="CenterHubNew.MVVM.View.RoutingView"
              x:DataType="viewmodel:RoutingViewModel"
              mc:Ignorable="d"
@@ -13,71 +14,118 @@
     <UserControl.Styles>
         <Style Selector="Button.chip">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderHairline}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderHairline}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="999"/>
             <Setter Property="Padding" Value="14,7"/>
-            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
         </Style>
         <Style Selector="Button.chip.active">
-            <Setter Property="Background" Value="{StaticResource AccentSubtleBrush}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
-            <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
         </Style>
 
         <Style Selector="ToggleButton.route">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderHairline}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderHairline}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="999"/>
             <Setter Property="Padding" Value="12,6"/>
             <Setter Property="MinWidth" Value="72"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
         </Style>
         <!-- Fluent paints ToggleButton states on its template part, so target that
              (setting Background on the control itself is ignored once checked). -->
         <Style Selector="ToggleButton.route /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderHairline}"/>
-            <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderHairline}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
         </Style>
         <Style Selector="ToggleButton.route:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#14FFFFFF"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderStrong}"/>
-            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource RouteHoverBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderStrong}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
         </Style>
         <Style Selector="ToggleButton.you:checked /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#173C31"/>
-            <Setter Property="BorderBrush" Value="#1D9E75"/>
-            <Setter Property="Foreground" Value="#5DCAA5"/>
+            <Setter Property="Background" Value="{DynamicResource RouteYouBgBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource RouteYouBorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource RouteYouFgBrush}"/>
         </Style>
         <Style Selector="ToggleButton.you:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#1D4A3C"/>
-            <Setter Property="BorderBrush" Value="#5DCAA5"/>
-            <Setter Property="Foreground" Value="#9FE1CB"/>
+            <Setter Property="Background" Value="{DynamicResource RouteYouHoverBgBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource RouteYouHoverBorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource RouteYouHoverFgBrush}"/>
         </Style>
         <Style Selector="ToggleButton.others:checked /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#241F4A"/>
-            <Setter Property="BorderBrush" Value="#7F77DD"/>
-            <Setter Property="Foreground" Value="#AFA9EC"/>
+            <Setter Property="Background" Value="{DynamicResource RouteOthersBgBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource RouteOthersBorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource RouteOthersFgBrush}"/>
         </Style>
         <Style Selector="ToggleButton.others:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#2E2860"/>
-            <Setter Property="BorderBrush" Value="#AFA9EC"/>
-            <Setter Property="Foreground" Value="#CECBF6"/>
+            <Setter Property="Background" Value="{DynamicResource RouteOthersHoverBgBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource RouteOthersHoverBorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource RouteOthersHoverFgBrush}"/>
+        </Style>
+
+        <!-- ===== Responsive layout =====
+             StackPanel.root gets :narrow below 760 px (board stacks: summary above sources);
+             Border.sources gets :narrow below 520 px (each source row stacks its toggles under its controls). -->
+        <Style Selector="Border.sources">
+            <Setter Property="Grid.Column" Value="0"/>
+            <Setter Property="Grid.Row" Value="0"/>
+        </Style>
+        <Style Selector="StackPanel.dest">
+            <Setter Property="Grid.Column" Value="2"/>
+            <Setter Property="Grid.Row" Value="0"/>
+        </Style>
+        <Style Selector="StackPanel.root:narrow Border.sources">
+            <Setter Property="Grid.Column" Value="0"/>
+            <Setter Property="Grid.ColumnSpan" Value="3"/>
+            <Setter Property="Grid.Row" Value="1"/>
+        </Style>
+        <Style Selector="StackPanel.root:narrow StackPanel.dest">
+            <Setter Property="Grid.Column" Value="0"/>
+            <Setter Property="Grid.ColumnSpan" Value="3"/>
+            <Setter Property="Grid.Row" Value="0"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+
+        <Style Selector="StackPanel.srcInfo">
+            <Setter Property="Grid.Column" Value="0"/>
+            <Setter Property="Grid.Row" Value="0"/>
+        </Style>
+        <Style Selector="ToggleButton.srcYou">
+            <Setter Property="Grid.Row" Value="0"/>
+            <Setter Property="Margin" Value="6,0,6,0"/>
+        </Style>
+        <Style Selector=":is(Control).srcOthers">
+            <Setter Property="Grid.Row" Value="0"/>
+        </Style>
+        <Style Selector="Border.sources:narrow StackPanel.srcInfo">
+            <Setter Property="Grid.ColumnSpan" Value="3"/>
+        </Style>
+        <Style Selector="Border.sources:narrow ToggleButton.srcYou">
+            <Setter Property="Grid.Row" Value="1"/>
+            <Setter Property="Margin" Value="0,10,6,0"/>
+        </Style>
+        <Style Selector="Border.sources:narrow :is(Control).srcOthers">
+            <Setter Property="Grid.Row" Value="1"/>
+            <Setter Property="Margin" Value="0,10,0,0"/>
         </Style>
     </UserControl.Styles>
 
-    <StackPanel Spacing="10">
+    <StackPanel Classes="root" Spacing="10" controls:Responsive.NarrowBelow="760">
 
         <!-- PRESET BAR -->
         <Border Classes="card">
-            <StackPanel Spacing="12">
-                <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+            <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="Auto,*">
                     <TextBlock Grid.Column="0" Text="PRESETS" FontSize="10" FontWeight="Bold" LetterSpacing="1"
-                               Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                    <ItemsControl Grid.Column="1" ItemsSource="{Binding PresetChips}">
+                               Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Top" Margin="0,9,10,0"/>
+                    <!-- Chips wrap onto new lines (negative bottom margin cancels the last row's spacing) -->
+                    <ItemsControl Grid.Column="1" ItemsSource="{Binding PresetChips}" Margin="0,0,0,-8">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <WrapPanel Orientation="Horizontal"/>
@@ -86,21 +134,25 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="viewmodel:PresetChip">
                                 <Button Classes="chip" Classes.active="{Binding IsActive}"
-                                        Content="{Binding Name}" Margin="0,0,8,0"
+                                        Content="{Binding Name}" Margin="0,0,8,8"
                                         Command="{Binding $parent[ItemsControl].((viewmodel:RoutingViewModel)DataContext).ApplyPresetCommand}"
                                         CommandParameter="{Binding}"/>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+                </Grid>
+
+                <WrapPanel Orientation="Horizontal">
                     <!-- Not a preset: takes Banana out of the picture altogether -->
-                    <Button Grid.Column="2" Classes="chip" Classes.active="{Binding IsDirect}"
-                            Content="Direct (no Banana)" Margin="8,0,12,0" VerticalAlignment="Center"
+                    <Button Classes="chip" Classes.active="{Binding IsDirect}"
+                            Content="Direct (no Banana)" Margin="0,0,12,0" VerticalAlignment="Center"
                             Command="{Binding GoDirectCommand}"
                             IsEnabled="{Binding !IsBusy}"
                             ToolTip.Tip="Closes Voicemeeter so your headset is free, and makes the headset and its mic the Windows devices — for Teams and other apps that use the headset directly. Pick a preset to come back."/>
-                    <TextBlock Grid.Column="3" Text="{Binding StatusText}" FontSize="11" FontWeight="SemiBold"
-                               Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
-                </Grid>
+                    <TextBlock Text="{Binding StatusText}" FontSize="11" FontWeight="SemiBold"
+                               TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                </WrapPanel>
 
                 <WrapPanel Orientation="Horizontal">
                     <TextBox Text="{Binding CurrentPresetName, Mode=TwoWay}" Width="200"
@@ -128,14 +180,16 @@
         <Border Classes="card" IsVisible="{Binding IsDiagnosticsOpen}">
             <StackPanel Spacing="10">
                 <Grid ColumnDefinitions="*,Auto">
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
-                        <Border Width="3" Height="16" CornerRadius="2" Background="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                    <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="3" Height="16" CornerRadius="2" Background="{DynamicResource AccentBrush}"
+                                VerticalAlignment="Center" Margin="0,0,8,0"/>
                         <TextBlock Text="Setup check" FontSize="13" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                   Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                         <TextBlock Text="{Binding DiagnosticsSummary}" FontSize="11"
-                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" Margin="6,0,0,0"/>
-                    </StackPanel>
-                    <Button Grid.Column="1" Content="Close" Classes="secondary" Padding="12,5" FontSize="11"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                    </WrapPanel>
+                    <Button Grid.Column="1" Content="Close" Margin="8,0,0,0" VerticalAlignment="Top" Classes="secondary" Padding="12,5" FontSize="11"
                             Command="{Binding CloseDiagnosticsCommand}"/>
                 </Grid>
 
@@ -148,9 +202,10 @@
                                         VerticalAlignment="Center" Margin="2,0,12,0"/>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
-                                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                                               TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
                                     <TextBlock Text="{Binding Detail}" FontSize="11" TextWrapping="Wrap"
-                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                               Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 </StackPanel>
                                 <Button Grid.Column="2" IsVisible="{Binding HasFix}"
                                         Content="{Binding FixLabel}" Classes="secondary"
@@ -167,44 +222,51 @@
         <!-- NOT INSTALLED -->
         <Border Classes="card" IsVisible="{Binding !IsInstalled}">
             <TextBlock Text="Voicemeeter Banana isn't installed. Install it (and reboot) to route audio with flows."
-                       TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource TextMutedBrush}"/>
+                       TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource TextMutedBrush}"/>
         </Border>
 
         <!-- FLOW BOARD -->
-        <Grid ColumnDefinitions="*,16,320" IsVisible="{Binding IsInstalled}">
+        <!-- Sources left + summary right (320 wide). Below 760 px the columns collapse: the
+             summary goes ABOVE the sources (both span the whole width; see the styles at the top). -->
+        <Grid ColumnDefinitions="*,16,320" RowDefinitions="Auto,Auto" IsVisible="{Binding IsInstalled}">
 
             <!-- SOURCES -->
-            <Border Grid.Column="0" Classes="card">
+            <Border Classes="card sources" Margin="0"
+                    controls:Responsive.NarrowBelow="520">
                 <StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12" Spacing="8">
-                        <Border Width="3" Height="16" CornerRadius="2" Background="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                    <WrapPanel Orientation="Horizontal" Margin="0,0,0,12">
+                        <Border Width="3" Height="16" CornerRadius="2" Background="{DynamicResource AccentBrush}"
+                                VerticalAlignment="Center" Margin="0,0,8,0"/>
                         <TextBlock Text="Sources" FontSize="13" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                   Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                         <TextBlock Text="teal = you hear   ·   purple = others hear" FontSize="10"
-                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                    </StackPanel>
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                    </WrapPanel>
 
                     <ItemsControl ItemsSource="{Binding Sources}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="viewmodel:RoutingSourceRow">
                                 <Border Classes="card-inner" Margin="0,0,0,8">
-                                    <Grid ColumnDefinitions="*,Auto,86">
-                                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="8">
+                                    <!-- Name + gain + app picker on the left, You / Others toggles on the right
+                                         (under the left part when the sources card is narrow) -->
+                                    <Grid ColumnDefinitions="*,Auto,86" RowDefinitions="Auto,Auto">
+                                        <StackPanel Classes="srcInfo" VerticalAlignment="Center" Spacing="8">
                                             <TextBox Text="{Binding DisplayName, Mode=TwoWay}"
                                                      FontSize="13" FontWeight="SemiBold" Background="Transparent"
                                                      BorderThickness="0" Padding="0"
-                                                     Foreground="{StaticResource TextPrimaryBrush}"/>
+                                                     Foreground="{DynamicResource TextPrimaryBrush}"/>
                                             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                                 <Slider Minimum="-60" Maximum="12" Width="150" VerticalAlignment="Center"
                                                         Value="{Binding GainDb, Mode=TwoWay}"/>
                                                 <TextBlock Text="{Binding GainDb, StringFormat='{}{0:F0} dB'}"
                                                            FontSize="11" MinWidth="46" VerticalAlignment="Center"
-                                                           Foreground="{StaticResource TextMutedBrush}"/>
+                                                           Foreground="{DynamicResource TextMutedBrush}"/>
                                             </StackPanel>
 
                                             <!-- App assignment (own line, aligned) -->
-                                            <StackPanel IsVisible="{Binding IsVirtualApp}" Orientation="Horizontal" Spacing="8">
-                                                <ComboBox MinWidth="180" Height="30" VerticalAlignment="Center"
+                                            <WrapPanel IsVisible="{Binding IsVirtualApp}" Orientation="Horizontal">
+                                                <ComboBox MinWidth="180" Height="30" VerticalAlignment="Center" Margin="0,0,8,4"
                                                           IsVisible="{Binding ShowAppPicker}"
                                                           PlaceholderText="Send an app here…"
                                                           ItemsSource="{Binding Apps}"
@@ -218,32 +280,32 @@
                                                 <Button Content="↻" Classes="secondary"
                                                         IsVisible="{Binding ShowAppPicker}"
                                                         Height="30" Width="34" Padding="0" FontSize="14"
-                                                        VerticalAlignment="Center"
+                                                        VerticalAlignment="Center" Margin="0,0,8,4"
                                                         ToolTip.Tip="Refresh the app list"
                                                         Command="{Binding $parent[ItemsControl].((viewmodel:RoutingViewModel)DataContext).RefreshAppsCommand}"/>
                                                 <Button Content="{Binding WindowsButtonText}" Classes="secondary"
-                                                        Height="30" Padding="12,0" FontSize="11" VerticalAlignment="Center"
+                                                        Height="30" Padding="12,0" FontSize="11" VerticalAlignment="Center" Margin="0,0,0,4"
                                                         Command="{Binding $parent[ItemsControl].((viewmodel:RoutingViewModel)DataContext).OpenAppVolumeCommand}"
                                                         CommandParameter="{Binding}"/>
-                                            </StackPanel>
+                                            </WrapPanel>
                                             <!-- MaxWidth: without it the row measures the hint on one line and
                                                  pushes the whole board wider than the window. -->
                                             <TextBlock IsVisible="{Binding IsVirtualApp}" FontSize="10"
                                                        TextWrapping="Wrap" MaxWidth="440" HorizontalAlignment="Left"
-                                                       Foreground="{StaticResource TextMutedBrush}"
+                                                       Foreground="{DynamicResource TextMutedBrush}"
                                                        Text="{Binding SlotHint}"/>
                                         </StackPanel>
 
-                                        <ToggleButton Grid.Column="1" Classes="route you" Content="You"
-                                                      Margin="6,0,6,0" VerticalAlignment="Center"
+                                        <ToggleButton Grid.Column="1" Classes="route you srcYou" Content="You"
+                                                      VerticalAlignment="Center"
                                                       IsChecked="{Binding ToYou, Mode=TwoWay}"/>
-                                        <ToggleButton Grid.Column="2" Classes="route others" Content="Others"
+                                        <ToggleButton Grid.Column="2" Classes="route others srcOthers" Content="Others"
                                                       VerticalAlignment="Center" HorizontalAlignment="Right"
                                                       IsVisible="{Binding CanSendToOthers}"
                                                       IsChecked="{Binding ToOthers, Mode=TwoWay}"/>
-                                        <TextBlock Grid.Column="2" Text="you only" FontSize="11"
+                                        <TextBlock Grid.Column="2" Classes="srcOthers" Text="you only" FontSize="11"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                   Foreground="{StaticResource TextMutedBrush}"
+                                                   Foreground="{DynamicResource TextMutedBrush}"
                                                    IsVisible="{Binding !CanSendToOthers}"
                                                    ToolTip.Tip="Discord voices land here — sending them back to Discord would echo"/>
                                     </Grid>
@@ -255,34 +317,34 @@
             </Border>
 
             <!-- DESTINATIONS -->
-            <StackPanel Grid.Column="2" Spacing="10">
-                <Border Classes="card" BorderBrush="#1D9E75" BorderThickness="1">
+            <StackPanel Classes="dest" Spacing="10">
+                <Border Classes="card" Margin="0" BorderBrush="#1D9E75" BorderThickness="1">
                     <StackPanel Spacing="6">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock Text="&#xE7F5;" FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                       FontSize="16" Foreground="#5DCAA5" VerticalAlignment="Center"/>
+                                       FontSize="16" Foreground="{DynamicResource RouteYouFgBrush}" VerticalAlignment="Center"/>
                             <TextBlock Text="You hear" FontSize="14" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"/>
-                            <TextBlock Text="headphones" FontSize="10" Foreground="{StaticResource TextMutedBrush}"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="headphones" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"
                                        VerticalAlignment="Center" Margin="4,0,0,0"/>
                         </StackPanel>
                         <TextBlock Text="{Binding YouHearSummary}" TextWrapping="Wrap" FontSize="12"
-                                   Foreground="{StaticResource TextSecondaryBrush}"/>
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
                     </StackPanel>
                 </Border>
 
-                <Border Classes="card" BorderBrush="#7F77DD" BorderThickness="1">
+                <Border Classes="card" Margin="0" BorderBrush="#7F77DD" BorderThickness="1">
                     <StackPanel Spacing="6">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock Text="&#xE789;" FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
-                                       FontSize="16" Foreground="#AFA9EC" VerticalAlignment="Center"/>
+                                       FontSize="16" Foreground="{DynamicResource RouteOthersFgBrush}" VerticalAlignment="Center"/>
                             <TextBlock Text="Others hear" FontSize="14" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"/>
-                            <TextBlock Text="Discord" FontSize="10" Foreground="{StaticResource TextMutedBrush}"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="Discord" FontSize="10" Foreground="{DynamicResource TextMutedBrush}"
                                        VerticalAlignment="Center" Margin="4,0,0,0"/>
                         </StackPanel>
                         <TextBlock Text="{Binding OthersHearSummary}" TextWrapping="Wrap" FontSize="12"
-                                   Foreground="{StaticResource TextSecondaryBrush}"/>
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
                     </StackPanel>
                 </Border>
             </StackPanel>
@@ -292,10 +354,11 @@
         <Expander Header="Setup — pick your devices" IsExpanded="{Binding IsSetupOpen, Mode=TwoWay}"
                   IsVisible="{Binding IsInstalled}" HorizontalAlignment="Stretch">
             <StackPanel Spacing="14" Margin="0,10,0,0">
-                <Grid ColumnDefinitions="*,12,*,12,*">
-                    <StackPanel Grid.Column="0" Spacing="4">
+                <controls:AdaptiveColumnsPanel MinColumnWidth="220" MaxColumns="3"
+                                               ColumnSpacing="12" RowSpacing="14">
+                    <StackPanel Spacing="4">
                         <TextBlock Text="MICROPHONE" FontSize="10" FontWeight="Bold" LetterSpacing="1"
-                                   Foreground="{StaticResource TextMutedBrush}"/>
+                                   Foreground="{DynamicResource TextMutedBrush}"/>
                         <ComboBox HorizontalAlignment="Stretch"
                                   ItemsSource="{Binding Devices.MicrophoneDevices}"
                                   SelectedItem="{Binding Devices.SelectedMicrophone}">
@@ -307,9 +370,9 @@
                         </ComboBox>
                     </StackPanel>
 
-                    <StackPanel Grid.Column="2" Spacing="4">
+                    <StackPanel Spacing="4">
                         <TextBlock Text="GUITAR (KATANA)" FontSize="10" FontWeight="Bold" LetterSpacing="1"
-                                   Foreground="{StaticResource TextMutedBrush}"/>
+                                   Foreground="{DynamicResource TextMutedBrush}"/>
                         <ComboBox HorizontalAlignment="Stretch"
                                   ItemsSource="{Binding Devices.GuitarDevices}"
                                   SelectedItem="{Binding Devices.SelectedGuitar}">
@@ -321,12 +384,12 @@
                         </ComboBox>
                         <TextBlock Text="{Binding Devices.GuitarUnavailableText}"
                                    IsVisible="{Binding Devices.GuitarUnavailable}"
-                                   FontSize="11" Foreground="{StaticResource ErrorBrush}"/>
+                                   FontSize="11" Foreground="{DynamicResource ErrorBrush}"/>
                     </StackPanel>
 
-                    <StackPanel Grid.Column="4" Spacing="4">
+                    <StackPanel Spacing="4">
                         <TextBlock Text="YOU LISTEN WITH" FontSize="10" FontWeight="Bold" LetterSpacing="1"
-                                   Foreground="{StaticResource TextMutedBrush}"/>
+                                   Foreground="{DynamicResource TextMutedBrush}"/>
                         <ComboBox HorizontalAlignment="Stretch"
                                   ItemsSource="{Binding Devices.MonitorDevices}"
                                   SelectedItem="{Binding Devices.SelectedMonitor}">
@@ -340,15 +403,15 @@
                                   IsChecked="{Binding Devices.ShareHeadset, Mode=TwoWay}"
                                   ToolTip.Tip="On: games, Teams and anything else set to this device directly still play. Off: Voicemeeter takes the device for itself — the shortest delay when you monitor your guitar, but apps pointed straight at it are silent."/>
                     </StackPanel>
-                </Grid>
+                </controls:AdaptiveColumnsPanel>
 
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                    <Button Content="Open Voicemeeter" Classes="secondary" Padding="14,8"
+                <WrapPanel Orientation="Horizontal">
+                    <Button Content="Open Voicemeeter" Classes="secondary" Padding="14,8" Margin="0,0,10,0"
                             Command="{Binding Devices.OpenVoicemeeterCommand}"/>
                     <Button Content="Refresh" Classes="secondary" Padding="14,8"
                             Command="{Binding RefreshCommand}"
                             ToolTip.Tip="Re-scan audio devices and Voicemeeter status"/>
-                </StackPanel>
+                </WrapPanel>
             </StackPanel>
         </Expander>
     </StackPanel>

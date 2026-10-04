@@ -4,144 +4,157 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
              xmlns:conv="clr-namespace:CenterHubNew.MVVM.Converters"
+             xmlns:controls="clr-namespace:CenterHubNew.MVVM.Controls"
              x:Class="CenterHubNew.MVVM.View.StandingView"
              x:DataType="viewmodel:StandingViewModel"
              mc:Ignorable="d"
+             controls:Responsive.NarrowBelow="620"
              Background="Transparent">
 
     <UserControl.Resources>
         <conv:FlexibleIntConverter x:Key="FlexInt"/>
     </UserControl.Resources>
 
-    <!-- ScrollViewer hosts the content. Width-constraint must live on an OUTER
-         Border, NOT on the inner StackPanel — when Stretch wins on the
-         StackPanel itself inside a ScrollViewer, its DesiredSize.Y clamps to
-         the viewport and overflow becomes invisible (no scrollbar). -->
-    <ScrollViewer VerticalScrollBarVisibility="Auto"
-                  HorizontalScrollBarVisibility="Disabled"
-                  Padding="24,20" Background="Transparent">
-        <Border MaxWidth="980" HorizontalAlignment="Center">
-        <StackPanel Spacing="0">
+    <UserControl.Styles>
+        <!-- Hero panel: actions sit right of the countdown; under it when narrow -->
+        <Style Selector="StackPanel.heroActions">
+            <Setter Property="Grid.Row" Value="0"/>
+            <Setter Property="Grid.Column" Value="1"/>
+            <Setter Property="Grid.ColumnSpan" Value="1"/>
+            <Setter Property="Orientation" Value="Vertical"/>
+            <Setter Property="Margin" Value="20,0,0,0"/>
+        </Style>
+        <Style Selector="UserControl:narrow StackPanel.heroActions">
+            <Setter Property="Grid.Row" Value="1"/>
+            <Setter Property="Grid.Column" Value="0"/>
+            <Setter Property="Grid.ColumnSpan" Value="2"/>
+            <Setter Property="Orientation" Value="Horizontal"/>
+            <Setter Property="Margin" Value="0,16,0,0"/>
+        </Style>
+        <Style Selector="Grid.heroBody">
+            <Setter Property="Margin" Value="32,28,32,26"/>
+        </Style>
+        <Style Selector="UserControl:narrow Grid.heroBody">
+            <Setter Property="Margin" Value="18,20,18,18"/>
+        </Style>
+        <Style Selector="TextBlock.bigTime">
+            <Setter Property="FontSize" Value="92"/>
+            <Setter Property="LineHeight" Value="100"/>
+        </Style>
+        <Style Selector="UserControl:narrow TextBlock.bigTime">
+            <Setter Property="FontSize" Value="64"/>
+            <Setter Property="LineHeight" Value="72"/>
+        </Style>
+    </UserControl.Styles>
 
-            <!-- ===== PAGE HEADER ===== -->
-            <Grid Margin="0,0,0,20" ColumnDefinitions="*,Auto">
-                <StackPanel Grid.Column="0">
-                    <TextBlock Text="Standing Timer"
-                               FontSize="22" FontWeight="Bold"
-                               Foreground="{StaticResource TextPrimaryBrush}"/>
-                    <TextBlock Text="Alternate sitting and standing throughout the day"
-                               FontSize="12"
-                               Foreground="{StaticResource TextMutedBrush}"
-                               Margin="0,2,0,0"/>
+    <controls:PageHost Title="Standing Timer"
+                       Subtitle="Alternate sitting and standing throughout the day"
+                       Mode="Reading">
+
+        <controls:PageHost.HeaderBadge>
+            <!-- Live status pill -->
+            <Border VerticalAlignment="Center"
+                    CornerRadius="6" Padding="10,5"
+                    IsVisible="{Binding IsRunning}">
+                <Border.Styles>
+                    <Style Selector="Border">
+                        <Setter Property="Background" Value="{DynamicResource SuccessBrush}"/>
+                    </Style>
+                </Border.Styles>
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Border Width="6" Height="6" CornerRadius="3"
+                            Background="White" VerticalAlignment="Center"/>
+                    <TextBlock Text="LIVE" FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                               Foreground="White" VerticalAlignment="Center"/>
                 </StackPanel>
-                <!-- Live status pill -->
-                <Border Grid.Column="1" VerticalAlignment="Center"
-                        CornerRadius="6" Padding="10,5"
-                        IsVisible="{Binding IsRunning}">
-                    <Border.Styles>
-                        <Style Selector="Border">
-                            <Setter Property="Background" Value="{StaticResource SuccessBrush}"/>
-                        </Style>
-                    </Border.Styles>
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Border Width="6" Height="6" CornerRadius="3"
-                                Background="White" VerticalAlignment="Center"/>
-                        <TextBlock Text="LIVE" FontSize="10" FontWeight="Bold" LetterSpacing="1"
-                                   Foreground="White" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Border>
-            </Grid>
+            </Border>
+        </controls:PageHost.HeaderBadge>
+
+        <StackPanel Spacing="0">
 
             <!-- ===== HERO PANEL (running) ===== -->
             <Border Margin="0,0,0,12"
                     CornerRadius="14" Padding="0"
-                    BorderThickness="1" BorderBrush="{StaticResource BorderHairline}"
+                    BorderThickness="1" BorderBrush="{DynamicResource BorderHairline}"
                     ClipToBounds="True"
-                    IsVisible="{Binding IsRunning}">
-                <Border.Background>
-                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                        <GradientStop Color="#221B1B28" Offset="0"/>
-                        <GradientStop Color="#88141422" Offset="1"/>
-                    </LinearGradientBrush>
-                </Border.Background>
-                <!-- RowDefinitions MUST use Auto, not *, for the content row.
-                     Inside a ScrollViewer, * asks for "all remaining space" during the
-                     infinite-height measure pass, which makes this Border consume the
-                     whole viewport and breaks vertical scrolling for everything below. -->
+                    IsVisible="{Binding IsRunning}" Background="{DynamicResource HeroBackgroundBrush}">
+                <!-- RowDefinitions MUST use Auto, not *, for the content row. -->
                 <Grid RowDefinitions="4,Auto">
 
                     <!-- Top colored stripe (changes per phase via Style) -->
                     <Border Grid.Row="0">
                         <Border.Styles>
                             <Style Selector="Border">
-                                <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+                                <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
                             </Style>
                         </Border.Styles>
                     </Border>
 
-                    <Grid Grid.Row="1" Margin="32,28,32,26" ColumnDefinitions="*,Auto">
+                    <Grid Grid.Row="1" Classes="heroBody"
+                          ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
 
                         <!-- LEFT: phase + big countdown -->
-                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <StackPanel Grid.Row="0" Grid.Column="0" VerticalAlignment="Center">
                             <!-- Phase label with colored dot -->
                             <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,0,0,4">
                                 <Border Width="10" Height="10" CornerRadius="5"
-                                        Background="{StaticResource AccentBrush}"
+                                        Background="{DynamicResource AccentBrush}"
                                         VerticalAlignment="Center"/>
                                 <TextBlock Text="{Binding PhaseLabel}"
                                            FontSize="12" FontWeight="Bold" LetterSpacing="3"
-                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
                                            VerticalAlignment="Center"/>
                             </StackPanel>
 
                             <TextBlock Text="{Binding TimeRemainingDisplay}"
-                                       FontSize="92" FontWeight="Bold"
-                                       LineHeight="100"
+                                       Classes="bigTime"
+                                       FontWeight="Bold"
                                        FontFamily="Segoe UI Variable Display, Segoe UI, $default"
-                                       Foreground="{StaticResource TextPrimaryBrush}"/>
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
 
                             <TextBlock Text="{Binding PhaseGuidance}"
                                        FontSize="13"
-                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
                                        Margin="0,4,0,12"/>
 
                             <ProgressBar Value="{Binding PhaseProgress}"
                                          Maximum="1" Minimum="0"
                                          Height="6"
                                          HorizontalAlignment="Stretch"
-                                         Foreground="{StaticResource AccentBrush}"
+                                         Foreground="{DynamicResource AccentBrush}"
                                          Margin="0,0,0,14"/>
 
-                            <StackPanel Orientation="Horizontal" Spacing="20">
-                                <StackPanel>
+                            <WrapPanel Orientation="Horizontal">
+                                <StackPanel Margin="0,0,20,6">
                                     <TextBlock Text="NEXT SWITCH"
                                                FontSize="9" FontWeight="Bold" LetterSpacing="1"
-                                               Foreground="{StaticResource TextMutedBrush}"/>
+                                               Foreground="{DynamicResource TextMutedBrush}"/>
                                     <TextBlock Text="{Binding NextSwitchAtDisplay}"
                                                FontSize="16" FontWeight="SemiBold"
-                                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 </StackPanel>
-                                <StackPanel>
+                                <StackPanel Margin="0,0,20,6">
                                     <TextBlock Text="SESSION"
                                                FontSize="9" FontWeight="Bold" LetterSpacing="1"
-                                               Foreground="{StaticResource TextMutedBrush}"/>
+                                               Foreground="{DynamicResource TextMutedBrush}"/>
                                     <TextBlock Text="{Binding SessionElapsedDisplay}"
                                                FontSize="16" FontWeight="SemiBold"
-                                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 </StackPanel>
-                                <StackPanel>
+                                <StackPanel Margin="0,0,0,6">
                                     <TextBlock Text="CYCLES"
                                                FontSize="9" FontWeight="Bold" LetterSpacing="1"
-                                               Foreground="{StaticResource TextMutedBrush}"/>
+                                               Foreground="{DynamicResource TextMutedBrush}"/>
                                     <TextBlock Text="{Binding CyclesCompleted}"
                                                FontSize="16" FontWeight="SemiBold"
-                                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 </StackPanel>
-                            </StackPanel>
+                            </WrapPanel>
                         </StackPanel>
 
-                        <!-- RIGHT: actions -->
-                        <StackPanel Grid.Column="1" Spacing="10" VerticalAlignment="Center" Margin="20,0,0,0">
+                        <!-- RIGHT (under the countdown when narrow): actions -->
+                        <StackPanel Classes="heroActions" Spacing="10" VerticalAlignment="Center">
                             <Button Content="Skip Phase" Classes="secondary"
                                     Padding="20,10" FontSize="13"
                                     HorizontalContentAlignment="Center"
@@ -161,20 +174,21 @@
                 <Grid ColumnDefinitions="Auto,*">
                     <Border Grid.Column="0"
                             Width="56" Height="56" CornerRadius="12"
-                            Background="{StaticResource AccentSubtleBrush}"
-                            BorderThickness="1" BorderBrush="{StaticResource AccentBrush}"
+                            Background="{DynamicResource AccentSubtleBrush}"
+                            BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}"
                             VerticalAlignment="Center">
                         <TextBlock Text="ST" FontSize="14" FontWeight="Bold"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   Foreground="{StaticResource AccentBrush}"/>
+                                   Foreground="{DynamicResource AccentBrush}"/>
                     </Border>
                     <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
                         <TextBlock Text="Ready to start"
                                    FontSize="16" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextPrimaryBrush}"/>
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
                         <TextBlock Text="{Binding PhaseGuidance}"
                                    FontSize="12"
-                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                    Margin="0,2,0,0"/>
                     </StackPanel>
                 </Grid>
@@ -185,34 +199,40 @@
                 <StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,14" Spacing="8">
                         <Border Width="3" Height="14" CornerRadius="2"
-                                Background="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                                Background="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
                         <TextBlock Text="PRESETS" FontSize="10" FontWeight="Bold" LetterSpacing="1"
-                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                   Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
                     </StackPanel>
 
                     <ItemsControl ItemsSource="{Binding Presets}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
-                                <UniformGrid Columns="4" Rows="1"/>
+                                <controls:AdaptiveColumnsPanel MinColumnWidth="150" MaxColumns="4"
+                                                               ColumnSpacing="8" RowSpacing="8"/>
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="viewmodel:StandingPreset">
                                 <Button Background="Transparent" BorderThickness="0" Padding="0"
-                                        Margin="0,0,8,0" Cursor="Hand"
+                                        Cursor="Hand"
+                                        HorizontalAlignment="Stretch"
+                                        VerticalAlignment="Stretch"
                                         HorizontalContentAlignment="Stretch"
+                                        VerticalContentAlignment="Stretch"
                                         Command="{Binding $parent[ItemsControl].((viewmodel:StandingViewModel)DataContext).ApplyPresetCommand}"
                                         CommandParameter="{Binding}">
-                                    <Border Background="{StaticResource CardInnerBrush}"
+                                    <Border Background="{DynamicResource CardInnerBrush}"
                                             CornerRadius="10" Padding="14,12"
-                                            BorderThickness="1" BorderBrush="{StaticResource BorderHairline}">
+                                            BorderThickness="1" BorderBrush="{DynamicResource BorderHairline}">
                                         <StackPanel>
                                             <TextBlock Text="{Binding Name}"
                                                        FontSize="13" FontWeight="SemiBold"
-                                                       Foreground="{StaticResource TextPrimaryBrush}"/>
+                                                       TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
                                             <TextBlock Text="{Binding Subtitle}"
                                                        FontSize="11"
-                                                       Foreground="{StaticResource TextMutedBrush}"
+                                                       TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource TextMutedBrush}"
                                                        Margin="0,3,0,0"/>
                                         </StackPanel>
                                     </Border>
@@ -228,67 +248,69 @@
                 <StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,14" Spacing="8">
                         <Border Width="3" Height="14" CornerRadius="2"
-                                Background="{StaticResource SuccessBrush}" VerticalAlignment="Center"/>
+                                Background="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
                         <TextBlock Text="CONFIGURATION" FontSize="10" FontWeight="Bold" LetterSpacing="1"
-                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                   Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
                     </StackPanel>
 
-                    <Grid ColumnDefinitions="*,12,*" Margin="0,0,0,16">
-                        <Border Grid.Column="0" Classes="card-inner">
+                    <controls:AdaptiveColumnsPanel MinColumnWidth="240" MaxColumns="2"
+                                                   ColumnSpacing="12" RowSpacing="12"
+                                                   Margin="0,0,0,16">
+                        <Border Classes="card-inner">
                             <Grid ColumnDefinitions="*,Auto">
                                 <StackPanel Grid.Column="0">
                                     <TextBlock Text="SIT FOR" FontSize="9" FontWeight="Bold" LetterSpacing="1"
-                                               Foreground="{StaticResource InfoBrush}"/>
+                                               Foreground="{DynamicResource InfoBrush}"/>
                                     <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
                                         <TextBox Text="{Binding SittingMinutes, Mode=TwoWay, Converter={StaticResource FlexInt}}"
                                                  Classes="input" Width="80" FontSize="20" FontWeight="SemiBold"/>
                                         <TextBlock Text="min" FontSize="12" VerticalAlignment="Center"
-                                                   Foreground="{StaticResource TextMutedBrush}"/>
+                                                   Foreground="{DynamicResource TextMutedBrush}"/>
                                     </StackPanel>
                                 </StackPanel>
                                 <Border Grid.Column="1" Width="40" Height="40" CornerRadius="20"
-                                        Background="{StaticResource AccentSubtleBrush}"
+                                        Background="{DynamicResource AccentSubtleBrush}"
                                         VerticalAlignment="Center">
                                     <TextBlock Text="Sit" FontSize="11" FontWeight="Bold"
                                                HorizontalAlignment="Center" VerticalAlignment="Center"
-                                               Foreground="{StaticResource AccentBrush}"/>
+                                               Foreground="{DynamicResource AccentBrush}"/>
                                 </Border>
                             </Grid>
                         </Border>
 
-                        <Border Grid.Column="2" Classes="card-inner">
+                        <Border Classes="card-inner">
                             <Grid ColumnDefinitions="*,Auto">
                                 <StackPanel Grid.Column="0">
                                     <TextBlock Text="THEN STAND FOR" FontSize="9" FontWeight="Bold" LetterSpacing="1"
-                                               Foreground="{StaticResource SuccessBrush}"/>
+                                               Foreground="{DynamicResource SuccessBrush}"/>
                                     <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
                                         <TextBox Text="{Binding StandingMinutes, Mode=TwoWay, Converter={StaticResource FlexInt}}"
                                                  Classes="input" Width="80" FontSize="20" FontWeight="SemiBold"/>
                                         <TextBlock Text="min" FontSize="12" VerticalAlignment="Center"
-                                                   Foreground="{StaticResource TextMutedBrush}"/>
+                                                   Foreground="{DynamicResource TextMutedBrush}"/>
                                     </StackPanel>
                                 </StackPanel>
                                 <Border Grid.Column="1" Width="40" Height="40" CornerRadius="20"
-                                        Background="{StaticResource SuccessSubtleBrush}"
+                                        Background="{DynamicResource SuccessSubtleBrush}"
                                         VerticalAlignment="Center">
                                     <TextBlock Text="Up" FontSize="11" FontWeight="Bold"
                                                HorizontalAlignment="Center" VerticalAlignment="Center"
-                                               Foreground="{StaticResource SuccessBrush}"/>
+                                               Foreground="{DynamicResource SuccessBrush}"/>
                                 </Border>
                             </Grid>
                         </Border>
-                    </Grid>
+                    </controls:AdaptiveColumnsPanel>
 
-                    <StackPanel Orientation="Horizontal" Spacing="10">
+                    <WrapPanel Orientation="Horizontal">
                         <Button Content="Start Session" Classes="primary" Padding="32,11"
-                                FontSize="14"
+                                FontSize="14" Margin="0,0,10,8"
                                 Command="{Binding StartTimersCommand}"
                                 IsEnabled="{Binding IsStartButtonEnabled}"/>
                         <Button Content="Stop" Classes="secondary" Padding="24,11"
-                                FontSize="13"
+                                FontSize="13" Margin="0,0,0,8"
                                 Command="{Binding StopTimersCommand}"
                                 IsEnabled="{Binding IsRunning}"/>
-                    </StackPanel>
+                    </WrapPanel>
                 </StackPanel>
             </Border>
 
@@ -297,60 +319,56 @@
                 <StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,14" Spacing="8">
                         <Border Width="3" Height="14" CornerRadius="2"
-                                Background="{StaticResource InfoBrush}" VerticalAlignment="Center"/>
+                                Background="{DynamicResource InfoBrush}" VerticalAlignment="Center"/>
                         <TextBlock Text="SESSION STATS" FontSize="10" FontWeight="Bold" LetterSpacing="1"
-                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                   Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
                     </StackPanel>
 
-                    <UniformGrid Columns="4" Rows="1">
-                        <Border Margin="0,0,8,0" Classes="card-inner">
+                    <controls:AdaptiveColumnsPanel MinColumnWidth="140" MaxColumns="4"
+                                                   ColumnSpacing="8" RowSpacing="8">
+                        <Border Classes="card-inner">
                             <StackPanel>
                                 <TextBlock Text="CYCLES" FontSize="9" FontWeight="Bold" LetterSpacing="1"
-                                           Foreground="{StaticResource TextMutedBrush}"/>
+                                           Foreground="{DynamicResource TextMutedBrush}"/>
                                 <TextBlock Text="{Binding CyclesCompleted}"
                                            FontSize="24" FontWeight="Bold"
-                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
                                            Margin="0,4,0,0"/>
                             </StackPanel>
                         </Border>
-                        <Border Margin="4,0,4,0" Classes="card-inner">
+                        <Border Classes="card-inner">
                             <StackPanel>
                                 <TextBlock Text="STAND TIME" FontSize="9" FontWeight="Bold" LetterSpacing="1"
-                                           Foreground="{StaticResource SuccessBrush}"/>
+                                           Foreground="{DynamicResource SuccessBrush}"/>
                                 <TextBlock Text="{Binding TotalStandingDisplay}"
                                            FontSize="22" FontWeight="Bold"
-                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
                                            Margin="0,4,0,0"/>
                             </StackPanel>
                         </Border>
-                        <Border Margin="4,0,4,0" Classes="card-inner">
+                        <Border Classes="card-inner">
                             <StackPanel>
                                 <TextBlock Text="SIT TIME" FontSize="9" FontWeight="Bold" LetterSpacing="1"
-                                           Foreground="{StaticResource InfoBrush}"/>
+                                           Foreground="{DynamicResource InfoBrush}"/>
                                 <TextBlock Text="{Binding TotalSittingDisplay}"
                                            FontSize="22" FontWeight="Bold"
-                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
                                            Margin="0,4,0,0"/>
                             </StackPanel>
                         </Border>
-                        <Border Margin="8,0,0,0" Classes="card-inner">
+                        <Border Classes="card-inner">
                             <StackPanel>
                                 <TextBlock Text="SESSION" FontSize="9" FontWeight="Bold" LetterSpacing="1"
-                                           Foreground="{StaticResource TextMutedBrush}"/>
+                                           Foreground="{DynamicResource TextMutedBrush}"/>
                                 <TextBlock Text="{Binding SessionElapsedDisplay}"
                                            FontSize="22" FontWeight="Bold"
-                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
                                            Margin="0,4,0,0"/>
                             </StackPanel>
                         </Border>
-                    </UniformGrid>
+                    </controls:AdaptiveColumnsPanel>
                 </StackPanel>
             </Border>
-
-            <!-- Trailing breathing room so the last card isn't flush
-                 against the viewport edge at max scroll. -->
-            <Border Height="24"/>
         </StackPanel>
-        </Border>
-    </ScrollViewer>
+    </controls:PageHost>
 </UserControl>

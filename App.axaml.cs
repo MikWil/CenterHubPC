@@ -38,6 +38,9 @@ namespace CenterHubNew
 
                 if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime lifetime)
                 {
+                    // Theme + accent before the first window, so StaticResource lookups see the right palette.
+                    _host.Services.GetRequiredService<ThemeService>().Apply();
+
                     var mainWindow = _host.Services.GetRequiredService<MainWindow>();
                     lifetime.MainWindow = mainWindow;
                     // Closing the main window quits the app (even if Favorites / Sound
@@ -128,22 +131,19 @@ namespace CenterHubNew
                 hotkeyService.SetCallback(HotkeyAction.AutoClickerCapturePosition,
                     () => TryPost(() => Services.GetService<AutoClickerViewModel>()?.GetCurrentPosition()));
 
+                // Opens the window if needed, then the palette (Ctrl+K inside the app works without this).
+                hotkeyService.SetCallback(HotkeyAction.AppCommandPalette, () => TryPost(() =>
+                {
+                    if (!mainWindow.IsVisible) mainWindow.RestoreFromTray();
+                    mainWindow.Activate();
+                    Services.GetService<CenterHubNew.MVVM.Navigation.ShellService>()?.ShowCommandPalette();
+                }));
+
                 hotkeyService.SetCallback(HotkeyAction.AudioToggleMic, () =>
                 {
-                    try
-                    {
-                        using var enumerator = new NAudio.CoreAudioApi.MMDeviceEnumerator();
-                        using var mic = enumerator.GetDefaultAudioEndpoint(
-                            NAudio.CoreAudioApi.DataFlow.Capture,
-                            NAudio.CoreAudioApi.Role.Communications);
-                        if (mic != null)
-                        {
-                            mic.AudioEndpointVolume.Mute = !mic.AudioEndpointVolume.Mute;
-                            var status = mic.AudioEndpointVolume.Mute ? "muted" : "unmuted";
-                            ToastService.Instance.Success($"Microphone {status}");
-                        }
-                    }
-                    catch (Exception ex) { ToastService.Instance.Error($"Mic toggle failed: {ex.Message}"); }
+                    var muted = Services.GetService<MicrophoneService>()?.ToggleMute();
+                    if (muted is null) ToastService.Instance.Error("No microphone to mute");
+                    else ToastService.Instance.Success(muted.Value ? "Microphone muted" : "Microphone unmuted");
                 });
 
                 // Next / previous cycle the Sound tab's routing presets (Guitar + Discord, Gaming, …).
@@ -183,6 +183,10 @@ namespace CenterHubNew
                     () => TryPost(() => Services.GetService<MetronomeViewModel>()?.NextPartCommand.Execute(null)));
                 hotkeyService.SetCallback(HotkeyAction.MetronomeTapTempo,
                     () => TryPost(() => Services.GetService<MetronomeViewModel>()?.TapTempoCommand.Execute(null)));
+                hotkeyService.SetCallback(HotkeyAction.MetronomeNextSong,
+                    () => TryPost(() => Services.GetService<MetronomeViewModel>()?.NextSong()));
+                hotkeyService.SetCallback(HotkeyAction.MetronomePrevSong,
+                    () => TryPost(() => Services.GetService<MetronomeViewModel>()?.PreviousSong()));
             }
             catch (Exception ex)
             {
@@ -203,6 +207,7 @@ namespace CenterHubNew
                 try
                 {
                     await System.Threading.Tasks.Task.Delay(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    if (Services.GetService<UiSettingsService>()?.Current.CheckForUpdates == false) return;
                     var svc = Services.GetService<UpdateService>();
                     if (svc is null) return;
                     await svc.CheckAsync().ConfigureAwait(false);
@@ -262,6 +267,13 @@ namespace CenterHubNew
                     services.AddSingleton<UpdateService>();
                     services.AddSingleton<WindowsNotificationService>();
                     services.AddSingleton<WifiService>();
+                    services.AddSingleton<UiSettingsService>();
+                    services.AddSingleton<CenterHubNew.MVVM.Navigation.ShellService>();
+                    services.AddSingleton<PracticeLogService>();
+                    services.AddSingleton<MicrophoneService>();
+                    services.AddSingleton<ThemeService>();
+                    services.AddSingleton<StartupService>();
+                    services.AddSingleton<SettingsBackupService>();
                     services.AddSingleton<MetronomeService>();
                     services.AddSingleton<MetronomeSettingsService>();
                     services.AddSingleton<RandomizerSoundService>();
@@ -300,6 +312,12 @@ namespace CenterHubNew
                     services.AddTransient<RandomizerViewModel>();
                     services.AddSingleton<MetronomeViewModel>(); // hotkeys (start/stop, fill, next part) act on it
                     services.AddTransient<VoicemeeterViewModel>();
+                    // UI overhaul: shell features live as long as the main window.
+                    services.AddSingleton<DashboardViewModel>();
+                    services.AddSingleton<SettingsViewModel>();
+                    services.AddSingleton<StatusStripViewModel>();
+                    services.AddSingleton<CommandPaletteViewModel>();
+                    services.AddTransient<SetupWizardViewModel>();
                     services.AddTransient<RoutingViewModel>();
 
                     services.AddTransient<MainWindow>();

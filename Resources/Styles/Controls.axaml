@@ -1,0 +1,201 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:CenterHubNew.MVVM.Controls">
+
+    <!--
+    ========================================================================================
+     Shared layout controls (MVVM/Controls) — read this before converting a page.
+    ========================================================================================
+
+     (a) CARD GRIDS: AdaptiveColumnsPanel
+         Lays children out in N equal columns; N follows the width (3 -> 2 -> 1 as the window shrinks).
+         Cards in one row get the same height. Children keep their own Margin, so use the panel's
+         spacing properties instead of margins between cards.
+
+           xmlns:controls="clr-namespace:CenterHubNew.MVVM.Controls"
+
+           <controls:AdaptiveColumnsPanel MinColumnWidth="320" MaxColumns="3"
+                                          ColumnSpacing="12" RowSpacing="12">
+               <Border Classes="card">...</Border>
+               <Border Classes="card" controls:AdaptiveColumnsPanel.ColumnSpan="2">...</Border>
+               <Border Classes="card" controls:AdaptiveColumnsPanel.FullRow="True">wide board</Border>
+           </controls:AdaptiveColumnsPanel>
+
+         ColumnSpan (default 1) is clamped to the current column count; FullRow always spans every
+         column. The panel exposes the read-only CurrentColumns (e.g. to hide a column header at 1).
+
+     (b) PAGE FRAME: PageHost
+         Replaces the hand-written "ScrollViewer + fade + MaxWidth border + title header" of each page.
+         The page content is the PageHost's Content. The header stays put while the body scrolls.
+         Title is the first text on the page, top-left (UI automation finds page headings there).
+
+           <controls:PageHost Title="Metronome" Subtitle="Click, drum beats and practice tools"
+                              Mode="Reading">            [Reading = max 900 wide, centred; Data = full width]
+               <controls:PageHost.HeaderActions>
+                   <WrapPanel>...buttons...</WrapPanel>   [wraps under the title below 640 px]
+               </controls:PageHost.HeaderActions>
+               <controls:PageHost.HeaderBadge>
+                   <Border IsVisible="{Binding IsPlaying}">...PLAYING pill...</Border>
+               </controls:PageHost.HeaderBadge>
+               ...page content (e.g. an AdaptiveColumnsPanel)...
+           </controls:PageHost>
+
+         Other properties: ContentMaxWidth (default 900, Reading only), IsScrollable (false for pages
+         that scroll internally, e.g. Notes: the content then fills the remaining height).
+         Density: when any ancestor has the class "compact" the shell shrinks the paddings
+         (rules at the bottom of this file, parts PART_Header / PART_Body).
+         The host sets pseudo-classes :narrow (< 640 wide), :scrollable, :reading and :data, so page
+         styles may use e.g.  controls|PageHost:narrow /template/ Border#PART_Header.
+
+     (c) PAGE-LEVEL "CONTAINER QUERIES"
+         Avalonia 11.2 has NO ContainerQuery / Container.Sizing (that arrived in 11.3), so the project
+         uses a size-driven pseudo-class instead: the attached property Responsive.NarrowBelow (and
+         Responsive.WideAbove) sets :narrow / :wide on a control from its own width, and ordinary
+         style selectors do the rest.
+
+           <UserControl controls:Responsive.NarrowBelow="700" ...>
+               <UserControl.Styles>
+                   (below 700 px wide the horizontal row becomes a column)
+                   <Style Selector="UserControl:narrow StackPanel.row">
+                       <Setter Property="Orientation" Value="Vertical"/>
+                   </Style>
+               </UserControl.Styles>
+               ...
+           </UserControl>
+
+         (Set the attached property on the element whose width matters; the pseudo-class is set on
+         that same element, so the selector starts with its type or class.)
+    ========================================================================================
+    -->
+
+    <!-- ===================== PageHost ===================== -->
+
+    <Style Selector="controls|PageHost">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+        <Setter Property="Template">
+            <ControlTemplate TargetType="controls:PageHost">
+                <Grid RowDefinitions="Auto,*" Background="{TemplateBinding Background}">
+
+                    <!-- Header: stays at the top while the body scrolls. Padding comes from the styles below. -->
+                    <Border x:Name="PART_Header" Grid.Row="0">
+                        <Border HorizontalAlignment="Stretch"
+                                MaxWidth="{TemplateBinding EffectiveContentMaxWidth}">
+                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                                <StackPanel Grid.Row="0" Grid.Column="0" VerticalAlignment="Center">
+                                    <!-- A presenter, not a TextBlock: Avalonia hides template TextBlocks from
+                                         UI Automation, and the UI tests find pages by this heading. -->
+                                    <ContentPresenter x:Name="PART_Title" Content="{TemplateBinding Title}">
+                                        <ContentPresenter.ContentTemplate>
+                                            <DataTemplate x:DataType="x:String">
+                                                <TextBlock Classes="page-title" Text="{Binding}"
+                                                           FontSize="22" FontWeight="Bold"
+                                                           TextWrapping="Wrap"
+                                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            </DataTemplate>
+                                        </ContentPresenter.ContentTemplate>
+                                    </ContentPresenter>
+                                    <TextBlock Text="{TemplateBinding Subtitle}"
+                                               FontSize="12" Margin="0,2,0,0"
+                                               TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextMutedBrush}"
+                                               IsVisible="{TemplateBinding Subtitle, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                </StackPanel>
+
+                                <!-- Actions + badge: right of the title when wide, under it when :narrow (see styles) -->
+                                <Grid x:Name="PART_Actions" ColumnDefinitions="*,Auto">
+                                    <ContentPresenter Grid.Column="0"
+                                                      Content="{TemplateBinding HeaderActions}"
+                                                      HorizontalAlignment="Left"
+                                                      VerticalAlignment="Center"
+                                                      IsVisible="{TemplateBinding HeaderActions, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                                    <ContentPresenter Grid.Column="1"
+                                                      Content="{TemplateBinding HeaderBadge}"
+                                                      Margin="8,0,0,0"
+                                                      VerticalAlignment="Center"
+                                                      IsVisible="{TemplateBinding HeaderBadge, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                                </Grid>
+                            </Grid>
+                        </Border>
+                    </Border>
+
+                    <!-- Body. When the host is not scrollable the vertical scrollbar is Disabled, so the
+                         content is measured with the viewport height and fills the remaining space.
+                         Fade mask, scrollbar mode and paddings come from the styles below. -->
+                    <ScrollViewer x:Name="PART_Body" Grid.Row="1"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Background="Transparent">
+                        <Grid x:Name="PART_BodyContent" RowDefinitions="*,Auto">
+                            <Border Grid.Row="0" HorizontalAlignment="Stretch"
+                                    MaxWidth="{TemplateBinding EffectiveContentMaxWidth}">
+                                <ContentPresenter x:Name="PART_ContentPresenter"
+                                                  Content="{TemplateBinding Content}"
+                                                  ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                  HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                            </Border>
+                            <!-- Trailing spacer: taller than the bottom fade so the last card is never dimmed -->
+                            <Border x:Name="PART_Spacer" Grid.Row="1" Height="48"/>
+                        </Grid>
+                    </ScrollViewer>
+                </Grid>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+
+    <!-- Paddings (default density) -->
+    <Style Selector="controls|PageHost /template/ Border#PART_Header">
+        <Setter Property="Padding" Value="24,20,24,12"/>
+    </Style>
+    <!-- Side padding as a margin INSIDE the scroller: ScrollViewer.Padding is not subtracted from the
+         width the content is measured with (Avalonia 11.2), so the content overflowed on the right. -->
+    <Style Selector="controls|PageHost /template/ Grid#PART_BodyContent">
+        <Setter Property="Margin" Value="24,0,24,0"/>
+    </Style>
+
+    <!-- Header actions: right of the title... -->
+    <Style Selector="controls|PageHost /template/ Grid#PART_Actions">
+        <Setter Property="Grid.Row" Value="0"/>
+        <Setter Property="Grid.Column" Value="1"/>
+        <Setter Property="Grid.ColumnSpan" Value="1"/>
+        <Setter Property="Margin" Value="16,0,0,0"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <!-- ...and under it when the page is narrow (nothing is clipped: the row spans the full width) -->
+    <Style Selector="controls|PageHost:narrow /template/ Grid#PART_Actions">
+        <Setter Property="Grid.Row" Value="1"/>
+        <Setter Property="Grid.Column" Value="0"/>
+        <Setter Property="Grid.ColumnSpan" Value="2"/>
+        <Setter Property="Margin" Value="0,10,0,0"/>
+        <Setter Property="VerticalAlignment" Value="Top"/>
+    </Style>
+
+    <!-- Scrollable body: vertical scrollbar + soft fade at the bottom edge (the spacer keeps the last card clear of it) -->
+    <Style Selector="controls|PageHost:scrollable /template/ ScrollViewer#PART_Body">
+        <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+        <Setter Property="OpacityMask">
+            <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                <GradientStop Offset="0.0"  Color="White"/>
+                <GradientStop Offset="0.95" Color="White"/>
+                <GradientStop Offset="1.0"  Color="Transparent"/>
+            </LinearGradientBrush>
+        </Setter>
+    </Style>
+    <!-- Self-scrolling page: content fills the remaining height, no fade, no spacer -->
+    <Style Selector="controls|PageHost:not(:scrollable) /template/ ScrollViewer#PART_Body">
+        <Setter Property="VerticalScrollBarVisibility" Value="Disabled"/>
+    </Style>
+    <Style Selector="controls|PageHost:not(:scrollable) /template/ Border#PART_Spacer">
+        <Setter Property="IsVisible" Value="False"/>
+    </Style>
+
+    <!-- Compact density: any ancestor with Classes="compact" (the shell adds it) shrinks the paddings -->
+    <Style Selector=".compact controls|PageHost /template/ Border#PART_Header">
+        <Setter Property="Padding" Value="16,12,16,8"/>
+    </Style>
+    <Style Selector=".compact controls|PageHost /template/ Grid#PART_BodyContent">
+        <Setter Property="Margin" Value="16,0,16,0"/>
+    </Style>
+
+</Styles>

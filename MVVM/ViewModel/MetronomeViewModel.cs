@@ -123,6 +123,120 @@ namespace CenterHubNew.MVVM.ViewModel
         [ObservableProperty] private bool _isCurrent;
     }
 
+    /// <summary>A setlist as shown in the picker; renaming writes through to the model and asks for a save.</summary>
+    public sealed class SetlistItem : ObservableObject
+    {
+        private readonly Action _changed;
+
+        public SetlistItem(Setlist model, Action changed)
+        {
+            Model = model;
+            _changed = changed;
+        }
+
+        public Setlist Model { get; }
+
+        public string Name
+        {
+            get => Model.Name;
+            set
+            {
+                value ??= "";
+                if (Model.Name == value) return;
+                Model.Name = value;
+                OnPropertyChanged();
+                _changed();
+            }
+        }
+
+        public override string ToString() => Name;
+    }
+
+    /// <summary>One row of the setlist's song list.</summary>
+    public sealed class SetlistSongItem : ObservableObject
+    {
+        private readonly Func<SetlistSong, string> _describe;
+        private readonly Action _changed;
+        private int _number;
+        private bool _isActive;
+        private string _description;
+
+        public SetlistSongItem(SetlistSong song, Func<SetlistSong, string> describe, Action changed)
+        {
+            Song = song;
+            _describe = describe;
+            _changed = changed;
+            _description = describe(song);
+        }
+
+        public SetlistSong Song { get; }
+
+        public int Number
+        {
+            get => _number;
+            set => SetProperty(ref _number, value);
+        }
+
+        /// <summary>Editable in the list; an empty name is kept as typed and shown as "Untitled" elsewhere.</summary>
+        public string Name
+        {
+            get => Song.Name;
+            set
+            {
+                value ??= "";
+                if (Song.Name == value) return;
+                Song.Name = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(DisplayName));
+                _changed();
+            }
+        }
+
+        /// <summary>"120 BPM · Rock 8ths".</summary>
+        public string Description
+        {
+            get => _description;
+            private set => SetProperty(ref _description, value);
+        }
+
+        /// <summary>True for the song most recently loaded / added (highlighted in the list).</summary>
+        public bool IsActive
+        {
+            get => _isActive;
+            set => SetProperty(ref _isActive, value);
+        }
+
+        public string DisplayName => string.IsNullOrWhiteSpace(Song.Name) ? "Untitled" : Song.Name;
+
+        public void Refresh() => Description = _describe(Song);
+    }
+
+    /// <summary>One bar of the 14-day practice chart. Immutable; heights are doubles on purpose.</summary>
+    public sealed class PracticeBar
+    {
+        public const double MaxHeight = 56;
+        public const double MinHeight = 3;
+
+        public PracticeBar(DateTime date, double minutes, double scaleMinutes, bool isToday)
+        {
+            Date = date;
+            Minutes = minutes;
+            IsToday = isToday;
+            HasPractice = minutes > 0;
+            Height = HasPractice
+                ? MinHeight + (MaxHeight - MinHeight) * Math.Clamp(minutes / Math.Max(1, scaleMinutes), 0, 1)
+                : MinHeight;
+            Tooltip = PracticeText.BarTooltip(date, minutes);
+        }
+
+        public DateTime Date { get; }
+        public double Minutes { get; }
+        public double Height { get; }
+        public bool IsToday { get; }
+        public bool HasPractice { get; }
+        public string Tooltip { get; }
+    }
+
     public partial class MetronomeViewModel : BaseViewModel
     {
         private const int MinBpm = 30;
@@ -208,6 +322,44 @@ namespace CenterHubNew.MVVM.ViewModel
         };
 
         public string IntervalDisplay => $"{(int)(60_000.0 / Math.Max(1, Bpm))} ms / beat";
+
+        // ── Setlists ──
+        public ObservableCollection<SetlistItem> Setlists { get; } = new();
+
+        /// <summary>The songs of <see cref="SelectedSetlist"/>.</summary>
+        public ObservableCollection<SetlistSongItem> Songs { get; } = new();
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(HasSelectedSetlist))]
+        private SetlistItem? _selectedSetlist;
+
+        /// <summary>The song most recently loaded or added (highlighted in the list).</summary>
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(HasSelectedSong))]
+        private SetlistSongItem? _selectedSong;
+
+        /// <summary>True while the setlist name is being edited in place of the picker.</summary>
+        [ObservableProperty] private bool _isRenamingSetlist;
+
+        public bool HasSelectedSetlist => SelectedSetlist is not null;
+        public bool HasSelectedSong => SelectedSong is not null;
+        public bool HasSongs => Songs.Count > 0;
+
+        // ── Practice log ──
+        private readonly PracticeLogService? _practiceLog;
+        private DateTime? _sessionStart;
+        private Stopwatch? _sessionClock;
+        private int _sessionMaxBpm;
+
+        [ObservableProperty] private string _todayText = "0 min";
+        [ObservableProperty] private string _weekText = "0 min";
+        [ObservableProperty] private string _streakText = "0 days";
+        [ObservableProperty] private string _bestBpmText = "—";
+
+        public ObservableCollection<PracticeBar> PracticeBars { get; } = new();
+
+        /// <summary>False when no practice log is available (headless tools); the card is hidden then.</summary>
+        public bool HasPracticeLog => _practiceLog is not null;
 
         // ── Collections ──
         public ObservableCollection<BeatLight>   BeatLights   { get; } = new();
@@ -323,10 +475,13 @@ namespace CenterHubNew.MVVM.ViewModel
         public MetronomeViewModel(
             MetronomeService audio,
             MetronomeSettingsService settingsService,
-            ILogger<MetronomeViewModel>? logger = null) : base(logger)
+            ILogger<MetronomeViewModel>? logger = null,
+            PracticeLogService? practiceLog = null) : base(logger)
         {
             _audio = audio;
             _settingsService = settingsService;
+            _practiceLog = practiceLog ?? ResolvePracticeLog();
+            Songs.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasSongs));
 
             MetronomeSettings s;
             try { s = settingsService.Load(); }
@@ -368,9 +523,22 @@ namespace CenterHubNew.MVVM.ViewModel
             if (s.Accents is { Count: > 0 }) _accentMemory.AddRange(s.Accents);
             else _accentMemory.Add(BeatAccent.Accent);
 
+            // Setlists (backing fields again: the hooks would rebuild and save).
+            foreach (var list in s.Setlists ?? new List<Setlist>())
+                Setlists.Add(new SetlistItem(list, ScheduleSave));
+            var activeList = s.ActiveSetlistId is null ? null : Setlists.FirstOrDefault(l => l.Model.Id == s.ActiveSetlistId);
+            _selectedSetlist = activeList ?? Setlists.FirstOrDefault();
+            RebuildSongs();
+            if (activeList is not null && Songs.Count > 0)
+            {
+                _selectedSong = Songs[Math.Clamp(s.ActiveSongIndex, 0, Songs.Count - 1)];
+                _selectedSong.IsActive = true;
+            }
+
             RebuildBeatLights(CurrentLightCount());
             UpdatePartInfo(0);
             ShowPreview();
+            RefreshPracticeStats();
 
             _initializing = false;
             ApplyAllToEngine();
@@ -420,7 +588,9 @@ namespace CenterHubNew.MVVM.ViewModel
                 IsPlaying = false;
             }
 
-            if (!IsPlaying)
+            if (IsPlaying)
+                BeginSession();
+            else
                 ToastService.Instance.Error("Couldn't open the audio output");
         }
 
@@ -509,6 +679,236 @@ namespace CenterHubNew.MVVM.ViewModel
         private void BpmUpFive() { if (!IsDisposed) Bpm = Math.Min(MaxBpm, Bpm + 5); }
 
         // =====================================================
+        //  Setlists
+        // =====================================================
+
+        [RelayCommand]
+        private void NewSetlist()
+        {
+            if (IsDisposed) return;
+            CreateSetlist();
+            IsRenamingSetlist = true; // type the name right away
+        }
+
+        private SetlistItem CreateSetlist()
+        {
+            int n = Setlists.Count + 1;
+            while (Setlists.Any(l => l.Name == $"Setlist {n}")) n++;
+
+            var item = new SetlistItem(new Setlist { Name = $"Setlist {n}" }, ScheduleSave);
+            Setlists.Add(item);
+            SelectedSetlist = item; // the hook rebuilds the song list and saves
+            return item;
+        }
+
+        /// <summary>Toggles in-place renaming of the selected setlist (the name TextBox edits it directly).</summary>
+        [RelayCommand]
+        private void RenameSetlist()
+        {
+            if (IsDisposed) return;
+            if (SelectedSetlist is null)
+            {
+                IsRenamingSetlist = false;
+                return;
+            }
+
+            if (IsRenamingSetlist && string.IsNullOrWhiteSpace(SelectedSetlist.Name))
+                SelectedSetlist.Name = "Setlist";
+            IsRenamingSetlist = !IsRenamingSetlist;
+        }
+
+        [RelayCommand]
+        private void DeleteSetlist()
+        {
+            if (IsDisposed || SelectedSetlist is not { } current) return;
+
+            int index = Setlists.IndexOf(current);
+            SetlistItem? next = Setlists.Count > 1
+                ? Setlists[index + 1 < Setlists.Count ? index + 1 : index - 1]
+                : null;
+
+            SelectedSetlist = next; // move off the doomed item first so the picker never sees a dangling selection
+            Setlists.Remove(current);
+            IsRenamingSetlist = false;
+            ScheduleSave();
+        }
+
+        /// <summary>Saves the page as it is right now (tempo, click/drums, style, kit, beats, subdivision, count-in) as a new song.</summary>
+        [RelayCommand]
+        private void AddCurrentAsSong()
+        {
+            if (IsDisposed) return;
+
+            var list = SelectedSetlist ?? CreateSetlist();
+            var song = new SetlistSong
+            {
+                Name = IsDrumsMode ? SelectedStyle?.Name ?? "Drums" : $"Click {Bpm}",
+            };
+            CaptureCurrentInto(song);
+
+            list.Model.Songs.Add(song);
+            var item = NewSongItem(song);
+            Songs.Add(item);
+            Renumber();
+            SelectedSong = item;
+            ScheduleSave();
+        }
+
+        /// <summary>Overwrites the active song's settings with the page's current ones (name unchanged).</summary>
+        [RelayCommand]
+        private void UpdateSongFromCurrent()
+        {
+            if (IsDisposed) return;
+            if (SelectedSong is not { } item)
+            {
+                ToastService.Instance.Info("Load or add a song first");
+                return;
+            }
+
+            CaptureCurrentInto(item.Song);
+            item.Refresh();
+            ScheduleSave();
+            ToastService.Instance.Info($"Updated {item.DisplayName} · {item.Song.Bpm} BPM");
+        }
+
+        [RelayCommand]
+        private void RemoveSong(SetlistSongItem? item)
+        {
+            if (IsDisposed || item is null || SelectedSetlist is not { } list) return;
+
+            list.Model.Songs.Remove(item.Song);
+            if (ReferenceEquals(SelectedSong, item)) SelectedSong = null;
+            Songs.Remove(item);
+            Renumber();
+            ScheduleSave();
+        }
+
+        [RelayCommand]
+        private void MoveSongUp(SetlistSongItem? item) => MoveSong(item, -1);
+
+        [RelayCommand]
+        private void MoveSongDown(SetlistSongItem? item) => MoveSong(item, +1);
+
+        private void MoveSong(SetlistSongItem? item, int delta)
+        {
+            if (IsDisposed || item is null || SelectedSetlist is not { } list) return;
+
+            int from = Songs.IndexOf(item);
+            int to = from + delta;
+            if (from < 0 || to < 0 || to >= Songs.Count) return;
+
+            Songs.Move(from, to);
+            var songs = list.Model.Songs;
+            songs.RemoveAt(from);
+            songs.Insert(to, item.Song);
+            Renumber();
+            ScheduleSave();
+        }
+
+        /// <summary>
+        /// Applies a song to the page exactly as if the user had set each control: tempo, click/drums mode,
+        /// style, kit, beats per bar, subdivision and count-in. The song's tempo and kit win over the
+        /// style's defaults. If the metronome is playing it keeps playing with the new settings.
+        /// </summary>
+        [RelayCommand]
+        public void LoadSong(SetlistSong? song)
+        {
+            if (IsDisposed || song is null) return;
+
+            // Style first, silently: picking a style through the normal path would reset Bpm and Kit.
+            var style = DrumStyleLibrary.Find(song.StyleId);
+            bool styleChanged = style is not null && !ReferenceEquals(style, SelectedStyle);
+            if (styleChanged)
+            {
+                if (!FilteredStyles.Contains(style!))
+                    SelectedGenre = "All"; // keeps the current style, so no style-change side effects
+                _suppressStyleChange = true;
+                try { SelectedStyle = style; }
+                finally { _suppressStyleChange = false; }
+                UpdatePartInfo(0);
+            }
+
+            // The song's own values come after, so they win.
+            var kit = KitChoices.FirstOrDefault(k => k.Kind == song.Kit);
+            if (kit is not null) SelectedKit = kit;
+            Bpm = Math.Clamp(song.Bpm, MinBpm, MaxBpm);
+            CountIn = song.CountIn;
+            BeatsPerMeasure = NearestBeatChoice(song.BeatsPerMeasure);
+            SelectedSubdivision = SubdivisionChoices.FirstOrDefault(c => c.Value == song.Subdivision) ?? SelectedSubdivision;
+
+            if (IsDrumsMode != song.DrumsMode)
+                IsDrumsMode = song.DrumsMode; // applies the style/click mode, lights and preview
+            else if (styleChanged && IsDrumsMode)
+                Engine.SetStyle(SelectedStyle);
+
+            if (BeatLights.Count != CurrentLightCount())
+                RebuildBeatLights(CurrentLightCount());
+            if (!IsPlaying) ShowPreview();
+
+            var item = Songs.FirstOrDefault(i => ReferenceEquals(i.Song, song));
+            if (item is not null) SelectedSong = item;
+            ScheduleSave();
+        }
+
+        /// <summary>Loads the next song of the setlist (wraps to the first). Global hotkeys call this.</summary>
+        [RelayCommand]
+        public void NextSong() => StepSong(+1);
+
+        /// <summary>Loads the previous song of the setlist (wraps to the last). Global hotkeys call this.</summary>
+        [RelayCommand]
+        public void PreviousSong() => StepSong(-1);
+
+        private void StepSong(int delta)
+        {
+            if (IsDisposed) return;
+            if (Songs.Count == 0)
+            {
+                ToastService.Instance.Info("The setlist has no songs yet");
+                return;
+            }
+
+            int current = SelectedSong is null ? -1 : Songs.IndexOf(SelectedSong);
+            int index = SetlistHelper.Step(current, delta, Songs.Count);
+            var item = Songs[index];
+            LoadSong(item.Song);
+            ToastService.Instance.Info($"Song {index + 1}/{Songs.Count} · {item.DisplayName} · {item.Song.Bpm} BPM");
+        }
+
+        private void CaptureCurrentInto(SetlistSong song)
+        {
+            song.Bpm = Bpm;
+            song.DrumsMode = IsDrumsMode;
+            song.StyleId = SelectedStyle?.Id;
+            song.Kit = SelectedKit?.Kind ?? DrumKitKind.Acoustic;
+            song.BeatsPerMeasure = BeatsPerMeasure;
+            song.Subdivision = SelectedSubdivision?.Value ?? ClickSubdivision.None;
+            song.CountIn = CountIn;
+        }
+
+        private int NearestBeatChoice(int beats) =>
+            BeatChoices.OrderBy(c => Math.Abs(c - beats)).First();
+
+        private SetlistSongItem NewSongItem(SetlistSong song) =>
+            new(song, DescribeSong, ScheduleSave);
+
+        private static string DescribeSong(SetlistSong song) =>
+            SetlistHelper.Describe(song, song.DrumsMode ? DrumStyleLibrary.Find(song.StyleId)?.Name : null);
+
+        private void RebuildSongs()
+        {
+            Songs.Clear();
+            if (SelectedSetlist is { } list)
+                foreach (var song in list.Model.Songs)
+                    Songs.Add(NewSongItem(song));
+            Renumber();
+        }
+
+        private void Renumber()
+        {
+            for (int i = 0; i < Songs.Count; i++) Songs[i].Number = i + 1;
+        }
+
+        // =====================================================
         //  Engine sync
         // =====================================================
 
@@ -565,8 +965,25 @@ namespace CenterHubNew.MVVM.ViewModel
                 Bpm = Math.Clamp(value, MinBpm, MaxBpm);
                 return;
             }
+            if (_sessionStart is not null && value > _sessionMaxBpm) _sessionMaxBpm = value;
             if (_initializing || IsDisposed) return;
             Engine.Bpm = value;
+        }
+
+        partial void OnSelectedSetlistChanged(SetlistItem? value)
+        {
+            if (_initializing || IsDisposed) return;
+            IsRenamingSetlist = false;
+            SelectedSong = null;
+            RebuildSongs();
+            ScheduleSave();
+        }
+
+        partial void OnSelectedSongChanged(SetlistSongItem? oldValue, SetlistSongItem? newValue)
+        {
+            if (oldValue is not null) oldValue.IsActive = false;
+            if (newValue is not null) newValue.IsActive = true;
+            ScheduleSave();
         }
 
         partial void OnVolumeChanged(double value)
@@ -934,6 +1351,7 @@ namespace CenterHubNew.MVVM.ViewModel
 
         private void ResetLiveState()
         {
+            EndSession();
             IsPlaying = false;
             CurrentBeat = 0;
             BarNumber = 0;
@@ -943,6 +1361,65 @@ namespace CenterHubNew.MVVM.ViewModel
             ClearPlayhead();
             UpdatePartInfo(0);
             ShowPreview();
+        }
+
+        // =====================================================
+        //  Practice log
+        // =====================================================
+
+        private static PracticeLogService? ResolvePracticeLog()
+        {
+            try { return App.Services.GetService(typeof(PracticeLogService)) as PracticeLogService; }
+            catch { return null; } // no DI host (unit tests, tools/page-render)
+        }
+
+        private void BeginSession()
+        {
+            if (_sessionStart is not null) return;
+            _sessionStart = DateTime.Now;
+            _sessionClock = Stopwatch.StartNew();
+            _sessionMaxBpm = Bpm;
+        }
+
+        /// <summary>Records the running session (if any) in the practice log. Safe to call repeatedly.</summary>
+        private void EndSession()
+        {
+            if (_sessionStart is not { } start) return;
+            var elapsed = _sessionClock?.Elapsed ?? TimeSpan.Zero;
+            int maxBpm = Math.Max(_sessionMaxBpm, Bpm);
+            _sessionStart = null;
+            _sessionClock = null;
+
+            if (_practiceLog is null) return;
+            try
+            {
+                string activity = IsDrumsMode ? SelectedStyle?.Name ?? "Drums" : "Click";
+                if (_practiceLog.RecordSession(start, elapsed, maxBpm, activity))
+                    RefreshPracticeStats();
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogWarning(ex, "Couldn't record the practice session");
+            }
+        }
+
+        private void RefreshPracticeStats()
+        {
+            var log = _practiceLog;
+            if (log is null) return;
+
+            TodayText = PracticeText.Duration(log.TodayTotal);
+            WeekText = PracticeText.Duration(log.ThisWeekTotal);
+            int streak = log.Streak;
+            StreakText = streak == 1 ? "1 day" : $"{streak} days";
+            int best = log.BestBpmLast30Days;
+            BestBpmText = best > 0 ? $"{best} BPM" : "—";
+
+            var days = log.Last14Days;
+            double scale = Math.Max(10, days.Count == 0 ? 0 : days.Max(d => d.Minutes));
+            PracticeBars.Clear();
+            for (int i = 0; i < days.Count; i++)
+                PracticeBars.Add(new PracticeBar(days[i].Date, days[i].Minutes, scale, isToday: i == days.Count - 1));
         }
 
         // =====================================================
@@ -995,6 +1472,9 @@ namespace CenterHubNew.MVVM.ViewModel
                     GapEnabled = GapEnabled,
                     GapPlayBars = (int)GapPlayBars,
                     GapMuteBars = (int)GapMuteBars,
+                    Setlists = Setlists.Select(l => l.Model).ToList(),
+                    ActiveSetlistId = SelectedSetlist?.Model.Id,
+                    ActiveSongIndex = SelectedSong is null ? 0 : Math.Max(0, Songs.IndexOf(SelectedSong)),
                 });
             }
             catch (Exception ex)
@@ -1011,6 +1491,7 @@ namespace CenterHubNew.MVVM.ViewModel
                 _saveTimer?.Stop();
                 SaveNow();
                 _audio.Stop();
+                EndSession();
             }
             base.Dispose(disposing);
         }

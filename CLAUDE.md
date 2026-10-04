@@ -101,15 +101,28 @@ Defined in `App.axaml` under `<Application.DataTemplates>`. Each ViewModel type 
 ### Themes
 - Base: `<FluentTheme/>` in App.axaml Styles
 - Override: `avares://CenterHubNew/Resources/Styles/Theme.axaml`
-- Design tokens: dark charcoal palette with sky-blue accent (#4CC2FF); Fluent's accent is pinned to it in `App.axaml` (otherwise it follows the Windows accent)
+- Design tokens live in `Theme.axaml` **ThemeDictionaries** (`Dark` and `Light`): charcoal + sky blue (#4CC2FF) / light + #0078D4. Views reference them with `{DynamicResource …}` so theme and accent switch live — never `StaticResource` for a token, never a hard-coded colour that only works on one theme (translucent white overlays → `HoverOverlayBrush` / `SelectedOverlayBrush` / `TrackBrush`).
+- `ThemeService` applies `UiSettings.Theme` (Dark / Light / System) and `AccentColor` (`#RRGGBB`, `"windows"` = follow Windows, null = default). A custom accent is layered on through `Application.Resources.ThemeDictionaries` + Fluent's palette, derived per theme so it stays readable (`AccentPalette`, unit-tested).
+
+## App shell (v7 UI)
+
+- **Window**: native Windows frame (`ExtendClientAreaToDecorationsHint`), resizable to 480×420; size/position/maximized remembered in `ui.json`. Minimize/close-to-tray follow `UiSettings`.
+- **Pages** are listed once in `MVVM/Navigation/PageRegistry.cs` (key, title, glyph, group, view-model type). The sidebar, command palette, settings page and start page all come from it. Titles are what UI tests look for — don't rename them casually.
+- **ShellService** (`IShellHost` = MainViewModel): navigate, open the palette / setup wizard, zoom, sidebar — use it from pages, cards, tray and palette instead of referencing MainViewModel.
+- **Overlays** implement `IOverlayViewModel` (command palette, setup wizard) and are shown by `MainViewModel.ShowOverlay`.
+- **Sidebar**: Auto = full ≥ 1200 px, icon rail 760–1199, drawer below; users can hide / pin / reorder pages (Settings).
+- **Page layout**: every page is a `controls:PageHost` (title + subtitle + header actions, `Mode="Reading"` max 900 wide or `Mode="Data"` full width). Reflow with `controls:AdaptiveColumnsPanel` and `controls:Responsive.NarrowBelow` (`:narrow` pseudo-class; Avalonia 11.2 has no container queries). Pages must fit at 440 px of content width. See `Resources/Styles/Controls.axaml`.
+- **Zoom** (Ctrl +/−/0, Ctrl+wheel, 80–150 %) is a `LayoutTransformControl`; **Density** compact = `.compact` class on the content root.
+- **Status strip** (Banana status, mic, metronome mini-transport), **command palette** (Ctrl+K / Ctrl+Shift+P, optional global hotkey), **Home dashboard** of cards (`MVVM/ViewModel/Dashboard/`, also used by the Favorites window), **Settings** page (start with Windows via HKCU Run, backup/restore of `%AppData%\CenterHub\*.json`), richer **tray menu** (presets, Direct, mic, metronome, restart Voicemeeter).
+- `MicrophoneService` is the one place that mutes the communications mic (hotkey, strip, palette, tray, cards).
+- First-run **audio setup wizard** (`SetupWizardViewModel`) when `UiSettings.AudioSetupCompleted` is false; re-run from Settings or the palette.
 
 ## Compact Favorites Window
 
-`FavoritesWindow.axaml` — 350×500px always-on-top panel for the secondary (14") screen:
-- Live CPU / GPU / RAM stats (2s refresh via SystemMonitorService)
-- Volume slider + mic mute toggle (via SoundViewModel)
-- Draggable, snaps to screen corners
-- Opened via File menu or global hotkey (Alt+F9 default)
+`FavoritesWindow.axaml` — resizable always-on-top panel (default 350×500) for the secondary (14") screen:
+- Shows dashboard cards from `UiSettings.FavoritesCards` (default: system, volume, metronome); editable in place
+- Draggable, snaps to screen edges/corners; one instance (★ again brings it forward)
+- Opened via the ★ button, tray menu or global hotkey
 
 ## Metronome / Drum Machine
 

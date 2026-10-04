@@ -1,0 +1,295 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+             xmlns:controls="clr-namespace:CenterHubNew.MVVM.Controls"
+             x:Class="CenterHubNew.MVVM.View.SettingsView"
+             x:DataType="viewmodel:SettingsViewModel"
+             mc:Ignorable="d"
+             Background="Transparent">
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.sectionTitle">
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+        </Style>
+        <Style Selector="TextBlock.icon">
+            <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="TextBlock.pinIcon">
+            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+        </Style>
+        <Style Selector="TextBlock.pinIcon.pinned">
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+        <Style Selector="Grid.setting">
+            <Setter Property="Margin" Value="0,6"/>
+            <Setter Property="MinHeight" Value="36"/>
+        </Style>
+        <Style Selector="Button.ghost:disabled">
+            <Setter Property="Opacity" Value="0.3"/>
+        </Style>
+        <Style Selector="Border.swatchRing">
+            <Setter Property="Width" Value="30"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="CornerRadius" Value="15"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Padding" Value="3"/>
+        </Style>
+        <Style Selector="Border.swatchRing.selected">
+            <Setter Property="BorderBrush" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+    </UserControl.Styles>
+
+    <controls:PageHost Title="Settings" Subtitle="Changes apply as you make them" Mode="Reading">
+        <StackPanel>
+
+            <!-- General -->
+            <Border Classes="card">
+                <StackPanel>
+                    <TextBlock Classes="sectionTitle" Text="General"/>
+
+                    <Grid Classes="setting" ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="Start page"/>
+                            <TextBlock Classes="hint" Text="The page CenterHub opens on"/>
+                        </StackPanel>
+                        <ComboBox Grid.Column="1" MinWidth="180"
+                                  ItemsSource="{Binding StartPageOptions}"
+                                  SelectedItem="{Binding SelectedStartPage, Mode=TwoWay}"/>
+                    </Grid>
+
+                    <Grid Classes="setting" ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="Start with Windows"/>
+                            <TextBlock Classes="hint" Text="Open CenterHub when you sign in"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" OnContent="" OffContent=""
+                                      IsChecked="{Binding StartWithWindows, Mode=TwoWay}"/>
+                    </Grid>
+
+                    <Grid Classes="setting" ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="Check for updates automatically"/>
+                            <TextBlock Classes="hint" Text="Looks for a new version when CenterHub starts"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" OnContent="" OffContent=""
+                                      IsChecked="{Binding CheckForUpdates, Mode=TwoWay}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Window and tray -->
+            <Border Classes="card">
+                <StackPanel>
+                    <TextBlock Classes="sectionTitle" Text="Window and tray"/>
+
+                    <Grid Classes="setting" ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="Minimize hides to the tray"/>
+                            <TextBlock Classes="hint" Text="Off: minimize goes to the taskbar like any other window"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" OnContent="" OffContent=""
+                                      IsChecked="{Binding MinimizeToTray, Mode=TwoWay}"/>
+                    </Grid>
+
+                    <Grid Classes="setting" ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="Close button hides to the tray"/>
+                            <TextBlock Classes="hint" Text="Off: closing the window quits CenterHub. Use Exit in the tray menu to quit."/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" OnContent="" OffContent=""
+                                      IsChecked="{Binding CloseToTray, Mode=TwoWay}"/>
+                    </Grid>
+
+                    <Grid Classes="setting" ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="Always show the tray icon"/>
+                            <TextBlock Classes="hint" Text="Off: the icon only appears while the window is hidden"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" OnContent="" OffContent=""
+                                      IsChecked="{Binding AlwaysShowTrayIcon, Mode=TwoWay}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Appearance -->
+            <Border Classes="card">
+                <StackPanel>
+                    <TextBlock Classes="sectionTitle" Text="Appearance"/>
+
+                    <Grid Classes="setting" ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="Theme"/>
+                        </StackPanel>
+                        <ComboBox Grid.Column="1" MinWidth="180"
+                                  ItemsSource="{Binding ThemeOptions}"
+                                  SelectedIndex="{Binding ThemeIndex, Mode=TwoWay}"/>
+                    </Grid>
+
+                    <Grid Classes="setting" ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="Accent colour"/>
+                            <TextBlock Classes="hint" Text="{Binding AccentName}"/>
+                        </StackPanel>
+                        <ItemsControl Grid.Column="1" ItemsSource="{Binding Swatches}" MaxWidth="360">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel HorizontalAlignment="Right"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="viewmodel:AccentSwatch">
+                                    <Button Classes="ghost" Padding="0" Margin="2,0"
+                                            Command="{Binding SelectCommand}"
+                                            ToolTip.Tip="{Binding Name}">
+                                        <Border Classes="swatchRing" Classes.selected="{Binding IsSelected}">
+                                            <Border Width="20" Height="20" CornerRadius="10"
+                                                    Background="{Binding Brush}"/>
+                                        </Border>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+
+                    <Grid Classes="setting" ColumnDefinitions="*,Auto,Auto,Auto">
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="Zoom"/>
+                            <TextBlock Classes="hint" Text="Also Ctrl + mouse wheel, Ctrl + / Ctrl -"/>
+                        </StackPanel>
+                        <Slider Grid.Column="1" Width="200" VerticalAlignment="Center"
+                                Minimum="80" Maximum="150" TickFrequency="10" IsSnapToTickEnabled="True"
+                                Value="{Binding ZoomPercent, Mode=TwoWay}"/>
+                        <TextBlock Grid.Column="2" Width="56" Margin="8,0,0,0" TextAlignment="Right"
+                                   VerticalAlignment="Center" Text="{Binding ZoomText}"/>
+                        <Button Grid.Column="3" Classes="secondary" Padding="12,6" Margin="8,0,0,0"
+                                Content="Reset" Command="{Binding ResetZoomCommand}"/>
+                    </Grid>
+
+                    <Grid Classes="setting" ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="Density"/>
+                            <TextBlock Classes="hint" Text="Compact tightens the spacing of cards and pages"/>
+                        </StackPanel>
+                        <ComboBox Grid.Column="1" MinWidth="180"
+                                  ItemsSource="{Binding DensityOptions}"
+                                  SelectedIndex="{Binding DensityIndex, Mode=TwoWay}"/>
+                    </Grid>
+
+                    <Grid Classes="setting" ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="Show status strip"/>
+                            <TextBlock Classes="hint" Text="The bar at the bottom with microphone, routing and metronome"/>
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" OnContent="" OffContent=""
+                                      IsChecked="{Binding ShowStatusStrip, Mode=TwoWay}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Sidebar -->
+            <Border Classes="card">
+                <StackPanel>
+                    <TextBlock Classes="sectionTitle" Text="Sidebar"/>
+
+                    <Grid Classes="setting" ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="Mode"/>
+                            <TextBlock Classes="hint" Text="Auto switches to icons only when the window is narrow"/>
+                        </StackPanel>
+                        <ComboBox Grid.Column="1" MinWidth="180"
+                                  ItemsSource="{Binding SidebarOptions}"
+                                  SelectedIndex="{Binding SidebarIndex, Mode=TwoWay}"/>
+                    </Grid>
+
+                    <TextBlock Classes="hint" Margin="0,10,0,4"
+                               Text="Pages. Hidden pages are still reachable from the command palette (Ctrl+K). Pinned pages go to the top."/>
+
+                    <ItemsControl ItemsSource="{Binding PageRows}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="viewmodel:SidebarPageRow">
+                                <Grid ColumnDefinitions="30,*,Auto,Auto,Auto,Auto" MinHeight="40" Margin="0,1">
+                                    <TextBlock Grid.Column="0" Classes="icon" FontSize="16"
+                                               Text="{Binding Glyph}"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="4,0,8,0">
+                                        <TextBlock Text="{Binding Title}"/>
+                                        <TextBlock Classes="hint" FontSize="11" Text="{Binding Group}"/>
+                                    </StackPanel>
+                                    <CheckBox Grid.Column="2" Content="Show" VerticalAlignment="Center" Margin="0,0,8,0"
+                                              ToolTip.Tip="Show in sidebar"
+                                              IsEnabled="{Binding CanHide}"
+                                              IsChecked="{Binding IsShown, Mode=TwoWay}"/>
+                                    <Button Grid.Column="3" Classes="ghost" Width="32" Height="32" Padding="0"
+                                            ToolTip.Tip="Pin to the top of the sidebar"
+                                            Command="{Binding TogglePinCommand}">
+                                        <TextBlock Classes="icon pinIcon" Classes.pinned="{Binding IsPinned}" Text="&#xE718;"/>
+                                    </Button>
+                                    <Button Grid.Column="4" Classes="ghost" Width="32" Height="32" Padding="0"
+                                            ToolTip.Tip="Move up"
+                                            IsEnabled="{Binding CanMoveUp}"
+                                            Command="{Binding MoveUpCommand}">
+                                        <TextBlock Classes="icon" Text="&#xE70E;"/>
+                                    </Button>
+                                    <Button Grid.Column="5" Classes="ghost" Width="32" Height="32" Padding="0"
+                                            ToolTip.Tip="Move down"
+                                            IsEnabled="{Binding CanMoveDown}"
+                                            Command="{Binding MoveDownCommand}">
+                                        <TextBlock Classes="icon" Text="&#xE70D;"/>
+                                    </Button>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Button Classes="secondary" HorizontalAlignment="Left" Margin="0,10,0,0"
+                            Content="Reset sidebar" Command="{Binding ResetSidebarCommand}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Audio -->
+            <Border Classes="card">
+                <StackPanel>
+                    <TextBlock Classes="sectionTitle" Text="Audio"/>
+                    <TextBlock Classes="hint" Margin="0,0,0,10"
+                               Text="Walks you through choosing your headset, microphone and Voicemeeter again."/>
+                    <Button Classes="secondary" HorizontalAlignment="Left"
+                            Content="Run audio setup again" Command="{Binding RunAudioSetupCommand}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Data -->
+            <Border Classes="card">
+                <StackPanel>
+                    <TextBlock Classes="sectionTitle" Text="Data"/>
+                    <TextBlock Classes="hint" Margin="0,0,0,10"
+                               Text="Your settings, notes and presets live in one folder. A backup is a single zip of those files."/>
+                    <WrapPanel>
+                        <Button Classes="secondary" Margin="0,0,8,8" Content="Back up settings…"
+                                Click="BackupButton_Click"/>
+                        <Button Classes="secondary" Margin="0,0,8,8" Content="Restore from backup…"
+                                Click="RestoreButton_Click"/>
+                        <Button Classes="secondary" Margin="0,0,8,8" Content="Open data folder"
+                                Command="{Binding OpenDataFolderCommand}"/>
+                    </WrapPanel>
+                    <TextBlock Classes="hint" Text="{Binding DataStatus}"
+                               IsVisible="{Binding DataStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    <TextBlock Classes="hint" Margin="0,4,0,0" Text="{Binding DataFolderPath}"/>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </controls:PageHost>
+</UserControl>

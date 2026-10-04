@@ -3,111 +3,97 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+             xmlns:controls="clr-namespace:CenterHubNew.MVVM.Controls"
              x:Class="CenterHubNew.MVVM.View.UtilitiesView"
              x:DataType="viewmodel:UtilitiesViewModel"
              mc:Ignorable="d"
              Background="Transparent">
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto"
-                  HorizontalScrollBarVisibility="Disabled"
-                  Padding="24,20" Background="Transparent">
-        <!-- Soft bottom fade for a graceful finish (see MetronomeView). -->
-        <ScrollViewer.OpacityMask>
-            <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-                <GradientStop Offset="0.0"  Color="White"/>
-                <GradientStop Offset="0.95" Color="White"/>
-                <GradientStop Offset="1.0"  Color="Transparent"/>
-            </LinearGradientBrush>
-        </ScrollViewer.OpacityMask>
-        <Border MaxWidth="900" HorizontalAlignment="Center">
-        <StackPanel Spacing="0">
-            <!-- PAGE HEADER -->
-            <StackPanel Margin="0,0,0,20">
-                <TextBlock Text="Utilities"
-                           FontSize="22" FontWeight="Bold"
-                           Foreground="{StaticResource TextPrimaryBrush}"/>
-                <TextBlock Text="Developer and system tools"
-                           FontSize="12"
-                           Foreground="{StaticResource TextMutedBrush}"
-                           Margin="0,2,0,0"/>
-            </StackPanel>
+    <!-- Reading page. Tool cards flow in 1 column (narrow) or 2 columns (>= ~780 px of content). -->
+    <controls:PageHost Title="Utilities" Subtitle="Developer and system tools" Mode="Reading">
+        <controls:AdaptiveColumnsPanel MinColumnWidth="380" MaxColumns="2"
+                                       ColumnSpacing="10" RowSpacing="10">
 
             <!-- SHUTDOWN TIMER -->
-            <Border Classes="card" Margin="0,0,0,10">
+            <Border Classes="card">
                 <StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,12" Spacing="8">
                         <Border Width="3" Height="14" CornerRadius="2"
-                                Background="{StaticResource ErrorBrush}" VerticalAlignment="Center"/>
+                                Background="{DynamicResource ErrorBrush}" VerticalAlignment="Center"/>
                         <TextBlock Text="SHUTDOWN TIMER" FontSize="10" FontWeight="Bold" LetterSpacing="0.5"
-                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                   Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
                     </StackPanel>
-                    <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="8">
+                    <WrapPanel Margin="0,0,0,-8">
+                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,16,8">
                             <TextBlock Text="Date" VerticalAlignment="Center" FontSize="12"
-                                       Margin="0,0,8,0" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
                             <TextBox Text="{Binding ComputerViewModel.SelectedDateText, Mode=TwoWay}"
                                      Classes="input" Width="120"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,16,8">
                             <TextBlock Text="Time" VerticalAlignment="Center" FontSize="12"
-                                       Margin="16,0,8,0" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
                             <TextBox Text="{Binding ComputerViewModel.SelectedTime, Mode=TwoWay}"
                                      Classes="input" Width="80"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                             <Button Content="Schedule" Classes="primary" Padding="20,8"
                                     Command="{Binding ComputerViewModel.ScheduleShutdownCommand}"
                                     Margin="0,0,8,0"/>
                             <Button Content="Cancel" Classes="secondary" Padding="20,8"
                                     Command="{Binding ComputerViewModel.CancelShutdownCommand}"/>
                         </StackPanel>
-                    </Grid>
+                    </WrapPanel>
                 </StackPanel>
             </Border>
 
             <!-- FILE MANAGER -->
-            <Border Classes="card" Margin="0,0,0,10">
+            <Border Classes="card">
                 <StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,12" Spacing="8">
                         <Border Width="3" Height="14" CornerRadius="2"
-                                Background="{StaticResource DiskBrush}" VerticalAlignment="Center"/>
+                                Background="{DynamicResource DiskBrush}" VerticalAlignment="Center"/>
                         <TextBlock Text="FILE MANAGER" FontSize="10" FontWeight="Bold" LetterSpacing="0.5"
-                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                   Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
                     </StackPanel>
-                    <Grid ColumnDefinitions="*,Auto">
-                        <Grid Grid.Column="0" ColumnDefinitions="*,Auto,Auto,*,Auto" Margin="0,0,16,0">
-                            <TextBox Grid.Column="0"
-                                     Text="{Binding MoveFilesViewModel.SourceLocation, Mode=TwoWay}"
-                                     Classes="input"/>
-                            <Button Grid.Column="1" Content="..." Classes="secondary" Padding="12,8"
-                                    Margin="8,0"
-                                    Command="{Binding MoveFilesViewModel.BrowseSourceCommand}"/>
-                            <TextBlock Grid.Column="2" Text="▶" FontSize="12" VerticalAlignment="Center"
-                                       Margin="8,0" Foreground="{StaticResource AccentBrush}"/>
-                            <TextBox Grid.Column="3"
-                                     Text="{Binding MoveFilesViewModel.TargetLocation, Mode=TwoWay}"
-                                     Classes="input"/>
-                            <Button Grid.Column="4" Content="..." Classes="secondary" Padding="12,8"
-                                    Margin="8,0,0,0"
-                                    Command="{Binding MoveFilesViewModel.BrowseTargetCommand}"/>
-                        </Grid>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal">
-                            <CheckBox Content="Copy" IsChecked="{Binding MoveFilesViewModel.IsCopy, Mode=TwoWay}"
-                                      Foreground="{StaticResource TextSecondaryBrush}"
-                                      FontSize="11" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                            <Button Content="Move" Classes="primary" Padding="24,8"
-                                    Command="{Binding MoveFilesViewModel.MoveFilesCommand}"/>
-                        </StackPanel>
+                    <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" Margin="0,0,0,10">
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="From" FontSize="12"
+                                   VerticalAlignment="Center" Margin="0,0,10,0"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBox Grid.Row="0" Grid.Column="1"
+                                 Text="{Binding MoveFilesViewModel.SourceLocation, Mode=TwoWay}"
+                                 Classes="input"/>
+                        <Button Grid.Row="0" Grid.Column="2" Content="..." Classes="secondary" Padding="12,8"
+                                Margin="8,0,0,0"
+                                Command="{Binding MoveFilesViewModel.BrowseSourceCommand}"/>
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="To" FontSize="12"
+                                   VerticalAlignment="Center" Margin="0,8,10,0"
+                                   Foreground="{DynamicResource AccentBrush}"/>
+                        <TextBox Grid.Row="1" Grid.Column="1" Margin="0,8,0,0"
+                                 Text="{Binding MoveFilesViewModel.TargetLocation, Mode=TwoWay}"
+                                 Classes="input"/>
+                        <Button Grid.Row="1" Grid.Column="2" Content="..." Classes="secondary" Padding="12,8"
+                                Margin="8,8,0,0"
+                                Command="{Binding MoveFilesViewModel.BrowseTargetCommand}"/>
                     </Grid>
+                    <StackPanel Orientation="Horizontal">
+                        <CheckBox Content="Copy" IsChecked="{Binding MoveFilesViewModel.IsCopy, Mode=TwoWay}"
+                                  Foreground="{DynamicResource TextSecondaryBrush}"
+                                  FontSize="11" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <Button Content="Move" Classes="primary" Padding="24,8"
+                                Command="{Binding MoveFilesViewModel.MoveFilesCommand}"/>
+                    </StackPanel>
                 </StackPanel>
             </Border>
 
             <!-- JSON STRINGIFY -->
-            <Border Classes="card" Margin="0,0,0,10">
+            <Border Classes="card">
                 <StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Spacing="8">
                         <Border Width="3" Height="14" CornerRadius="2"
-                                Background="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                                Background="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
                         <TextBlock Text="JSON STRINGIFY / UNSTRINGIFY" FontSize="10" FontWeight="Bold" LetterSpacing="0.5"
-                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                   Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
                     </StackPanel>
                     <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
                         <TextBox Grid.Column="0"
@@ -125,15 +111,15 @@
                         </StackPanel>
                     </Grid>
                     <TextBlock Text="{Binding JsonStringifyViewModel.ErrorMessage}"
-                               Foreground="{StaticResource ErrorBrush}" FontSize="11" Margin="0,0,0,4"
+                               Foreground="{DynamicResource ErrorBrush}" FontSize="11" Margin="0,0,0,4"
                                IsVisible="{Binding JsonStringifyViewModel.HasError}"
                                TextWrapping="Wrap"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,4,0,10">
-                        <Button Content="Stringify" Classes="primary" Padding="20,7" Margin="0,0,6,0"
+                    <WrapPanel Margin="0,4,0,4">
+                        <Button Content="Stringify" Classes="primary" Padding="20,7" Margin="0,0,6,6"
                                 Command="{Binding JsonStringifyViewModel.StringifyCommand}"/>
-                        <Button Content="Unstringify" Classes="secondary" Padding="20,7"
+                        <Button Content="Unstringify" Classes="secondary" Padding="20,7" Margin="0,0,0,6"
                                 Command="{Binding JsonStringifyViewModel.UnstringifyCommand}"/>
-                    </StackPanel>
+                    </WrapPanel>
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBox Grid.Column="0"
                                  Text="{Binding JsonStringifyViewModel.OutputJson, Mode=OneWay}"
@@ -150,24 +136,24 @@
             </Border>
 
             <!-- BASE64 -->
-            <Border Classes="card" Margin="0,0,0,10">
+            <Border Classes="card">
                 <StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Spacing="8">
                         <Border Width="3" Height="14" CornerRadius="2"
-                                Background="{StaticResource InfoBrush}" VerticalAlignment="Center"/>
+                                Background="{DynamicResource InfoBrush}" VerticalAlignment="Center"/>
                         <TextBlock Text="BASE64 ENCODE / DECODE" FontSize="10" FontWeight="Bold" LetterSpacing="0.5"
-                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                   Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
                     </StackPanel>
                     <TextBox Text="{Binding ConverterToolsViewModel.Base64Input, Mode=TwoWay}"
                              Classes="input" AcceptsReturn="True" TextWrapping="Wrap"
                              MinHeight="50" MaxHeight="120" VerticalContentAlignment="Top"
                              Padding="8,6" FontFamily="Consolas" Margin="0,0,0,8"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <Button Content="Encode" Classes="primary" Padding="20,7" Margin="0,0,6,0"
+                    <WrapPanel Margin="0,0,0,2">
+                        <Button Content="Encode" Classes="primary" Padding="20,7" Margin="0,0,6,6"
                                 Command="{Binding ConverterToolsViewModel.Base64EncodeCommand}"/>
-                        <Button Content="Decode" Classes="secondary" Padding="20,7"
+                        <Button Content="Decode" Classes="secondary" Padding="20,7" Margin="0,0,0,6"
                                 Command="{Binding ConverterToolsViewModel.Base64DecodeCommand}"/>
-                    </StackPanel>
+                    </WrapPanel>
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBox Grid.Column="0"
                                  Text="{Binding ConverterToolsViewModel.Base64Output, Mode=OneWay}"
@@ -183,24 +169,24 @@
             </Border>
 
             <!-- URL ENCODE -->
-            <Border Classes="card" Margin="0,0,0,10">
+            <Border Classes="card">
                 <StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Spacing="8">
                         <Border Width="3" Height="14" CornerRadius="2"
-                                Background="{StaticResource SuccessBrush}" VerticalAlignment="Center"/>
+                                Background="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
                         <TextBlock Text="URL ENCODE / DECODE" FontSize="10" FontWeight="Bold" LetterSpacing="0.5"
-                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                   Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
                     </StackPanel>
                     <TextBox Text="{Binding ConverterToolsViewModel.UrlInput, Mode=TwoWay}"
                              Classes="input" AcceptsReturn="True" TextWrapping="Wrap"
                              MinHeight="40" MaxHeight="100" VerticalContentAlignment="Top"
                              Padding="8,6" FontFamily="Consolas" Margin="0,0,0,8"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <Button Content="Encode" Classes="primary" Padding="20,7" Margin="0,0,6,0"
+                    <WrapPanel Margin="0,0,0,2">
+                        <Button Content="Encode" Classes="primary" Padding="20,7" Margin="0,0,6,6"
                                 Command="{Binding ConverterToolsViewModel.UrlEncodeCommand}"/>
-                        <Button Content="Decode" Classes="secondary" Padding="20,7"
+                        <Button Content="Decode" Classes="secondary" Padding="20,7" Margin="0,0,0,6"
                                 Command="{Binding ConverterToolsViewModel.UrlDecodeCommand}"/>
-                    </StackPanel>
+                    </WrapPanel>
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBox Grid.Column="0"
                                  Text="{Binding ConverterToolsViewModel.UrlOutput, Mode=OneWay}"
@@ -216,13 +202,13 @@
             </Border>
 
             <!-- HASH GENERATOR -->
-            <Border Classes="card" Margin="0,0,0,10">
+            <Border Classes="card">
                 <StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Spacing="8">
                         <Border Width="3" Height="14" CornerRadius="2"
-                                Background="{StaticResource GpuBrush}" VerticalAlignment="Center"/>
+                                Background="{DynamicResource GpuBrush}" VerticalAlignment="Center"/>
                         <TextBlock Text="HASH GENERATOR" FontSize="10" FontWeight="Bold" LetterSpacing="0.5"
-                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                   Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
                     </StackPanel>
                     <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
                         <TextBox Grid.Column="0"
@@ -234,7 +220,7 @@
                     </Grid>
                     <Grid ColumnDefinitions="50,*,Auto" Margin="0,0,0,4">
                         <TextBlock Grid.Column="0" Text="MD5" FontSize="10" FontWeight="Bold"
-                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                   Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
                         <TextBox Grid.Column="1" Text="{Binding ConverterToolsViewModel.HashMd5, Mode=OneWay}"
                                  Classes="input" IsReadOnly="True" Padding="8,5"
                                  FontFamily="Consolas" FontSize="11"/>
@@ -244,7 +230,7 @@
                     </Grid>
                     <Grid ColumnDefinitions="50,*,Auto" Margin="0,0,0,4">
                         <TextBlock Grid.Column="0" Text="SHA256" FontSize="10" FontWeight="Bold"
-                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                   Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
                         <TextBox Grid.Column="1" Text="{Binding ConverterToolsViewModel.HashSha256, Mode=OneWay}"
                                  Classes="input" IsReadOnly="True" Padding="8,5"
                                  FontFamily="Consolas" FontSize="11"/>
@@ -254,7 +240,7 @@
                     </Grid>
                     <Grid ColumnDefinitions="50,*,Auto">
                         <TextBlock Grid.Column="0" Text="SHA512" FontSize="10" FontWeight="Bold"
-                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                   Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
                         <TextBox Grid.Column="1" Text="{Binding ConverterToolsViewModel.HashSha512, Mode=OneWay}"
                                  Classes="input" IsReadOnly="True" Padding="8,5"
                                  FontFamily="Consolas" FontSize="11"/>
@@ -266,13 +252,13 @@
             </Border>
 
             <!-- UNIX TIMESTAMP -->
-            <Border Classes="card" Margin="0,0,0,10">
+            <Border Classes="card">
                 <StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Spacing="8">
                         <Border Width="3" Height="14" CornerRadius="2"
-                                Background="{StaticResource WarningBrush}" VerticalAlignment="Center"/>
+                                Background="{DynamicResource WarningBrush}" VerticalAlignment="Center"/>
                         <TextBlock Text="UNIX TIMESTAMP" FontSize="10" FontWeight="Bold" LetterSpacing="0.5"
-                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                   Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
                     </StackPanel>
                     <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,8">
                         <TextBox Grid.Column="0"
@@ -297,13 +283,13 @@
             </Border>
 
             <!-- GUID GENERATOR -->
-            <Border Classes="card" Margin="0,0,0,10">
+            <Border Classes="card">
                 <StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Spacing="8">
                         <Border Width="3" Height="14" CornerRadius="2"
-                                Background="{StaticResource RamBrush}" VerticalAlignment="Center"/>
+                                Background="{DynamicResource RamBrush}" VerticalAlignment="Center"/>
                         <TextBlock Text="GUID / UUID GENERATOR" FontSize="10" FontWeight="Bold" LetterSpacing="0.5"
-                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                   Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
                     </StackPanel>
                     <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
                         <TextBox Grid.Column="0"
@@ -313,21 +299,17 @@
                                 Margin="8,0,0,0"
                                 Command="{Binding ConverterToolsViewModel.CopyGuidCommand}"/>
                     </Grid>
-                    <StackPanel Orientation="Horizontal">
-                        <Button Content="New GUID" Classes="primary" Padding="16,7" Margin="0,0,6,0"
+                    <WrapPanel Margin="0,0,0,-6">
+                        <Button Content="New GUID" Classes="primary" Padding="16,7" Margin="0,0,6,6"
                                 Command="{Binding ConverterToolsViewModel.GenerateNewGuidCommand}"/>
-                        <Button Content="UPPERCASE" Classes="secondary" Padding="14,7" Margin="0,0,6,0"
+                        <Button Content="UPPERCASE" Classes="secondary" Padding="14,7" Margin="0,0,6,6"
                                 Command="{Binding ConverterToolsViewModel.GenerateNewGuidUpperCaseCommand}"/>
-                        <Button Content="No Dashes" Classes="secondary" Padding="14,7"
+                        <Button Content="No Dashes" Classes="secondary" Padding="14,7" Margin="0,0,0,6"
                                 Command="{Binding ConverterToolsViewModel.GenerateNewGuidNoDashesCommand}"/>
-                    </StackPanel>
+                    </WrapPanel>
                 </StackPanel>
             </Border>
 
-            <!-- Trailing breathing room so the last card never sits flush against
-                 the bottom edge of the viewport even at max scroll. -->
-            <Border Height="48"/>
-        </StackPanel>
-        </Border>
-    </ScrollViewer>
+        </controls:AdaptiveColumnsPanel>
+    </controls:PageHost>
 </UserControl>

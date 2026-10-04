@@ -4,15 +4,17 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
              xmlns:models="clr-namespace:CenterHubNew.MVVM.Models"
+             xmlns:controls="clr-namespace:CenterHubNew.MVVM.Controls"
              x:Class="CenterHubNew.MVVM.View.HotkeySettingsView"
              x:DataType="viewmodel:HotkeySettingsViewModel"
              mc:Ignorable="d"
+             controls:Responsive.NarrowBelow="560"
              Background="Transparent">
 
     <UserControl.Styles>
         <Style Selector="Border.hotkey-btn">
-            <Setter Property="Background"       Value="{StaticResource InputBackgroundBrush}"/>
-            <Setter Property="BorderBrush"      Value="{StaticResource BorderBrush}"/>
+            <Setter Property="Background"       Value="{DynamicResource InputBackgroundBrush}"/>
+            <Setter Property="BorderBrush"      Value="{DynamicResource BorderBrush}"/>
             <Setter Property="BorderThickness"  Value="1"/>
             <Setter Property="CornerRadius"     Value="8"/>
             <Setter Property="Padding"          Value="14,0"/>
@@ -20,66 +22,77 @@
             <Setter Property="Height"           Value="34"/>
         </Style>
         <Style Selector="Border.hotkey-btn:pointerover">
-            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+
+        <!-- Row layout: buttons right of the action name; under it when narrow -->
+        <Style Selector="StackPanel.hkControls">
+            <Setter Property="Grid.Row" Value="0"/>
+            <Setter Property="Grid.Column" Value="1"/>
+            <Setter Property="Grid.ColumnSpan" Value="1"/>
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="Margin" Value="12,0,0,0"/>
+        </Style>
+        <Style Selector="UserControl:narrow StackPanel.hkControls">
+            <Setter Property="Grid.Row" Value="1"/>
+            <Setter Property="Grid.Column" Value="0"/>
+            <Setter Property="Grid.ColumnSpan" Value="2"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="Margin" Value="0,10,0,0"/>
         </Style>
     </UserControl.Styles>
 
-    <Grid Margin="24,20" RowDefinitions="Auto,*">
+    <controls:PageHost Title="Global Hotkeys"
+                       Subtitle="System-wide keyboard shortcuts"
+                       Mode="Reading">
 
-        <!-- HEADER -->
-        <Grid Grid.Row="0" Margin="0,0,0,16" ColumnDefinitions="*,Auto">
-            <StackPanel Grid.Column="0">
-                <TextBlock Text="Global Hotkeys"
-                           FontSize="22" FontWeight="Bold"
-                           Foreground="{StaticResource TextPrimaryBrush}"/>
-                <TextBlock Text="System-wide keyboard shortcuts"
-                           FontSize="12"
-                           Foreground="{StaticResource TextMutedBrush}"
-                           Margin="0,2,0,0"/>
-            </StackPanel>
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+        <controls:PageHost.HeaderActions>
+            <WrapPanel Orientation="Horizontal">
                 <TextBlock Text="Enable All" FontSize="12"
-                           Foreground="{StaticResource TextSecondaryBrush}"
-                           VerticalAlignment="Center"/>
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           VerticalAlignment="Center" Margin="0,0,10,0"/>
                 <CheckBox IsChecked="{Binding HotkeysEnabled, Mode=TwoWay}"
-                          VerticalAlignment="Center"/>
+                          VerticalAlignment="Center" Margin="0,0,10,0"/>
                 <Button Content="Reset Defaults" Classes="secondary" Padding="12,7"
                         Command="{Binding ResetToDefaultsCommand}"/>
-            </StackPanel>
-        </Grid>
+            </WrapPanel>
+        </controls:PageHost.HeaderActions>
 
         <!-- BINDINGS LIST -->
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-            <ItemsControl ItemsSource="{Binding Bindings}" x:Name="BindingsList">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="models:HotkeyBinding">
-                        <Border Classes="card" Padding="16,11" Margin="0,0,0,4">
-                            <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+        <ItemsControl ItemsSource="{Binding Bindings}" x:Name="BindingsList">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="models:HotkeyBinding">
+                    <Border Classes="card" Padding="16,11" Margin="0,0,0,4">
+                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
 
-                                <!-- Action name + category -->
-                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding DisplayName}"
-                                               FontSize="13" FontWeight="SemiBold"
-                                               Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    <TextBlock Text="{Binding Category}"
-                                               FontSize="10" LetterSpacing="0.5"
-                                               Foreground="{StaticResource TextMutedBrush}"
-                                               Margin="0,2,0,0"/>
-                                </StackPanel>
+                            <!-- Action name + category -->
+                            <StackPanel Grid.Row="0" Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding DisplayName}"
+                                           FontSize="13" FontWeight="SemiBold"
+                                           TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBlock Text="{Binding Category}"
+                                           FontSize="10" LetterSpacing="0.5"
+                                           TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           Margin="0,2,0,0"/>
+                            </StackPanel>
+
+                            <StackPanel Classes="hkControls" Orientation="Horizontal"
+                                        VerticalAlignment="Center">
 
                                 <!-- Warning indicator -->
-                                <Border Grid.Column="1"
-                                        Background="{StaticResource WarningSubtleBrush}"
+                                <Border Background="{DynamicResource WarningSubtleBrush}"
                                         CornerRadius="5" Padding="8,3"
                                         Margin="0,0,10,0" VerticalAlignment="Center"
                                         IsVisible="{Binding HasFailed}"
                                         ToolTip.Tip="Could not register — shortcut may be in use by another app">
                                     <TextBlock Text="In use" FontSize="10" FontWeight="Bold"
-                                               Foreground="{StaticResource WarningBrush}"/>
+                                               Foreground="{DynamicResource WarningBrush}"/>
                                 </Border>
 
                                 <!-- Hotkey record button -->
-                                <Button Grid.Column="2" Margin="0,0,6,0"
+                                <Button Margin="0,0,6,0"
                                         Classes="secondary"
                                         Command="{Binding DataContext.StartRecordingCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
                                         CommandParameter="{Binding}"
@@ -90,14 +103,13 @@
                                                    IsVisible="{Binding !IsRecording}"/>
                                         <TextBlock FontSize="12" Text="Press a key…"
                                                    FontStyle="Italic"
-                                                   Foreground="{StaticResource AccentBrush}"
+                                                   Foreground="{DynamicResource AccentBrush}"
                                                    IsVisible="{Binding IsRecording}"/>
                                     </Panel>
                                 </Button>
 
                                 <!-- Clear button -->
-                                <Button Grid.Column="3"
-                                        Classes="ghost"
+                                <Button Classes="ghost"
                                         Width="30" Height="30"
                                         Padding="0"
                                         IsVisible="{Binding IsBound}"
@@ -105,14 +117,14 @@
                                         Command="{Binding DataContext.ClearBindingCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
                                         CommandParameter="{Binding}">
                                     <TextBlock Text="&#xD7;" FontSize="14"
-                                               Foreground="{StaticResource TextMutedBrush}"
+                                               Foreground="{DynamicResource TextMutedBrush}"
                                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Button>
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </ScrollViewer>
-    </Grid>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </controls:PageHost>
 </UserControl>

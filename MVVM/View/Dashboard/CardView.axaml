@@ -1,0 +1,356 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:CenterHubNew.MVVM.ViewModel.Dashboard"
+             xmlns:conv="clr-namespace:CenterHubNew.MVVM.Converters"
+             x:Class="CenterHubNew.MVVM.View.Dashboard.CardView"
+             x:DataType="vm:DashboardCardViewModel">
+
+    <!-- One dashboard / Favorites card: the chrome (icon, title, open chevron or move/remove buttons)
+         and, below it, the content of the card's view-model type (DataTemplates at the end). Shared by
+         the Home page and the Favorites window. DataContext = a DashboardCardViewModel. -->
+
+    <UserControl.Resources>
+        <conv:PercentToWidthConverter x:Key="PercentToWidth"/>
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.glyph">
+            <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="TextBlock.caption">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+        </Style>
+        <Style Selector="Button.cardbtn">
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+        <Style Selector="Button.cardbtn:disabled">
+            <Setter Property="Opacity" Value="0.3"/>
+        </Style>
+        <Style Selector="Button.chip">
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style Selector="Button.chip.active /template/ Border#Bg">
+            <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+        <Style Selector="Button.chip.warn /template/ Border#Bg">
+            <Setter Property="Background" Value="{DynamicResource ErrorSubtleBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}"/>
+        </Style>
+        <!-- A left-aligned list entry (clipboard) -->
+        <Style Selector="Button.entry">
+            <Setter Property="Background" Value="{DynamicResource CardInnerBrush}"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border x:Name="EntryBg"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="6"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter x:Name="ContentHost"
+                                          Content="{TemplateBinding Content}"
+                                          HorizontalContentAlignment="Left"
+                                          VerticalContentAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.entry:pointerover /template/ Border#EntryBg">
+            <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+        </Style>
+        <!-- Meter: track + fill Border (a ProgressBar mis-sizes its fill in small cards) -->
+        <Style Selector="Border.track">
+            <Setter Property="Background" Value="{DynamicResource SelectedOverlayBrush}"/>
+            <Setter Property="CornerRadius" Value="2"/>
+            <Setter Property="Height" Value="5"/>
+            <Setter Property="Width" Value="130"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Border.fill">
+            <Setter Property="CornerRadius" Value="2"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Border Classes="card" Margin="0" Padding="14,12">
+        <Grid RowDefinitions="Auto,*">
+
+            <!-- Header -->
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+                <Button Grid.Column="0" Classes="ghost"
+                        HorizontalAlignment="Left" Padding="4,3"
+                        Command="{Binding OpenCommand}"
+                        ToolTip.Tip="{Binding Description}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Classes="glyph" Text="{Binding Glyph}"
+                                   Foreground="{DynamicResource AccentBrush}"/>
+                        <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <!-- Edit mode: move up / down / remove -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2"
+                            IsVisible="{Binding IsEditing}">
+                    <Button Classes="ghost cardbtn" Command="{Binding MoveUpCommand}"
+                            IsEnabled="{Binding CanMoveUp}" ToolTip.Tip="Move up">
+                        <TextBlock Classes="glyph" Text="&#xE70E;"/>
+                    </Button>
+                    <Button Classes="ghost cardbtn" Command="{Binding MoveDownCommand}"
+                            IsEnabled="{Binding CanMoveDown}" ToolTip.Tip="Move down">
+                        <TextBlock Classes="glyph" Text="&#xE70D;"/>
+                    </Button>
+                    <Button Classes="ghost cardbtn" Command="{Binding RemoveCommand}"
+                            IsEnabled="{Binding CanRemove}" ToolTip.Tip="Remove card">
+                        <TextBlock Classes="glyph" Text="&#xE711;"/>
+                    </Button>
+                </StackPanel>
+
+                <!-- Normal mode: open the card's page -->
+                <Button Grid.Column="1" Classes="ghost cardbtn" Command="{Binding OpenCommand}"
+                        IsVisible="{Binding !IsEditing}" ToolTip.Tip="Open">
+                    <TextBlock Classes="glyph" Text="&#xE76C;"/>
+                </Button>
+            </Grid>
+
+            <!-- Content: picked by the view-model type (see the DataTemplates below) -->
+            <ContentControl Grid.Row="1" Content="{Binding}"/>
+        </Grid>
+    </Border>
+
+    <UserControl.DataTemplates>
+
+        <!-- ===== Audio ===== -->
+        <DataTemplate DataType="{x:Type vm:AudioCardViewModel}">
+            <StackPanel Spacing="8">
+                <StackPanel Spacing="1">
+                    <TextBlock Text="{Binding StatusText}" FontSize="14" FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Classes="caption" Text="{Binding PresetText}" TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+                <StackPanel Spacing="2" IsVisible="{Binding HasRouting}" IsEnabled="{Binding !Routing.IsBusy}">
+                    <ItemsControl ItemsSource="{Binding Routing.PresetChips}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Classes="secondary chip" Classes.active="{Binding IsActive}"
+                                        Content="{Binding Name}" Margin="0,0,6,6"
+                                        Command="{Binding $parent[ItemsControl].DataContext.ApplyPresetCommand}"
+                                        CommandParameter="{Binding}"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Button Classes="secondary chip" Classes.active="{Binding Routing.IsDirect}"
+                            HorizontalAlignment="Left"
+                            Content="Direct (no Banana)"
+                            Command="{Binding GoDirectCommand}"/>
+                </StackPanel>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- ===== Volume & mic ===== -->
+        <DataTemplate DataType="{x:Type vm:VolumeCardViewModel}">
+            <StackPanel Spacing="10">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <TextBlock Grid.Column="0" Classes="glyph" Text="&#xE767;" Margin="0,0,8,0"/>
+                    <Slider Grid.Column="1" Minimum="0" Maximum="1"
+                            Value="{Binding Sound.OutputVolume, Mode=TwoWay}"
+                            VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding Sound.OutputVolume, StringFormat='{}{0:P0}'}"
+                               FontSize="12" FontWeight="SemiBold"
+                               VerticalAlignment="Center" TextAlignment="Right"
+                               Margin="8,0,0,0" MinWidth="38"/>
+                </Grid>
+                <Button Classes="secondary chip" Classes.warn="{Binding MicMuted}"
+                        HorizontalAlignment="Left"
+                        IsEnabled="{Binding HasMic}"
+                        Command="{Binding ToggleMicCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Classes="glyph" Text="{Binding MicGlyph}"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="{Binding MicText}" FontSize="12" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- ===== Metronome ===== -->
+        <DataTemplate DataType="{x:Type vm:MetronomeCardViewModel}">
+            <StackPanel Spacing="10">
+                <Grid ColumnDefinitions="Auto,*">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Bottom">
+                        <TextBlock Text="{Binding Metronome.Bpm}" FontSize="38" FontWeight="Bold"
+                                   Foreground="{DynamicResource AccentBrush}"/>
+                        <TextBlock Classes="caption" Text="BPM" VerticalAlignment="Bottom" Margin="6,0,0,8"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding ModeText}" FontSize="13" FontWeight="SemiBold"
+                                   HorizontalAlignment="Right" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Classes="caption" Text="{Binding Metronome.TempoName}"
+                                   HorizontalAlignment="Right"/>
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Button Classes="secondary chip" Content="&#x2212;5"
+                            Command="{Binding Metronome.BpmDownFiveCommand}" ToolTip.Tip="5 BPM slower"/>
+                    <Button Classes="primary" Padding="14,6" Command="{Binding Metronome.TogglePlayCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Classes="glyph" Text="{Binding PlayGlyph}"
+                                       Foreground="{DynamicResource TextOnAccentBrush}"/>
+                            <TextBlock Text="{Binding PlayLabel}" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextOnAccentBrush}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="secondary chip" Content="+5"
+                            Command="{Binding Metronome.BpmUpFiveCommand}" ToolTip.Tip="5 BPM faster"/>
+                </StackPanel>
+
+                <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding HasSongs}">
+                    <Button Grid.Column="0" Classes="ghost cardbtn" Command="{Binding Metronome.PreviousSongCommand}"
+                            ToolTip.Tip="Previous song">
+                        <TextBlock Classes="glyph" Text="&#xE76B;"/>
+                    </Button>
+                    <TextBlock Grid.Column="1" Text="{Binding SongText}" FontSize="12"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"/>
+                    <Button Grid.Column="2" Classes="ghost cardbtn" Command="{Binding Metronome.NextSongCommand}"
+                            ToolTip.Tip="Next song">
+                        <TextBlock Classes="glyph" Text="&#xE76C;"/>
+                    </Button>
+                </Grid>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- ===== Practice ===== -->
+        <DataTemplate DataType="{x:Type vm:PracticeCardViewModel}">
+            <Grid ColumnDefinitions="*,*,*">
+                <StackPanel Grid.Column="0" Spacing="2">
+                    <TextBlock Text="{Binding TodayText}" FontSize="18" FontWeight="Bold"/>
+                    <TextBlock Classes="caption" Text="Today"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="2">
+                    <TextBlock Text="{Binding WeekText}" FontSize="18" FontWeight="Bold"/>
+                    <TextBlock Classes="caption" Text="This week"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="2">
+                    <TextBlock Text="{Binding StreakText}" FontSize="18" FontWeight="Bold"
+                               Foreground="{DynamicResource AccentBrush}"/>
+                    <TextBlock Classes="caption" Text="Streak"/>
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+
+        <!-- ===== System ===== -->
+        <DataTemplate DataType="{x:Type vm:SystemCardViewModel}">
+            <StackPanel Spacing="10">
+                <Grid ColumnDefinitions="40,Auto,*">
+                    <TextBlock Grid.Column="0" Classes="caption" Text="CPU" FontWeight="Bold" VerticalAlignment="Center"/>
+                    <Grid Grid.Column="1" Height="5" Width="130" VerticalAlignment="Center">
+                        <Border Classes="track"/>
+                        <Border Classes="fill" Height="5" Background="{DynamicResource CpuBrush}"
+                                Width="{Binding CpuPercent, Converter={StaticResource PercentToWidth}, ConverterParameter=130}"/>
+                    </Grid>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                        <TextBlock Classes="caption" Text="{Binding CpuDetail}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding CpuText}" FontWeight="SemiBold" MinWidth="36" TextAlignment="Right"/>
+                    </StackPanel>
+                </Grid>
+                <Grid ColumnDefinitions="40,Auto,*">
+                    <TextBlock Grid.Column="0" Classes="caption" Text="GPU" FontWeight="Bold" VerticalAlignment="Center"/>
+                    <Grid Grid.Column="1" Height="5" Width="130" VerticalAlignment="Center">
+                        <Border Classes="track"/>
+                        <Border Classes="fill" Height="5" Background="{DynamicResource GpuBrush}"
+                                Width="{Binding GpuPercent, Converter={StaticResource PercentToWidth}, ConverterParameter=130}"/>
+                    </Grid>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                        <TextBlock Classes="caption" Text="{Binding GpuDetail}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding GpuText}" FontWeight="SemiBold" MinWidth="36" TextAlignment="Right"/>
+                    </StackPanel>
+                </Grid>
+                <Grid ColumnDefinitions="40,Auto,*">
+                    <TextBlock Grid.Column="0" Classes="caption" Text="RAM" FontWeight="Bold" VerticalAlignment="Center"/>
+                    <Grid Grid.Column="1" Height="5" Width="130" VerticalAlignment="Center">
+                        <Border Classes="track"/>
+                        <Border Classes="fill" Height="5" Background="{DynamicResource RamBrush}"
+                                Width="{Binding RamPercent, Converter={StaticResource PercentToWidth}, ConverterParameter=130}"/>
+                    </Grid>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                        <TextBlock Classes="caption" Text="{Binding RamDetail}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding RamText}" FontWeight="SemiBold" MinWidth="36" TextAlignment="Right"/>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- ===== Notes ===== -->
+        <DataTemplate DataType="{x:Type vm:NotesCardViewModel}">
+            <StackPanel Spacing="4">
+                <TextBlock Text="{Binding NoteTitle}" FontSize="14" FontWeight="SemiBold"
+                           TextTrimming="CharacterEllipsis" IsVisible="{Binding HasNote}"/>
+                <TextBlock Text="{Binding NotePreview}" FontSize="12"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           TextWrapping="Wrap" MaxLines="3" TextTrimming="CharacterEllipsis"
+                           IsVisible="{Binding HasNote}"/>
+                <TextBlock Classes="caption" Text="No notes yet — open Notes to write one."
+                           TextWrapping="Wrap" IsVisible="{Binding !HasNote}"/>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- ===== Clipboard ===== -->
+        <DataTemplate DataType="{x:Type vm:ClipboardCardViewModel}">
+            <StackPanel Spacing="6">
+                <ItemsControl ItemsSource="{Binding Entries}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="4"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Classes="entry" Command="{Binding CopyCommand}" ToolTip.Tip="Copy again">
+                                <TextBlock Text="{Binding Text}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Classes="caption" Text="Nothing copied yet." IsVisible="{Binding !HasEntries}"/>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- ===== Standing ===== -->
+        <DataTemplate DataType="{x:Type vm:StandingCardViewModel}">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Classes="caption" Text="{Binding Standing.PhaseLabel}" FontWeight="Bold"/>
+                    <TextBlock Text="{Binding Standing.TimeRemainingDisplay}" FontSize="30" FontWeight="Bold"/>
+                </StackPanel>
+                <Button Grid.Column="1" Classes="primary" Padding="16,6" VerticalAlignment="Center"
+                        Content="Start" Command="{Binding Standing.StartTimersCommand}"
+                        IsVisible="{Binding !Standing.IsRunning}"/>
+                <Button Grid.Column="1" Classes="secondary" Padding="16,6" VerticalAlignment="Center"
+                        Content="Stop" Command="{Binding Standing.StopTimersCommand}"
+                        IsVisible="{Binding Standing.IsRunning}"/>
+            </Grid>
+        </DataTemplate>
+
+    </UserControl.DataTemplates>
+</UserControl>

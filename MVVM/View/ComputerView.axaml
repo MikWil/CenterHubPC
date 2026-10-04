@@ -12,22 +12,22 @@
         <StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
                 <TextBlock Text="💻" FontSize="20" Margin="0,0,8,0"
-                           Foreground="{StaticResource AccentLightBrush}" VerticalAlignment="Center"/>
+                           Foreground="{DynamicResource AccentLightBrush}" VerticalAlignment="Center"/>
                 <TextBlock Text="Computer Control" FontSize="20" FontWeight="Bold"
-                           Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                           Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
             </StackPanel>
 
-            <Border Classes="card" BorderThickness="1" BorderBrush="{StaticResource BorderBrush}">
+            <Border Classes="card" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
                 <StackPanel>
                     <TextBlock Text="SHUTDOWN SCHEDULER" FontSize="10" FontWeight="Bold"
-                               Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,12"/>
+                               Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,12"/>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
                         <TextBlock Text="Date" VerticalAlignment="Center" FontSize="12"
-                                   Margin="0,0,8,0" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                   Margin="0,0,8,0" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         <TextBox Text="{Binding SelectedDateText, Mode=TwoWay}"
                                  Classes="input" Width="120"/>
                         <TextBlock Text="Time" VerticalAlignment="Center" FontSize="12"
-                                   Margin="16,0,8,0" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                   Margin="16,0,8,0" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         <TextBox Text="{Binding SelectedTime, Mode=TwoWay}"
                                  Classes="input" Width="80"/>
                     </StackPanel>
@@ -39,7 +39,7 @@
                     </StackPanel>
                     <TextBlock Text="{Binding StatusMessage}"
                                FontSize="12" TextWrapping="Wrap"
-                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
                                Margin="0,12,0,0"/>
                 </StackPanel>
             </Border>

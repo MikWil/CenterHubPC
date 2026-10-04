@@ -1,0 +1,182 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+             x:Class="CenterHubNew.MVVM.View.CommandPaletteView"
+             x:DataType="viewmodel:CommandPaletteViewModel"
+             Width="{Binding $parent[Border].Bounds.Width}"
+             Height="{Binding $parent[Border].Bounds.Height}">
+    <!-- No Background on purpose: the dimmed area around the card must stay clickable
+         (the shell closes the overlay on a press on its backdrop). The size follows the
+         overlay layer so the card can sit ~12 % from the top instead of the centre. -->
+
+    <UserControl.Styles>
+        <!-- Search box: no box, no focus underline — the card is the frame. -->
+        <Style Selector="TextBox.palette">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="Padding" Value="0,12"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="TextBox.palette /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="TextBox.palette:pointerover /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="TextBox.palette:focus /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+
+        <!-- Result row -->
+        <Style Selector="Button.palrow">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border x:Name="Bg"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="8"
+                            Margin="6,1"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter x:Name="ContentHost"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.palrow:pointerover /template/ Border#Bg">
+            <Setter Property="Background" Value="{DynamicResource CardInnerBrush}"/>
+        </Style>
+        <Style Selector="Button.palrow.selected /template/ Border#Bg">
+            <Setter Property="Background" Value="{DynamicResource CardHoverBrush}"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="13*,80*,7*">
+        <Border Grid.Row="1"
+                MaxWidth="620"
+                Margin="20,0"
+                VerticalAlignment="Top"
+                Background="{DynamicResource CardBackgroundBrush}"
+                BorderThickness="1"
+                BorderBrush="{DynamicResource BorderStrongBrush}"
+                CornerRadius="12"
+                BoxShadow="0 12 40 0 #80000000"
+                ClipToBounds="True">
+            <Grid RowDefinitions="Auto,Auto,*,Auto">
+
+                <!-- Search -->
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="16,0,16,0">
+                    <TextBlock Grid.Column="0"
+                               Text="&#xE721;"
+                               FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"
+                               FontSize="15"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               VerticalAlignment="Center"
+                               Margin="0,0,12,0"/>
+                    <TextBox x:Name="SearchBox"
+                             Grid.Column="1"
+                             Classes="palette"
+                             Text="{Binding Query, Mode=TwoWay}"
+                             Watermark="Type a command or page…"/>
+                </Grid>
+
+                <Border Grid.Row="1" Height="1" Background="{DynamicResource BorderHairline}"/>
+
+                <!-- Results -->
+                <ScrollViewer Grid.Row="2"
+                              MaxHeight="420"
+                              Margin="0,6"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              IsVisible="{Binding HasResults}">
+                    <ItemsControl x:Name="ResultsList" ItemsSource="{Binding Results}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="viewmodel:PaletteResult">
+                                <Button Classes="palrow"
+                                        Classes.selected="{Binding IsSelected}"
+                                        Command="{Binding RunCommand}">
+                                    <Grid ColumnDefinitions="3,Auto,*,Auto,Auto" Height="38">
+                                        <Border Grid.Column="0"
+                                                Width="3" Height="18"
+                                                CornerRadius="2"
+                                                Background="{DynamicResource AccentBrush}"
+                                                VerticalAlignment="Center"
+                                                IsVisible="{Binding IsSelected}"/>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding Glyph}"
+                                                   Width="22"
+                                                   Margin="10,0,6,0"
+                                                   FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"
+                                                   FontSize="14"
+                                                   TextAlignment="Center"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="2"
+                                                   Text="{Binding Title}"
+                                                   FontSize="13"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   VerticalAlignment="Center"
+                                                   Margin="6,0,8,0"/>
+                                        <Border Grid.Column="3"
+                                                IsVisible="{Binding HasShortcut}"
+                                                BorderThickness="1"
+                                                BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                                CornerRadius="4"
+                                                Padding="6,1"
+                                                Margin="0,0,10,0"
+                                                VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Shortcut}"
+                                                       FontSize="10"
+                                                       Foreground="{DynamicResource TextMutedBrush}"/>
+                                        </Border>
+                                        <TextBlock Grid.Column="4"
+                                                   Text="{Binding Category}"
+                                                   FontSize="11"
+                                                   Foreground="{DynamicResource TextMutedBrush}"
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,0,12,0"/>
+                                    </Grid>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+
+                <TextBlock Grid.Row="2"
+                           Text="No matching commands"
+                           FontSize="12"
+                           Foreground="{DynamicResource TextMutedBrush}"
+                           HorizontalAlignment="Center"
+                           Margin="0,22"
+                           IsVisible="{Binding !HasResults}"/>
+
+                <!-- Hints -->
+                <Border Grid.Row="3"
+                        BorderThickness="0,1,0,0"
+                        BorderBrush="{DynamicResource BorderSubtleBrush}"
+                        Padding="16,7">
+                    <TextBlock Text="↑↓ select   ·   Enter run   ·   Esc close"
+                               FontSize="11"
+                               Foreground="{DynamicResource TextMutedBrush}"/>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

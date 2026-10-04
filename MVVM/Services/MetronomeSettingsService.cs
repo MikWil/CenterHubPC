@@ -17,7 +17,7 @@ namespace CenterHubNew.MVVM.Services
     {
         private static readonly JsonSerializerSettings JsonSettings = new()
         {
-            Converters = { new StringEnumConverter() },
+            Converters = { new TolerantStringEnumConverter() },
         };
 
         private readonly ILogger<MetronomeSettingsService>? _logger;
@@ -101,6 +101,39 @@ namespace CenterHubNew.MVVM.Services
             if (!Enum.IsDefined(s.ClickSound)) s.ClickSound = MetronomeSound.Clock;
             if (!Enum.IsDefined(s.Subdivision)) s.Subdivision = ClickSubdivision.None;
             if (!Enum.IsDefined(s.Kit)) s.Kit = DrumKitKind.Rock;
+
+            SanitizeSetlists(s);
+        }
+
+        private static void SanitizeSetlists(MetronomeSettings s)
+        {
+            s.Setlists ??= new List<Setlist>();
+            s.Setlists.RemoveAll(l => l is null);
+
+            var seen = new HashSet<string>();
+            foreach (var list in s.Setlists)
+            {
+                if (string.IsNullOrWhiteSpace(list.Id) || !seen.Add(list.Id))
+                {
+                    list.Id = Guid.NewGuid().ToString("N");
+                    seen.Add(list.Id);
+                }
+                list.Name ??= "";
+                list.Songs ??= new List<SetlistSong>();
+                list.Songs.RemoveAll(song => song is null);
+                foreach (var song in list.Songs) SetlistHelper.Sanitize(song);
+            }
+
+            var active = s.ActiveSetlistId is null ? null : s.Setlists.Find(l => l.Id == s.ActiveSetlistId);
+            if (active is null)
+            {
+                s.ActiveSetlistId = null;
+                s.ActiveSongIndex = 0;
+            }
+            else
+            {
+                s.ActiveSongIndex = Math.Clamp(s.ActiveSongIndex, 0, Math.Max(0, active.Songs.Count - 1));
+            }
         }
     }
 }

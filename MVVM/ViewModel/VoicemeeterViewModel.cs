@@ -139,6 +139,14 @@ namespace CenterHubNew.MVVM.ViewModel
             return null;
         }
 
+        /// <summary>Re-read the saved devices (e.g. after the setup wizard changed them) and the state.</summary>
+        public void Reload()
+        {
+            if (IsDisposed) return;
+            LoadSettingsAndDevices();
+            RefreshState();
+        }
+
         /// <summary>Re-read install/running/active state from the services and update the UI.</summary>
         public void RefreshState()
         {

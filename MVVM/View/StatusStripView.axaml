@@ -1,0 +1,144 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:CenterHubNew.MVVM.Controls"
+             xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+             x:Class="CenterHubNew.MVVM.View.StatusStripView"
+             x:DataType="viewmodel:StatusStripViewModel"
+             controls:Responsive.NarrowBelow="560"
+             Background="Transparent">
+
+    <UserControl.Styles>
+        <!-- Quiet: small, muted text; icons from the system icon font. -->
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="TextBlock.icon">
+            <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.seg">
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="Padding" Value="7,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+        </Style>
+        <Style Selector="Button.seg:pointerover">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+        <Style Selector="Button.seg.muted">
+            <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}"/>
+        </Style>
+        <Style Selector="Button.seg.playing">
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+        <Style Selector="Button.seg.playing:pointerover">
+            <Setter Property="Foreground" Value="{DynamicResource AccentHoverBrush}"/>
+        </Style>
+
+        <Style Selector="Border.dot">
+            <Setter Property="Width" Value="7"/>
+            <Setter Property="Height" Value="7"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Background" Value="{DynamicResource TextMutedBrush}"/>
+        </Style>
+        <Style Selector="Border.dot.running">
+            <Setter Property="Background" Value="{DynamicResource SuccessBrush}"/>
+        </Style>
+        <Style Selector="Border.dot.direct">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+        <Style Selector="Border.dot.stopped">
+            <Setter Property="Background" Value="{DynamicResource WarningBrush}"/>
+        </Style>
+
+        <Style Selector="Border.div">
+            <Setter Property="Width" Value="1"/>
+            <Setter Property="Height" Value="14"/>
+            <Setter Property="Margin" Value="3,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Background" Value="{DynamicResource BorderHairline}"/>
+        </Style>
+
+        <!-- Narrow strip: keep icons and dots, drop the wording. -->
+        <Style Selector="UserControl:narrow :is(Control).wide-only">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Border Height="30"
+            Background="{DynamicResource SidebarBackgroundBrush}"
+            BorderThickness="0,1,0,0"
+            BorderBrush="{DynamicResource BorderHairline}"
+            ClipToBounds="True">
+        <DockPanel LastChildFill="False">
+
+            <!-- Command palette hint -->
+            <Button DockPanel.Dock="Right"
+                    Classes="ghost seg"
+                    Margin="0,0,6,0"
+                    Command="{Binding ShowPaletteCommand}"
+                    ToolTip.Tip="Command palette (Ctrl+K)">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Classes="icon" Text="&#xE721;"/>
+                    <TextBlock Classes="label wide-only" Text="Ctrl+K"/>
+                </StackPanel>
+            </Button>
+
+            <StackPanel Orientation="Horizontal" Margin="6,0,0,0" VerticalAlignment="Center">
+
+                <!-- Audio routing -->
+                <Button Classes="ghost seg"
+                        IsVisible="{Binding IsAudioVisible}"
+                        Command="{Binding OpenSoundCommand}"
+                        ToolTip.Tip="Audio routing — open Sound">
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                        <Border Classes="dot"
+                                Classes.running="{Binding IsAudioRunning}"
+                                Classes.direct="{Binding IsAudioDirect}"
+                                Classes.stopped="{Binding IsAudioStopped}"/>
+                        <TextBlock Classes="label wide-only" Text="{Binding AudioText}"/>
+                    </StackPanel>
+                </Button>
+                <Border Classes="div" IsVisible="{Binding IsAudioVisible}"/>
+
+                <!-- Microphone -->
+                <Button Classes="ghost seg"
+                        Classes.muted="{Binding IsMicMuted}"
+                        Command="{Binding ToggleMicCommand}"
+                        ToolTip.Tip="{Binding MicTooltip}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Classes="icon" Text="{Binding MicGlyph}"/>
+                        <TextBlock Classes="label wide-only" Text="{Binding MicText}"/>
+                    </StackPanel>
+                </Button>
+                <Border Classes="div" IsVisible="{Binding IsMetronomeVisible}"/>
+
+                <!-- Metronome: play/stop, then tempo (and the groove while playing) opens the page -->
+                <StackPanel Orientation="Horizontal" IsVisible="{Binding IsMetronomeVisible}">
+                    <Button Classes="ghost seg"
+                            Classes.playing="{Binding IsMetroPlaying}"
+                            Command="{Binding ToggleMetronomeCommand}"
+                            ToolTip.Tip="{Binding MetroPlayTooltip}">
+                        <TextBlock Classes="icon" Text="{Binding MetroPlayGlyph}"/>
+                    </Button>
+                    <Button Classes="ghost seg"
+                            Padding="3,0,7,0"
+                            Command="{Binding OpenMetronomeCommand}"
+                            ToolTip.Tip="Open Metronome">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Classes="label" Text="{Binding MetroBpmText}"/>
+                            <StackPanel Classes="wide-only">
+                                <TextBlock Classes="label"
+                                           IsVisible="{Binding HasMetroDetail}"
+                                           Text="{Binding MetroDetail}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </StackPanel>
+        </DockPanel>
+    </Border>
+</UserControl>

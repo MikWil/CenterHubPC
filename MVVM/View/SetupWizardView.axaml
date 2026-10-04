@@ -1,0 +1,333 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+             xmlns:svc="clr-namespace:CenterHubNew.MVVM.Services"
+             x:Class="CenterHubNew.MVVM.View.SetupWizardView"
+             x:DataType="viewmodel:SetupWizardViewModel"
+             Background="Transparent">
+
+    <UserControl.Styles>
+        <!-- Step indicator -->
+        <Style Selector="Border.dot">
+            <Setter Property="Width" Value="8"/>
+            <Setter Property="Height" Value="8"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Background" Value="{DynamicResource BorderStrongBrush}"/>
+        </Style>
+        <Style Selector="Border.dot.done">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Opacity" Value="0.55"/>
+        </Style>
+        <Style Selector="Border.dot.current">
+            <Setter Property="Width" Value="24"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+
+        <!-- Preset chips (same look as the Routing page) -->
+        <Style Selector="Button.chip">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderHairline}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="999"/>
+            <Setter Property="Padding" Value="14,7"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+        </Style>
+        <Style Selector="Button.chip.active">
+            <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+
+        <Style Selector="TextBlock.heading">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        </Style>
+        <Style Selector="TextBlock.body">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+        </Style>
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="LetterSpacing" Value="1"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+        </Style>
+        <Style Selector="TextBlock.result">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}"/>
+        </Style>
+        <Style Selector="TextBlock.result.ok">
+            <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}"/>
+        </Style>
+    </UserControl.Styles>
+
+    <UserControl.Resources>
+        <!-- One line of a setup check: icon, title, detail, suggested fix. -->
+        <DataTemplate x:Key="CheckRowTemplate" x:DataType="viewmodel:WizardCheckRow">
+            <Grid ColumnDefinitions="26,*" Margin="0,0,0,8">
+                <TextBlock Grid.Column="0" Text="{Binding Icon}" FontSize="15" FontWeight="Bold"
+                           Foreground="{Binding IconColor}" VerticalAlignment="Top"/>
+                <StackPanel Grid.Column="1" Spacing="1">
+                    <TextBlock Text="{Binding Title}" Classes="heading"/>
+                    <TextBlock Text="{Binding Detail}" Classes="body" FontSize="11"/>
+                    <TextBlock Text="{Binding FixText}" IsVisible="{Binding HasFix}" FontSize="11"
+                               FontWeight="SemiBold" TextWrapping="Wrap"
+                               Foreground="{DynamicResource AccentBrush}"/>
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <!-- Rows of 7.5 % / 85 % / 7.5 % keep the card within ~85 % of the window; it shrinks to its
+         content when that is smaller, and its body scrolls when it is not. -->
+    <Grid RowDefinitions="0.075*,0.85*,0.075*" Margin="16,0">
+        <Border Grid.Row="1" Classes="card" MaxWidth="640" Margin="0" Padding="0"
+                HorizontalAlignment="Stretch" VerticalAlignment="Center">
+            <Grid RowDefinitions="Auto,*,Auto">
+
+                <!-- HEADER -->
+                <StackPanel Grid.Row="0" Margin="24,20,24,12" Spacing="4">
+                    <TextBlock Text="Set up your audio" FontSize="22" FontWeight="Bold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="{Binding Subtitle}" FontSize="12" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextMutedBrush}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,8,0,0">
+                        <ItemsControl ItemsSource="{Binding StepDots}" VerticalAlignment="Center">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="6"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="viewmodel:WizardStepDot">
+                                    <Border Classes="dot" Classes.current="{Binding IsCurrent}" Classes.done="{Binding IsDone}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="{Binding StepLabel}" FontSize="11" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextMutedBrush}"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- BODY -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Margin="24,4,24,16" Spacing="14">
+
+                        <!-- STEP 1: Voicemeeter -->
+                        <StackPanel IsVisible="{Binding IsStep1}" Spacing="12">
+                            <StackPanel IsVisible="{Binding VoicemeeterMissing}" Spacing="12">
+                                <TextBlock Classes="heading" Text="Voicemeeter isn't installed"/>
+                                <TextBlock Classes="body"
+                                           Text="Voicemeeter Banana is a free virtual mixer from VB-Audio. CenterHub uses it to send your microphone, guitar and games to your headphones and to Discord. Install it, restart your PC, then press &quot;Check again&quot;."/>
+                                <WrapPanel Orientation="Horizontal">
+                                    <Button Content="Get Voicemeeter" Classes="primary" Padding="14,8" Margin="0,0,8,8"
+                                            Command="{Binding GetVoicemeeterCommand}"/>
+                                    <Button Content="Check again" Classes="secondary" Padding="14,8" Margin="0,0,8,8"
+                                            IsEnabled="{Binding NotBusy}"
+                                            Command="{Binding CheckAgainCommand}"/>
+                                    <Button Content="Finish without routing" Classes="ghost" Padding="14,8" Margin="0,0,8,8"
+                                            IsEnabled="{Binding NotBusy}"
+                                            Command="{Binding FinishWithoutRoutingCommand}"/>
+                                </WrapPanel>
+                            </StackPanel>
+
+                            <StackPanel IsVisible="{Binding VoicemeeterInstalled}" Spacing="12">
+                                <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding VoicemeeterReady}">
+                                    <Border Classes="dot" Width="10" Height="10" CornerRadius="5" Background="{DynamicResource SuccessBrush}"/>
+                                    <TextBlock Classes="heading" Text="Voicemeeter is installed and running"/>
+                                </StackPanel>
+                                <StackPanel Spacing="12" IsVisible="{Binding VoicemeeterNeedsStart}">
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <Border Classes="dot" Width="10" Height="10" CornerRadius="5" Background="{DynamicResource WarningBrush}"/>
+                                        <TextBlock Classes="heading" Text="Voicemeeter is installed but not running"/>
+                                    </StackPanel>
+                                    <TextBlock Classes="body" Text="CenterHub can start it for you. It takes a few seconds."/>
+                                    <WrapPanel Orientation="Horizontal">
+                                        <Button Content="Start Voicemeeter" Classes="primary" Padding="14,8" Margin="0,0,8,0"
+                                                IsEnabled="{Binding CanStartVoicemeeter}"
+                                                Command="{Binding StartVoicemeeterCommand}"/>
+                                        <Button Content="Check again" Classes="secondary" Padding="14,8"
+                                                IsEnabled="{Binding NotBusy}"
+                                                Command="{Binding CheckAgainCommand}"/>
+                                    </WrapPanel>
+                                </StackPanel>
+                                <TextBlock Classes="body" Text="{Binding VoicemeeterMessage}" IsVisible="{Binding HasVoicemeeterMessage}"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- STEP 2: devices -->
+                        <StackPanel IsVisible="{Binding IsStep2}" Spacing="14">
+                            <StackPanel Spacing="4">
+                                <TextBlock Classes="label" Text="YOU LISTEN WITH"/>
+                                <ComboBox HorizontalAlignment="Stretch" PlaceholderText="Choose your headphones…"
+                                          ItemsSource="{Binding HeadphoneDevices}"
+                                          SelectedItem="{Binding SelectedHeadphones}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="svc:AudioDeviceInfo">
+                                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <CheckBox Content="Other apps can use the headphones too" FontSize="12"
+                                          IsChecked="{Binding ShareHeadset, Mode=TwoWay}"/>
+                                <TextBlock Classes="body" FontSize="11"
+                                           Text="On: games, Teams and anything else pointed at your headphones still play. Off: Voicemeeter keeps them to itself for the shortest delay."/>
+                            </StackPanel>
+
+                            <StackPanel Spacing="4">
+                                <TextBlock Classes="label" Text="YOUR MICROPHONE"/>
+                                <ComboBox HorizontalAlignment="Stretch" PlaceholderText="Choose your microphone…"
+                                          ItemsSource="{Binding MicrophoneDevices}"
+                                          SelectedItem="{Binding SelectedMicrophone}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="svc:AudioDeviceInfo">
+                                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <StackPanel Spacing="4">
+                                <TextBlock Classes="label" Text="YOUR GUITAR / INSTRUMENT (OPTIONAL)"/>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <ComboBox Grid.Column="0" HorizontalAlignment="Stretch" PlaceholderText="None"
+                                              ItemsSource="{Binding GuitarDevices}"
+                                              SelectedItem="{Binding SelectedGuitar}">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate x:DataType="svc:AudioDeviceInfo">
+                                                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <Button Grid.Column="1" Content="Clear" Classes="ghost" Padding="12,6" Margin="8,0,0,0"
+                                            IsVisible="{Binding HasGuitar}"
+                                            Command="{Binding ClearGuitarCommand}"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <TextBlock Classes="body" FontSize="11" IsVisible="{Binding NeedsDeviceChoice}"
+                                       Text="Choose your headphones and microphone to continue."/>
+                        </StackPanel>
+
+                        <!-- STEP 3: routing -->
+                        <StackPanel IsVisible="{Binding IsStep3}" Spacing="12">
+                            <TextBlock Classes="label" Text="STARTING LAYOUT"/>
+                            <ItemsControl ItemsSource="{Binding PresetChips}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="viewmodel:WizardPresetChip">
+                                        <Button Classes="chip" Classes.active="{Binding IsActive}"
+                                                Content="{Binding Name}" Margin="0,0,8,8"
+                                                Command="{Binding $parent[ItemsControl].((viewmodel:SetupWizardViewModel)DataContext).SelectPresetCommand}"
+                                                CommandParameter="{Binding}"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Classes="body"
+                                       Text="You can change the layout any time on the Routing page. &quot;Guitar + Discord&quot; sends your mic and guitar to Discord; &quot;Gaming&quot; sends only your mic; &quot;Chill&quot; keeps everything to yourself."/>
+
+                            <WrapPanel Orientation="Horizontal">
+                                <Button Content="Apply routing" Classes="primary" Padding="14,8"
+                                        IsEnabled="{Binding CanApplyRouting}"
+                                        Command="{Binding ApplyRoutingCommand}"/>
+                            </WrapPanel>
+
+                            <TextBlock Classes="result" Classes.ok="{Binding RoutingSucceeded}"
+                                       Text="{Binding RoutingResultText}" IsVisible="{Binding HasRoutingResult}"/>
+
+                            <StackPanel Spacing="4" IsVisible="{Binding HasCheckRows}">
+                                <TextBlock Classes="label" Text="SETUP CHECK"/>
+                                <ItemsControl ItemsSource="{Binding CheckRows}"
+                                              ItemTemplate="{StaticResource CheckRowTemplate}"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- STEP 4: Discord -->
+                        <StackPanel IsVisible="{Binding IsStep4}" Spacing="12">
+                            <TextBlock Classes="body">
+                                <Run Text="Discord only follows CenterHub's routing when it uses Windows' default devices. In Discord, open "/>
+                                <Run FontWeight="SemiBold" Text="User Settings"/>
+                                <Run Text=" → "/>
+                                <Run FontWeight="SemiBold" Text="Voice &amp; Video"/>
+                                <Run Text=" and set both the "/>
+                                <Run FontWeight="SemiBold" Text="Input Device"/>
+                                <Run Text=" and the "/>
+                                <Run FontWeight="SemiBold" Text="Output Device"/>
+                                <Run Text=" to "/>
+                                <Run FontWeight="SemiBold" Text="Default"/>
+                                <Run Text="."/>
+                            </TextBlock>
+                            <TextBlock Classes="body"
+                                       Text="If only one of them is Default, your friends may hear nothing or you may hear nothing — this is the most common reason for &quot;it doesn't work&quot;."/>
+                            <WrapPanel Orientation="Horizontal">
+                                <Button Content="Open Discord" Classes="secondary" Padding="14,8"
+                                        IsVisible="{Binding DiscordInstalled}"
+                                        Command="{Binding OpenDiscordCommand}"/>
+                            </WrapPanel>
+                            <CheckBox Content="I've set Discord to Default" FontSize="12"
+                                      IsChecked="{Binding DiscordConfirmed, Mode=TwoWay}"/>
+                        </StackPanel>
+
+                        <!-- STEP 5: test -->
+                        <StackPanel IsVisible="{Binding IsStep5}" Spacing="12">
+                            <TextBlock Classes="body"
+                                       Text="Press the button: you should hear a soft two-note chime in your headphones. It plays on Windows' default output, so it travels through Voicemeeter the same way your games will."/>
+                            <WrapPanel Orientation="Horizontal">
+                                <Button Content="Play test sound" Classes="secondary" Padding="14,8"
+                                        IsEnabled="{Binding CanPlayTest}"
+                                        Command="{Binding PlayTestSoundCommand}"/>
+                            </WrapPanel>
+                            <TextBlock Classes="body" Text="{Binding TestStatusText}" IsVisible="{Binding HasTestStatus}"/>
+
+                            <WrapPanel Orientation="Horizontal">
+                                <Button Content="I heard it" Classes="primary" Padding="14,8" Margin="0,0,8,0"
+                                        IsEnabled="{Binding NotBusy}"
+                                        Command="{Binding HeardItCommand}"/>
+                                <Button Content="I didn't hear anything" Classes="secondary" Padding="14,8"
+                                        IsEnabled="{Binding NotBusy}"
+                                        Command="{Binding DidNotHearCommand}"/>
+                            </WrapPanel>
+
+                            <TextBlock Classes="result ok" Text="Great — you're all set. Press Finish." IsVisible="{Binding TestHeard}"/>
+
+                            <StackPanel Spacing="8" IsVisible="{Binding TestNotHeard}">
+                                <TextBlock Classes="heading" Text="Here is what most likely stands in the way"/>
+                                <ItemsControl ItemsSource="{Binding ProblemRows}" IsVisible="{Binding HasProblemRows}"
+                                              ItemTemplate="{StaticResource CheckRowTemplate}"/>
+                                <TextBlock Classes="body" IsVisible="{Binding TestNothingWrongFound}"
+                                           Text="Nothing looks wrong on CenterHub's side. Check that your headphones are on and the Windows volume is up, then play the sound again."/>
+                                <TextBlock Classes="body" FontSize="11"
+                                           Text="For the full list, open the Routing page and press &quot;Check setup&quot;."/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- FOOTER -->
+                <Border Grid.Row="2" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource BorderHairline}" Padding="24,12">
+                    <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
+                        <Button Grid.Column="0" Content="Back" Classes="secondary" Padding="14,8"
+                                IsEnabled="{Binding CanGoBack}"
+                                Command="{Binding BackCommand}"/>
+                        <TextBlock Grid.Column="1" Text="Working…" FontSize="11" Margin="14,0,0,0"
+                                   VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"
+                                   IsVisible="{Binding IsBusy}"/>
+                        <Button Grid.Column="3" Content="Skip setup" Classes="ghost" Padding="14,8" Margin="0,0,8,0"
+                                IsEnabled="{Binding CanSkip}"
+                                Command="{Binding SkipCommand}"/>
+                        <Button Grid.Column="4" Content="{Binding NextLabel}" Classes="primary" Padding="18,8"
+                                IsEnabled="{Binding CanGoNext}"
+                                Command="{Binding NextCommand}"/>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

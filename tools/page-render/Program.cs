@@ -8,6 +8,7 @@ using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Themes.Fluent;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using CenterHubNew.MVVM.Models;
 using CenterHubNew.MVVM.Services;
 using CenterHubNew.MVVM.View;
@@ -39,6 +40,10 @@ internal sealed class RenderApp : Avalonia.Application
         Styles.Add(new StyleInclude(new Uri("avares://CenterHubNew/"))
         {
             Source = new Uri("avares://CenterHubNew/Resources/Styles/Theme.axaml"),
+        });
+        Styles.Add(new StyleInclude(new Uri("avares://CenterHubNew/"))
+        {
+            Source = new Uri("avares://CenterHubNew/Resources/Styles/Controls.axaml"),
         });
     }
 }
@@ -78,6 +83,8 @@ internal static class Program
         {
             case "audio": return SilentDeviceCheck();
             case "audio-diag": DeviceRateDiag(); return 0;
+            case "widths": RenderWidths(outDir); return 0;
+            case "palette": RenderPalette(outDir); return 0;
             default: RenderMetronome(outDir); return 0;
         }
     }
@@ -297,6 +304,95 @@ internal static class Program
         vm.SelectedStyle = DrumStyleLibrary.All.OrderByDescending(s => s.StepsPerBar).First();
         Shot("metronome-4-wide-grid");
 
+        vm.Dispose();
+        try { Directory.Delete(temp, true); } catch { }
+    }
+
+    /// <summary>The command palette as the shell shows it (inside the dimmed overlay layer), empty and filtered.</summary>
+    private static void RenderPalette(string outDir)
+    {
+        var vm = new CommandPaletteViewModel();
+        var window = new Window
+        {
+            Width = 1100, Height = 760,
+            Background = new SolidColorBrush(Color.Parse("#0F0F16")),
+            Content = new Border
+            {
+                Background = new SolidColorBrush(Color.Parse("#A8000000")),
+                Child = new CommandPaletteView { DataContext = vm },
+            },
+        };
+        window.Show();
+
+        void Shot(string name)
+        {
+            Dispatcher.UIThread.RunJobs();
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+            Dispatcher.UIThread.RunJobs();
+            using var frame = window.CaptureRenderedFrame()!;
+            string path = Path.Combine(outDir, name + ".png");
+            frame.Save(path);
+            Console.WriteLine($"{path}  results={vm.Results.Count}");
+        }
+
+        vm.OnShown();
+        Shot("palette-1-empty");
+        vm.Query = "metro";
+        Shot("palette-2-metro");
+        vm.Query = "tempo 120";
+        Shot("palette-3-tempo");
+        vm.Dispose();
+    }
+
+    /// <summary>The Metronome page at several window widths — does it reflow instead of clipping?</summary>
+    private static void RenderWidths(string outDir)
+    {
+        string temp = Path.Combine(Path.GetTempPath(), "CenterHubRender-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(temp);
+        using var service = new MetronomeService();
+        var vm = new MetronomeViewModel(service, new MetronomeSettingsService(null, temp)) { IsDrumsMode = true };
+
+        foreach (int width in new[] { 480, 640, 900, 1300 })
+        {
+            var view = new MetronomeView { DataContext = vm };
+            var window = new Window
+            {
+                Width = width, Height = 1400,
+                Background = new SolidColorBrush(Color.Parse("#0F0F16")),
+                Content = view,
+            };
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+            Dispatcher.UIThread.RunJobs();
+            using var frame = window.CaptureRenderedFrame()!;
+            string path = Path.Combine(outDir, $"metronome-w{width}.png");
+            frame.Save(path);
+            var root = view.GetVisualDescendants().OfType<StackPanel>().FirstOrDefault(p => p.Classes.Contains("root"));
+            var title = view.GetVisualDescendants().OfType<TextBlock>().FirstOrDefault(t => t.Classes.Contains("page-title"));
+            Console.WriteLine($"{path}  view={view.Bounds.Width:F0} root={root?.Bounds.Width:F0} narrow={root?.Classes.Contains(":narrow")}" +
+                              $"  title={title?.FontSize} templated={title?.TemplatedParent is not null}");
+            window.Close();
+        }
+
+        // Light theme, switched live (pages use DynamicResource, so this must repaint everything).
+        {
+            var view = new MetronomeView { DataContext = vm };
+            var window = new Window { Width = 900, Height = 1400, Content = view };
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            Avalonia.Application.Current!.RequestedThemeVariant = ThemeVariant.Light;
+            window.Background = new SolidColorBrush(Color.Parse("#F3F3F7"));
+            Dispatcher.UIThread.RunJobs();
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+            Dispatcher.UIThread.RunJobs();
+            using var frame = window.CaptureRenderedFrame()!;
+            string path = Path.Combine(outDir, "metronome-light.png");
+            frame.Save(path);
+            Console.WriteLine(path);
+            window.Close();
+            Avalonia.Application.Current.RequestedThemeVariant = ThemeVariant.Dark;
+        }
         vm.Dispose();
         try { Directory.Delete(temp, true); } catch { }
     }

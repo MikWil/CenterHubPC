@@ -50,6 +50,21 @@
         <DataTemplate DataType="{x:Type viewmodel:MetronomeViewModel}">
             <view:MetronomeView/>
         </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodel:DashboardViewModel}">
+            <view:DashboardView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodel:SettingsViewModel}">
+            <view:SettingsView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodel:StatusStripViewModel}">
+            <view:StatusStripView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodel:CommandPaletteViewModel}">
+            <view:CommandPaletteView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type viewmodel:SetupWizardViewModel}">
+            <view:SetupWizardView/>
+        </DataTemplate>
     </Application.DataTemplates>
 
     <Application.Styles>
@@ -62,6 +77,8 @@
             </FluentTheme.Palettes>
         </FluentTheme>
         <StyleInclude Source="avares://CenterHubNew/Resources/Styles/Theme.axaml"/>
+        <!-- Shared layout controls (PageHost, AdaptiveColumnsPanel) -->
+        <StyleInclude Source="avares://CenterHubNew/Resources/Styles/Controls.axaml"/>
     </Application.Styles>
 
 </Application>

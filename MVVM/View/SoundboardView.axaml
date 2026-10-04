@@ -3,110 +3,109 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+             xmlns:controls="clr-namespace:CenterHubNew.MVVM.Controls"
              x:Class="CenterHubNew.MVVM.View.SoundboardView"
              x:DataType="viewmodel:SoundboardViewModel"
              mc:Ignorable="d"
              Background="Transparent">
 
-    <Grid Margin="24,20" RowDefinitions="Auto,Auto,*">
+    <Grid>
+        <controls:PageHost Title="Soundboard"
+                           Subtitle="Play audio clips with hotkeys"
+                           Mode="Data">
+            <StackPanel Spacing="0">
 
-        <!-- HEADER -->
-        <StackPanel Grid.Row="0" Margin="0,0,0,18">
-            <TextBlock Text="Soundboard"
-                       FontSize="22" FontWeight="Bold"
-                       Foreground="{StaticResource TextPrimaryBrush}"/>
-            <TextBlock Text="Play audio clips with hotkeys"
-                       FontSize="12"
-                       Foreground="{StaticResource TextMutedBrush}"
-                       Margin="0,2,0,0"/>
-        </StackPanel>
+                <!-- CONTROLS BAR -->
+                <Border Classes="card" Margin="0,0,0,10">
+                    <StackPanel Spacing="6">
+                        <!-- Add / Stop + Output device (wraps when narrow) -->
+                        <WrapPanel Orientation="Horizontal">
+                            <WrapPanel Orientation="Horizontal" Margin="0,0,16,6">
+                                <Button Content="+ Add Sound" Classes="primary" Padding="16,9"
+                                        Margin="0,0,8,0"
+                                        Command="{Binding AddSoundCommand}"/>
+                                <Button Classes="secondary" Padding="16,9"
+                                        Command="{Binding StopSoundCommand}"
+                                        ToolTip.Tip="Stop playback">
+                                    <TextBlock Text="&#x25A0; Stop" FontSize="13"/>
+                                </Button>
+                            </WrapPanel>
 
-        <!-- CONTROLS BAR -->
-        <Border Grid.Row="1" Classes="card" Margin="0,0,0,10">
-            <StackPanel Spacing="12">
-                <Grid ColumnDefinitions="Auto,*,Auto">
-                    <!-- Add / Stop -->
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
-                        <Button Content="+ Add Sound" Classes="primary" Padding="16,9"
-                                Command="{Binding AddSoundCommand}"/>
-                        <Button Classes="secondary" Padding="16,9"
-                                Command="{Binding StopSoundCommand}"
-                                ToolTip.Tip="Stop playback">
-                            <TextBlock Text="&#x25A0; Stop" FontSize="13"/>
-                        </Button>
+                            <!-- Output Device + Volume -->
+                            <WrapPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <TextBlock Text="OUTPUT" FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                           Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"
+                                           Margin="0,0,8,0"/>
+                                <ComboBox ItemsSource="{Binding OutputDevices}"
+                                          SelectedItem="{Binding SelectedOutputDevice}"
+                                          Width="160" Margin="0,0,8,0"/>
+                                <Slider Minimum="0" Maximum="1" Width="90"
+                                        Value="{Binding OutputVolume, Mode=TwoWay}"
+                                        VerticalAlignment="Center" Margin="0,0,8,0"
+                                        ToolTip.Tip="Output volume"/>
+                                <TextBlock Text="{Binding OutputVolume, StringFormat='{}{0:P0}'}"
+                                           FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}"
+                                           VerticalAlignment="Center" MinWidth="36" Margin="0,0,8,0"/>
+                                <Button Classes="ghost" Padding="8,6"
+                                        Margin="0,0,8,0"
+                                        Command="{Binding RefreshDevicesCommand}"
+                                        ToolTip.Tip="Refresh device list">
+                                    <TextBlock Text="&#x21BB;" FontSize="14" Foreground="{DynamicResource TextMutedBrush}"/>
+                                </Button>
+                                <Button Classes="ghost" Padding="8,6"
+                                        Click="HelpBtn_Click"
+                                        ToolTip.Tip="Discord setup guide">
+                                    <TextBlock Text="?" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                                </Button>
+                            </WrapPanel>
+                        </WrapPanel>
+
+                        <!-- Monitor row (wraps when narrow) -->
+                        <WrapPanel Orientation="Horizontal">
+                            <CheckBox IsChecked="{Binding MonitorEnabled, Mode=TwoWay}"
+                                      VerticalAlignment="Center" Margin="0,0,8,6"/>
+                            <TextBlock Text="Monitor (hear yourself):" FontSize="12"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       VerticalAlignment="Center" Margin="0,0,8,6"/>
+                            <ComboBox ItemsSource="{Binding OutputDevices}"
+                                      SelectedItem="{Binding SelectedMonitorDevice}"
+                                      Width="180" IsEnabled="{Binding MonitorEnabled}"
+                                      Margin="0,0,16,6"/>
+                            <TextBlock Text="Volume:" FontSize="12"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       VerticalAlignment="Center" Margin="0,0,8,6"/>
+                            <Slider Minimum="0" Maximum="1" Width="100"
+                                    Value="{Binding MonitorVolume, Mode=TwoWay}"
+                                    VerticalAlignment="Center"
+                                    IsEnabled="{Binding MonitorEnabled}"
+                                    Margin="0,0,8,6"/>
+                            <TextBlock Text="{Binding MonitorVolume, StringFormat='{}{0:P0}'}"
+                                       FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center" MinWidth="36" Margin="0,0,0,6"/>
+                        </WrapPanel>
                     </StackPanel>
+                </Border>
 
-                    <!-- Output Device + Volume -->
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="OUTPUT" FontSize="10" FontWeight="Bold" LetterSpacing="1"
-                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
-                        <ComboBox ItemsSource="{Binding OutputDevices}"
-                                  SelectedItem="{Binding SelectedOutputDevice}"
-                                  Width="160"/>
-                        <Slider Minimum="0" Maximum="1" Width="90"
-                                Value="{Binding OutputVolume, Mode=TwoWay}"
-                                VerticalAlignment="Center"
-                                ToolTip.Tip="Output volume"/>
-                        <TextBlock Text="{Binding OutputVolume, StringFormat='{}{0:P0}'}"
-                                   FontSize="12" Foreground="{StaticResource TextPrimaryBrush}"
-                                   VerticalAlignment="Center" MinWidth="36"/>
-                        <Button Classes="ghost" Padding="8,6"
-                                Command="{Binding RefreshDevicesCommand}"
-                                ToolTip.Tip="Refresh device list">
-                            <TextBlock Text="&#x21BB;" FontSize="14" Foreground="{StaticResource TextMutedBrush}"/>
-                        </Button>
-                        <Button Classes="ghost" Padding="8,6"
-                                Click="HelpBtn_Click"
-                                ToolTip.Tip="Discord setup guide">
-                            <TextBlock Text="?" FontSize="13" FontWeight="Bold" Foreground="{StaticResource TextMutedBrush}"/>
-                        </Button>
-                    </StackPanel>
-                </Grid>
-
-                <!-- Monitor row -->
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <CheckBox IsChecked="{Binding MonitorEnabled, Mode=TwoWay}" VerticalAlignment="Center"/>
-                    <TextBlock Text="Monitor (hear yourself):" FontSize="12"
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               VerticalAlignment="Center"/>
-                    <ComboBox ItemsSource="{Binding OutputDevices}"
-                              SelectedItem="{Binding SelectedMonitorDevice}"
-                              Width="180" IsEnabled="{Binding MonitorEnabled}"/>
-                    <TextBlock Text="Volume:" FontSize="12"
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               VerticalAlignment="Center" Margin="8,0,0,0"/>
-                    <Slider Minimum="0" Maximum="1" Width="100"
-                            Value="{Binding MonitorVolume, Mode=TwoWay}"
-                            VerticalAlignment="Center"
-                            IsEnabled="{Binding MonitorEnabled}"/>
-                    <TextBlock Text="{Binding MonitorVolume, StringFormat='{}{0:P0}'}"
-                               FontSize="12" Foreground="{StaticResource TextPrimaryBrush}"
-                               VerticalAlignment="Center" MinWidth="36"/>
-                </StackPanel>
-            </StackPanel>
-        </Border>
-
-        <!-- SOUND GRID + OVERLAYS -->
-        <Grid Grid.Row="2">
-            <Border Classes="card" Padding="12">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <!-- SOUND GRID: tiles stretch to fill the columns -->
+                <Border Classes="card" Padding="12" Margin="0">
                     <ItemsControl ItemsSource="{Binding Sounds}" x:Name="SoundsList">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
-                                <WrapPanel/>
+                                <controls:AdaptiveColumnsPanel MinColumnWidth="140" MaxColumns="10"
+                                                               ColumnSpacing="10" RowSpacing="10"/>
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Width="140" Height="104" Margin="5"
+                                <Border Height="104"
                                         CornerRadius="10"
-                                        Background="{StaticResource CardInnerBrush}"
+                                        Background="{DynamicResource CardInnerBrush}"
                                         BorderThickness="1"
-                                        BorderBrush="{StaticResource BorderSubtleBrush}">
+                                        BorderBrush="{DynamicResource BorderSubtleBrush}">
                                     <Border.Styles>
                                         <Style Selector="Border:pointerover">
-                                            <Setter Property="Background" Value="{StaticResource AccentSubtleBrush}"/>
-                                            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                            <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}"/>
+                                            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
                                         </Style>
                                     </Border.Styles>
                                     <Grid RowDefinitions="*,Auto">
@@ -120,7 +119,7 @@
                                         <TextBlock Grid.Row="0" Text="&#x25B6;"
                                                    FontSize="26"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                   Foreground="{StaticResource AccentBrush}"
+                                                   Foreground="{DynamicResource AccentBrush}"
                                                    IsHitTestVisible="False"/>
 
                                         <!-- Bottom bar: name + remove -->
@@ -130,7 +129,7 @@
                                             <Grid ColumnDefinitions="*,Auto">
                                                 <TextBlock Grid.Column="0" Text="{Binding Name}"
                                                            FontSize="11" FontWeight="SemiBold"
-                                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                                           Foreground="{DynamicResource TextPrimaryBrush}"
                                                            TextTrimming="CharacterEllipsis"
                                                            VerticalAlignment="Center"/>
                                                 <Button Grid.Column="1"
@@ -140,7 +139,7 @@
                                                         CommandParameter="{Binding}"
                                                         ToolTip.Tip="Remove">
                                                     <TextBlock Text="&#xD7;" FontSize="11"
-                                                               Foreground="{StaticResource TextMutedBrush}"/>
+                                                               Foreground="{DynamicResource TextMutedBrush}"/>
                                                 </Button>
                                             </Grid>
                                         </Border>
@@ -150,33 +149,36 @@
                                                 Background="#40000000" CornerRadius="0,10,0,6"
                                                 Padding="6,3" IsHitTestVisible="False">
                                             <TextBlock Text="{Binding Volume, StringFormat='{}{0:P0}'}"
-                                                       FontSize="9" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                       FontSize="9" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                         </Border>
                                     </Grid>
                                 </Border>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                </ScrollViewer>
-            </Border>
+                </Border>
+            </StackPanel>
+        </controls:PageHost>
 
-            <!-- Edit Sound Popup -->
-            <Border Background="#80000000"
-                    IsVisible="{Binding SelectedSound, Converter={x:Static ObjectConverters.IsNotNull}}">
-                <Border Background="{StaticResource CardBackgroundBrush}" CornerRadius="12" Padding="24"
-                        Width="400" VerticalAlignment="Center" HorizontalAlignment="Center"
-                        BorderThickness="1" BorderBrush="{StaticResource BorderBrush}">
+        <!-- Edit Sound Popup -->
+        <Border Background="#80000000"
+                IsVisible="{Binding SelectedSound, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <Border Background="{DynamicResource CardBackgroundBrush}" CornerRadius="12" Padding="0"
+                    MaxWidth="400" Margin="16" VerticalAlignment="Center" HorizontalAlignment="Stretch"
+                    BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                              Padding="24">
                     <StackPanel Spacing="0">
                         <TextBlock Text="Edit Sound" FontSize="18" FontWeight="Bold"
-                                   Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,20"/>
+                                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,20"/>
 
                         <TextBlock Text="Name" FontSize="11" FontWeight="Bold" LetterSpacing="0.5"
-                                   Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,5"/>
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,5"/>
                         <TextBox Text="{Binding SelectedSound.Name, Mode=TwoWay}"
                                  Classes="input" Margin="0,0,0,14"/>
 
                         <TextBlock Text="File Path" FontSize="11" FontWeight="Bold" LetterSpacing="0.5"
-                                   Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,5"/>
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,5"/>
                         <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,14">
                             <TextBox Grid.Column="0"
                                      Text="{Binding SelectedSound.FilePath, Mode=TwoWay}"
@@ -187,7 +189,7 @@
                         </Grid>
 
                         <TextBlock Text="Volume" FontSize="11" FontWeight="Bold" LetterSpacing="0.5"
-                                   Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,5"/>
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,5"/>
                         <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,20">
                             <Slider Grid.Column="0" Minimum="0" Maximum="1"
                                     Value="{Binding SelectedSound.Volume, Mode=TwoWay}"
@@ -195,23 +197,23 @@
                             <TextBlock Grid.Column="1"
                                        Text="{Binding SelectedSound.Volume, StringFormat='{}{0:P0}'}"
                                        FontSize="13" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
                                        VerticalAlignment="Center" Margin="12,0,0,0" MinWidth="40"/>
                         </Grid>
 
                         <TextBlock Text="Trim (seconds)" FontSize="11" FontWeight="Bold" LetterSpacing="0.5"
-                                   Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,5"/>
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,5"/>
                         <Grid ColumnDefinitions="*,12,*" Margin="0,0,0,6">
                             <StackPanel Grid.Column="0" Spacing="4">
                                 <TextBlock Text="Start" FontSize="11"
-                                           Foreground="{StaticResource TextSecondaryBrush}"/>
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 <NumericUpDown Value="{Binding SelectedSound.StartSeconds, Mode=TwoWay}"
                                                Minimum="0" Increment="0.5" FormatString="0.0"
                                                HorizontalAlignment="Stretch"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2" Spacing="4">
                                 <TextBlock Text="Length" FontSize="11"
-                                           Foreground="{StaticResource TextSecondaryBrush}"/>
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 <NumericUpDown Value="{Binding SelectedSound.LengthSeconds, Mode=TwoWay}"
                                                Minimum="0" Increment="0.5" FormatString="0.0"
                                                HorizontalAlignment="Stretch"/>
@@ -219,7 +221,7 @@
                         </Grid>
                         <TextBlock Text="Length 0 = play the whole clip. Use these to play only a portion."
                                    FontSize="10" TextWrapping="Wrap"
-                                   Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,20"/>
+                                   Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,20"/>
 
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
                             <Button Content="Cancel" Classes="secondary" Padding="20,9"
@@ -228,37 +230,42 @@
                                     Command="{Binding SaveSoundEditCommand}"/>
                         </StackPanel>
                     </StackPanel>
-                </Border>
+                </ScrollViewer>
             </Border>
+        </Border>
 
-            <!-- Discord Help Panel -->
-            <Border x:Name="HelpPanel" Background="#90000000" IsVisible="False">
-                <Border Background="{StaticResource CardBackgroundBrush}" CornerRadius="12" Padding="28"
-                        Width="520" VerticalAlignment="Center" HorizontalAlignment="Center"
-                        BorderThickness="1" BorderBrush="{StaticResource BorderBrush}">
+        <!-- Discord Help Panel -->
+        <Border x:Name="HelpPanel" Background="#90000000" IsVisible="False">
+            <Border Background="{DynamicResource CardBackgroundBrush}" CornerRadius="12" Padding="0"
+                    MaxWidth="520" Margin="16" VerticalAlignment="Center" HorizontalAlignment="Stretch"
+                    BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                              Padding="28">
                     <StackPanel Spacing="0">
-                        <Grid Margin="0,0,0,16">
-                            <TextBlock Text="Discord Soundboard Setup" FontSize="18" FontWeight="Bold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"/>
-                            <Button Classes="ghost" HorizontalAlignment="Right"
+                        <Grid Margin="0,0,0,16" ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0" Text="Discord Soundboard Setup" FontSize="18" FontWeight="Bold"
+                                       TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <Button Grid.Column="1" Classes="ghost" VerticalAlignment="Top"
                                     Padding="8,4" Click="CloseHelpBtn_Click"
                                     ToolTip.Tip="Close">
                                 <TextBlock Text="&#xD7;" FontSize="16"
-                                           Foreground="{StaticResource TextMutedBrush}"/>
+                                           Foreground="{DynamicResource TextMutedBrush}"/>
                             </Button>
                         </Grid>
 
                         <TextBlock Text="To let your Discord friends hear your soundboard:"
-                                   FontSize="13" Foreground="{StaticResource TextSecondaryBrush}"
+                                   FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"
                                    Margin="0,0,0,14" TextWrapping="Wrap"/>
 
                         <Border Classes="card-inner" Margin="0,0,0,8">
                             <StackPanel>
                                 <TextBlock Text="Step 1 — Install Voicemeeter" FontSize="13"
-                                           FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"
+                                           FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
+                                           TextWrapping="Wrap"
                                            Margin="0,0,0,5"/>
                                 <TextBlock TextWrapping="Wrap" FontSize="12"
-                                           Foreground="{StaticResource TextSecondaryBrush}">
+                                           Foreground="{DynamicResource TextSecondaryBrush}">
                                     Download and install Voicemeeter Banana (free) from vb-audio.com
                                 </TextBlock>
                             </StackPanel>
@@ -267,10 +274,11 @@
                         <Border Classes="card-inner" Margin="0,0,0,8">
                             <StackPanel>
                                 <TextBlock Text="Step 2 — Configure Voicemeeter" FontSize="13"
-                                           FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"
+                                           FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
+                                           TextWrapping="Wrap"
                                            Margin="0,0,0,5"/>
                                 <TextBlock TextWrapping="Wrap" FontSize="12"
-                                           Foreground="{StaticResource TextSecondaryBrush}">
+                                           Foreground="{DynamicResource TextSecondaryBrush}">
                                     Set your real microphone as Hardware Input 1. Your voice will mix with the soundboard.
                                 </TextBlock>
                             </StackPanel>
@@ -279,10 +287,11 @@
                         <Border Classes="card-inner" Margin="0,0,0,8">
                             <StackPanel>
                                 <TextBlock Text="Step 3 — Soundboard Output" FontSize="13"
-                                           FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"
+                                           FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
+                                           TextWrapping="Wrap"
                                            Margin="0,0,0,5"/>
                                 <TextBlock TextWrapping="Wrap" FontSize="12"
-                                           Foreground="{StaticResource TextSecondaryBrush}">
+                                           Foreground="{DynamicResource TextSecondaryBrush}">
                                     In this app, select Voicemeeter VAIO Input or Voicemeeter AUX Input as Output Device.
                                 </TextBlock>
                             </StackPanel>
@@ -291,26 +300,27 @@
                         <Border Classes="card-inner" Margin="0,0,0,14">
                             <StackPanel>
                                 <TextBlock Text="Step 4 — Discord Settings" FontSize="13"
-                                           FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"
+                                           FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
+                                           TextWrapping="Wrap"
                                            Margin="0,0,0,5"/>
                                 <TextBlock TextWrapping="Wrap" FontSize="12"
-                                           Foreground="{StaticResource TextSecondaryBrush}">
+                                           Foreground="{DynamicResource TextSecondaryBrush}">
                                     In Discord Settings, Voice &amp; Video: set Input Device to Voicemeeter Output (VB-Audio).
                                 </TextBlock>
                             </StackPanel>
                         </Border>
 
-                        <Border Background="{StaticResource AccentSubtleBrush}" CornerRadius="8"
-                                Padding="14" BorderThickness="1" BorderBrush="{StaticResource AccentBrush}">
+                        <Border Background="{DynamicResource AccentSubtleBrush}" CornerRadius="8"
+                                Padding="14" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}">
                             <TextBlock TextWrapping="Wrap" FontSize="12"
-                                       Foreground="{StaticResource AccentHoverBrush}"
+                                       Foreground="{DynamicResource AccentHoverBrush}"
                                        TextAlignment="Center">
                                 Your voice + soundboard sounds will both be heard in Discord!
                             </TextBlock>
                         </Border>
                     </StackPanel>
-                </Border>
+                </ScrollViewer>
             </Border>
-        </Grid>
+        </Border>
     </Grid>
 </UserControl>

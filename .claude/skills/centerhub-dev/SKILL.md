@@ -104,6 +104,33 @@ something "works", and when releasing.
 - `StringFormat` starting with `{` needs the `{}` escape.
 - Toasts live bottom-right so they never cover page-header buttons.
 - `AVLN3001` (no public parameterless ctor) is suppressed: windows come from DI.
+- **`ScrollViewer.Padding` is not subtracted from the content's measure width** (11.2): content
+  laid out at full width and shifted by the padding → clipped on the right. Put the side padding
+  as a `Margin` on the child inside the scroller (see `PART_BodyContent` in Controls.axaml).
+- **TextBlocks inside a ControlTemplate are hidden from UI Automation** (`TemplatedParent != null`
+  → not a control element). Anything a UIA test must find (page titles) goes through a
+  `ContentPresenter` + `DataTemplate`, whose TextBlock has no templated parent. Also: the global
+  `TextBlock` style beats inherited `FontSize`, so set font props on the TextBlock itself.
+- **A class-only selector (`.foo`) does not compile** in `Style Selector` — write `:is(Control).foo`.
+- `Slider` snap property is `IsSnapToTickEnabled` (not WPF's `IsSnapToTick`).
+- **Theme tokens must be `{DynamicResource}`** — `StaticResource` resolves once, so a theme or
+  accent switch leaves that element on the old palette. Headless renders catch brush
+  *transitions* mid-way after a live theme switch (greyish buttons) — not a bug.
+- Verify page reflow headlessly: `dotnet run --project tools/page-render -- <out> widths` renders
+  Metronome at 480/640/900/1300 px + light theme and prints root width / `:narrow`;
+  `… palette` renders the command palette. In-app sizes: `tools/smoke-quiet.ps1 -Sizes "1100x800,640x760"`.
+
+## Windows PowerShell 5.1 file editing
+
+- **Never round-trip source files through `Get-Content` / `Set-Content`**: without a BOM PS 5.1
+  reads UTF-8 as Windows-1252, and writing back turns `—`, `·`, `↻` into `â€"`, `Â·`, `â†»`
+  (shipped visibly on the Sound page once). Use the Edit tool, or
+  `[IO.File]::ReadAllText` / `WriteAllText(…, new UTF8Encoding($false))`.
+- PS 5.1 also reads a `.ps1` without BOM as ANSI, so non-ASCII literals in a script break —
+  use `\uXXXX` in regexes or save the script with a BOM.
+- A crashed app instance can linger as a dead process (0 threads, "access denied" to kill) that
+  still locks `bin\…\CenterHubNew.exe/.dll`. Renaming a locked image is allowed: move the files
+  aside (`*.stale-N`) and build again.
 
 ## Architecture rules learned the hard way
 

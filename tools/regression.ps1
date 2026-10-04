@@ -94,6 +94,7 @@ function Click-Element($win, $el) {
 }
 
 $pages = [ordered]@{
+    'Home' = 'Home'; 'Settings' = 'Settings'
     'Monitoring' = 'Monitoring'; 'Standing' = 'Standing Timer'; 'Notes' = 'Notes'; 'Layouts' = 'Window Layouts'
     'Sound' = 'Sound'; 'Soundboard' = 'Soundboard'; 'Utilities' = 'Utilities'; 'Auto Clicker' = 'Auto Clicker'
     'Clipboard' = 'Clipboard History'; 'Randomizer' = 'Randomizer'; 'Metronome' = 'Metronome'

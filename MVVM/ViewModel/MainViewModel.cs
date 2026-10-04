@@ -1,36 +1,47 @@
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Media;
 using Avalonia.Threading;
+using CenterHubNew.MVVM.Models;
+using CenterHubNew.MVVM.Navigation;
 using CenterHubNew.MVVM.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
 namespace CenterHubNew.MVVM.ViewModel
 {
-    public partial class MainViewModel : BaseViewModel
+    public partial class MainViewModel : BaseViewModel, IShellHost
     {
+        // Sidebar geometry and the window widths where Auto switches layout.
+        private const double ExpandedWidth = 220;
+        private const double RailWidth = 56;
+        private const double DrawerWidth = 260;
+        private const double AutoExpandedMinWidth = 1200;
+        private const double DrawerBelowWidth = 760;
+
+        private enum SidebarLayout { Expanded, Rail, Hidden }
+
         private readonly UpdateService? _updateService;
         private readonly VoicemeeterModeService? _modeService;
         private readonly IVoicemeeterService? _voicemeeter;
         private readonly AudioRoutingService? _routing;
+        private readonly UiSettingsService? _uiSettings;
 
-        private MonitoringViewModel? _monitoringVM;
-        private SoundViewModel? _soundVM;
-        private SoundboardViewModel? _soundboardVM;
-        private UtilitiesViewModel? _utilitiesVM;
-        private AutoClickerViewModel? _autoClickerVM;
-        private ClipboardViewModel? _clipboardVM;
-        private StandingViewModel? _standingVM;
-        private QuickNotesViewModel? _notesVM;
-        private HotkeySettingsViewModel? _hotkeySettingsVM;
-        private WindowLayoutsViewModel? _layoutsVM;
-        private NetworkViewModel? _networkVM;
-        private RandomizerViewModel? _randomizerVM;
-        private MetronomeViewModel? _metronomeVM;
+        // Page view-models by page key, resolved from DI on first visit.
+        private readonly Dictionary<string, object> _pageVms = new(StringComparer.OrdinalIgnoreCase);
+
+        private SidebarLayout _layout = SidebarLayout.Expanded;
+        private double _windowWidth = 1360;
+        private double _appliedZoom = 1.0;
+        private string _navSignature = "";
+        private bool _navigating;
+        private IOverlayViewModel? _ownedOverlay; // transient overlay we created (disposed on close)
+        private CommandPaletteViewModel? _commandPaletteVm;
 
         // ─── Update banner state ───
         [ObservableProperty] private bool   _isUpdateAvailable;
@@ -52,62 +63,55 @@ namespace CenterHubNew.MVVM.ViewModel
             "Windows audio is still routed through Voicemeeter, but Voicemeeter isn't running — you may hear nothing. " +
             "Start Voicemeeter to bring your routing back, or switch back to your previous audio devices.";
 
+        // ─── Navigation ───
         [ObservableProperty]
         private object? _currentView;
 
+        /// <summary>Key of the page being shown (also set for pages hidden from the sidebar).</summary>
         [ObservableProperty]
-        private bool isMonitoringSelected = true;
+        private string _currentPageKey = "";
 
         [ObservableProperty]
-        private bool isSoundSelected = false;
+        private IReadOnlyList<NavGroupViewModel> _navGroups = Array.Empty<NavGroupViewModel>();
 
-        [ObservableProperty]
-        private bool isSoundboardSelected = false;
+        // ─── Sidebar (derived from UiSettings.Sidebar + the window width) ───
+        /// <summary>Full sidebar (labels + headers).</summary>
+        [ObservableProperty] private bool _isSidebarExpanded = true;
+        /// <summary>Icons only; the sidebar gets the "rail" style class.</summary>
+        [ObservableProperty] private bool _isSidebarRail;
+        /// <summary>No room for a sidebar column: a hamburger opens it as a drawer.</summary>
+        [ObservableProperty] private bool _isSidebarHidden;
+        [ObservableProperty] private bool _isDrawerOpen;
+        /// <summary>Width of the sidebar's grid column (0 when hidden).</summary>
+        [ObservableProperty] private GridLength _sidebarWidth = new GridLength(ExpandedWidth);
+        /// <summary>Width of the sidebar panel itself (the drawer overlays the content).</summary>
+        [ObservableProperty] private double _sidebarPanelWidth = ExpandedWidth;
+        [ObservableProperty] private bool _isSidebarPanelVisible = true;
 
-        [ObservableProperty]
-        private bool isUtilitiesSelected = false;
+        // ─── Zoom / density / status strip ───
+        [ObservableProperty] private ITransform _zoomTransform = new ScaleTransform(1, 1);
+        [ObservableProperty] private bool _isCompact;
+        [ObservableProperty] private bool _isStatusStripVisible;
 
-        [ObservableProperty]
-        private bool isAutoClickerSelected = false;
+        // ─── Overlay layer ───
+        [ObservableProperty] private IOverlayViewModel? _overlay;
 
-        [ObservableProperty]
-        private bool isClipboardSelected = false;
+        public bool HasOverlay => Overlay != null;
 
-        [ObservableProperty]
-        private bool isStandingSelected = false;
+        public StatusStripViewModel? StatusStrip { get; }
 
-        [ObservableProperty]
-        private bool isNotesSelected = false;
+        /// <summary>Every page, for the command palette.</summary>
+        public IReadOnlyList<PageDescriptor> AllPages => PageRegistry.All;
 
-        [ObservableProperty]
-        private bool isHotkeySettingsSelected = false;
-
-        [ObservableProperty]
-        private bool isLayoutsSelected = false;
-
-        [ObservableProperty]
-        private bool isNetworkSelected = false;
-
-        [ObservableProperty]
-        private bool isRandomizerSelected = false;
-
-        [ObservableProperty]
-        private bool isMetronomeSelected = false;
-
-        [ObservableProperty]
-        private bool isSidebarExpanded = true;
-
-        [ObservableProperty]
-        private GridLength sidebarWidth = new GridLength(220);
-
-        public string SidebarToggleIcon => IsSidebarExpanded ? "◀" : "▶";
-        public string SidebarToggleText => IsSidebarExpanded ? "Collapse" : "";
+        public string SidebarToggleIcon => IsSidebarRail ? "▶" : "◀";
+        public string SidebarToggleTooltip => IsSidebarRail ? "Expand sidebar" : "Collapse sidebar";
 
         public MainViewModel(
             UpdateService? updateService = null,
             VoicemeeterModeService? modeService = null,
             IVoicemeeterService? voicemeeter = null,
             AudioRoutingService? routing = null,
+            UiSettingsService? uiSettings = null,
             ILogger<MainViewModel>? logger = null) : base(logger)
         {
             _updateService = updateService;
@@ -117,9 +121,26 @@ namespace CenterHubNew.MVVM.ViewModel
                 ?? App.Services?.GetService(typeof(IVoicemeeterService)) as IVoicemeeterService;
             _routing = routing
                 ?? App.Services?.GetService(typeof(AudioRoutingService)) as AudioRoutingService;
+            _uiSettings = uiSettings
+                ?? App.Services?.GetService(typeof(UiSettingsService)) as UiSettingsService;
+            StatusStrip = App.Services?.GetService(typeof(StatusStripViewModel)) as StatusStripViewModel;
 
-            // Set initial view to Monitoring
-            MonitoringView();
+            // Pages, cards, the status strip and the palette drive the shell through this.
+            (App.Services?.GetService(typeof(ShellService)) as ShellService)?.Attach(this);
+
+            var settings = _uiSettings?.Current ?? new UiSettings();
+            _appliedZoom = settings.Zoom;
+            ZoomTransform = new ScaleTransform(_appliedZoom, _appliedZoom);
+            IsCompact = settings.Density == UiDensity.Compact;
+            IsStatusStripVisible = settings.ShowStatusStrip && StatusStrip is not null;
+            RecomputeSidebar();
+            RebuildNav(settings);
+
+            // Start page from settings (falls back to Home if it no longer exists).
+            NavigateTo(PageRegistry.Find(settings.StartPage)?.Key ?? "home");
+
+            if (_uiSettings is not null)
+                _uiSettings.Changed += OnUiSettingsChanged;
 
             // Subscribe to the update service so the banner appears whenever a
             // check (running in App startup) finds something newer than us.
@@ -131,6 +152,7 @@ namespace CenterHubNew.MVVM.ViewModel
 
             CheckInterruptedVoicemeeterSession();
             GuardDesktopOutput();
+            ScheduleFirstRunSetup();
 
             Logger?.LogInformation("MainViewModel initialized");
         }
@@ -414,240 +436,318 @@ namespace CenterHubNew.MVVM.ViewModel
             IsUpdateAvailable = false;
         }
 
-        private void DeselectAll()
+        // ─── Navigation ───
+
+        /// <summary>
+        /// Show a page. Unknown or blank keys go to Home. A page hidden from the sidebar is still
+        /// shown (no sidebar item is selected then).
+        /// </summary>
+        public void NavigateTo(string key)
         {
-            IsMonitoringSelected = false;
-            IsSoundSelected = false;
-            IsSoundboardSelected = false;
-            IsUtilitiesSelected = false;
-            IsAutoClickerSelected = false;
-            IsClipboardSelected = false;
-            IsStandingSelected = false;
-            IsNotesSelected = false;
-            IsHotkeySettingsSelected = false;
-            IsLayoutsSelected = false;
-            IsNetworkSelected = false;
-            IsRandomizerSelected = false;
-            IsMetronomeSelected = false;
+            if (IsDisposed) return;
+
+            var page = PageRegistry.Find(key) ?? PageRegistry.Find("home");
+            if (page is null) return;
+
+            if (!_pageVms.TryGetValue(page.Key, out object? vm))
+            {
+                vm = App.Services?.GetService(page.ViewModelType);
+                if (vm is null)
+                {
+                    Logger?.LogWarning("No view-model registered for page {Page}", page.Key);
+                    return;
+                }
+                _pageVms[page.Key] = vm;
+            }
+
+            CurrentView = vm;
+            CurrentPageKey = page.Key;
+            SelectNavItem(page.Key);
+            IsDrawerOpen = false;
+            Logger?.LogDebug("Switched to {Page} view", page.Key);
         }
 
-        // ─── Selection flag → navigation ───
-        // The sidebar RadioButtons bind IsChecked TwoWay to these flags. A mouse click also
-        // runs the Command, but keyboard arrows (and accessibility tools) only flip IsChecked —
-        // which used to move the highlight without changing the page. Navigate from the flag too.
-        private bool _navigatingFromFlag;
-
-        private void NavigateFromFlag(bool selected, Action navigate)
+        // The sidebar RadioButtons bind IsChecked TwoWay to NavItemViewModel.IsSelected. A mouse click
+        // and UI automation / keyboard (which only flip IsChecked) both end up here; the guard stops
+        // our own selection updates from navigating again.
+        private void OnNavItemSelected(NavItemViewModel item)
         {
-            if (!selected || _navigatingFromFlag) return;
-            _navigatingFromFlag = true;
-            try { navigate(); }
-            finally { _navigatingFromFlag = false; }
+            if (_navigating || IsDisposed) return;
+            NavigateTo(item.Key);
         }
 
-        partial void OnIsMonitoringSelectedChanged(bool value)       => NavigateFromFlag(value, MonitoringView);
-        partial void OnIsSoundSelectedChanged(bool value)            => NavigateFromFlag(value, SoundView);
-        partial void OnIsSoundboardSelectedChanged(bool value)       => NavigateFromFlag(value, SoundboardView);
-        partial void OnIsUtilitiesSelectedChanged(bool value)        => NavigateFromFlag(value, UtilitiesView);
-        partial void OnIsAutoClickerSelectedChanged(bool value)      => NavigateFromFlag(value, AutoClickerView);
-        partial void OnIsClipboardSelectedChanged(bool value)        => NavigateFromFlag(value, ClipboardView);
-        partial void OnIsStandingSelectedChanged(bool value)         => NavigateFromFlag(value, StandingView);
-        partial void OnIsNotesSelectedChanged(bool value)            => NavigateFromFlag(value, NotesView);
-        partial void OnIsHotkeySettingsSelectedChanged(bool value)   => NavigateFromFlag(value, HotkeySettingsView);
-        partial void OnIsLayoutsSelectedChanged(bool value)          => NavigateFromFlag(value, LayoutsView);
-        partial void OnIsNetworkSelectedChanged(bool value)          => NavigateFromFlag(value, NetworkView);
-        partial void OnIsRandomizerSelectedChanged(bool value)       => NavigateFromFlag(value, RandomizerView);
-        partial void OnIsMetronomeSelectedChanged(bool value)        => NavigateFromFlag(value, MetronomeView);
+        private IEnumerable<NavItemViewModel> NavItems => NavGroups.SelectMany(g => g.Items);
 
+        private void SelectNavItem(string key) => SelectNavItem(NavItems, key);
+
+        private void SelectNavItem(IEnumerable<NavItemViewModel> items, string key)
+        {
+            _navigating = true;
+            try
+            {
+                foreach (var item in items)
+                    item.IsSelected = string.Equals(item.Key, key, StringComparison.OrdinalIgnoreCase);
+            }
+            finally { _navigating = false; }
+        }
+
+        private void RebuildNav(UiSettings settings)
+        {
+            foreach (var item in NavItems) item.Selected -= OnNavItemSelected;
+
+            var groups = NavModelBuilder.Build(settings);
+            var items = groups.SelectMany(g => g.Items).ToList();
+            foreach (var item in items)
+            {
+                item.Selected += OnNavItemSelected;
+                item.Tooltip = IsSidebarRail ? item.Title : item.Description;
+            }
+
+            // Select before publishing so the new RadioButtons are created already checked.
+            SelectNavItem(items, CurrentPageKey);
+            _navSignature = NavModelBuilder.Signature(settings);
+            NavGroups = groups;
+        }
+
+        private void ApplyNavTooltips()
+        {
+            foreach (var item in NavItems)
+                item.Tooltip = IsSidebarRail ? item.Title : item.Description;
+        }
+
+        // ─── Settings → shell ───
+
+        private void OnUiSettingsChanged(UiSettings _)
+        {
+            if (Dispatcher.UIThread.CheckAccess()) ApplySettings();
+            else Dispatcher.UIThread.Post(ApplySettings);
+        }
+
+        private void ApplySettings()
+        {
+            if (IsDisposed || _uiSettings is null) return;
+            var s = _uiSettings.Current;
+
+            if (Math.Abs(s.Zoom - _appliedZoom) > 0.0001)
+            {
+                _appliedZoom = s.Zoom;
+                ZoomTransform = new ScaleTransform(_appliedZoom, _appliedZoom);
+            }
+            IsCompact = s.Density == UiDensity.Compact;
+            IsStatusStripVisible = s.ShowStatusStrip && StatusStrip is not null;
+            RecomputeSidebar();
+
+            // Window placement is saved through the same service; only rebuild when the sidebar model changed.
+            if (NavModelBuilder.Signature(s) != _navSignature)
+                RebuildNav(s);
+        }
+
+        // ─── Sidebar ───
+
+        /// <summary>The window reports its width so Auto can pick expanded / rail / drawer.</summary>
+        public void SetWindowWidth(double width)
+        {
+            if (!(width > 0) || Math.Abs(width - _windowWidth) < 0.5) return;
+            _windowWidth = width;
+            RecomputeSidebar();
+        }
+
+        private void RecomputeSidebar()
+        {
+            var mode = _uiSettings?.Current.Sidebar ?? SidebarMode.Auto;
+
+            // Below the drawer threshold there is no room for a column, whatever the setting says.
+            SidebarLayout layout;
+            if (_windowWidth < DrawerBelowWidth) layout = SidebarLayout.Hidden;
+            else layout = mode switch
+            {
+                SidebarMode.Expanded => SidebarLayout.Expanded,
+                SidebarMode.Rail => SidebarLayout.Rail,
+                _ => _windowWidth >= AutoExpandedMinWidth ? SidebarLayout.Expanded : SidebarLayout.Rail,
+            };
+            _layout = layout;
+
+            if (layout != SidebarLayout.Hidden) IsDrawerOpen = false;
+
+            IsSidebarHidden = layout == SidebarLayout.Hidden;
+            IsSidebarRail = layout == SidebarLayout.Rail;
+            IsSidebarExpanded = layout != SidebarLayout.Rail;
+            SidebarWidth = new GridLength(layout switch
+            {
+                SidebarLayout.Hidden => 0,
+                SidebarLayout.Rail => RailWidth,
+                _ => ExpandedWidth,
+            });
+            SidebarPanelWidth = layout switch
+            {
+                SidebarLayout.Hidden => DrawerWidth,
+                SidebarLayout.Rail => RailWidth,
+                _ => ExpandedWidth,
+            };
+            UpdateSidebarPanelVisible();
+        }
+
+        private void UpdateSidebarPanelVisible() =>
+            IsSidebarPanelVisible = _layout != SidebarLayout.Hidden || IsDrawerOpen;
+
+        partial void OnIsDrawerOpenChanged(bool value) => UpdateSidebarPanelVisible();
+
+        partial void OnIsSidebarRailChanged(bool value)
+        {
+            ApplyNavTooltips();
+            OnPropertyChanged(nameof(SidebarToggleIcon));
+            OnPropertyChanged(nameof(SidebarToggleTooltip));
+        }
+
+        /// <summary>Bottom button: switch between the full sidebar and the icon rail (remembered).</summary>
         [RelayCommand]
         private void ToggleSidebar()
         {
-            IsSidebarExpanded = !IsSidebarExpanded;
-            SidebarWidth = IsSidebarExpanded ? new GridLength(220) : new GridLength(52);
-            OnPropertyChanged(nameof(SidebarToggleIcon));
-            OnPropertyChanged(nameof(SidebarToggleText));
+            if (_uiSettings is null || _layout == SidebarLayout.Hidden) return;
+            var next = _layout == SidebarLayout.Expanded ? SidebarMode.Rail : SidebarMode.Expanded;
+            _uiSettings.Update(s => s.Sidebar = next);
         }
 
+        /// <summary>Hamburger: open or close the sidebar drawer (only exists while the sidebar is hidden).</summary>
         [RelayCommand]
-        private void MonitoringView()
+        private void ToggleDrawer()
         {
-            ThrowIfDisposed();
-            _monitoringVM ??= App.Services.GetService(typeof(MonitoringViewModel)) as MonitoringViewModel;
-            if (_monitoringVM != null)
+            if (!IsSidebarHidden) return;
+            IsDrawerOpen = !IsDrawerOpen;
+        }
+
+        public void CloseDrawer() => IsDrawerOpen = false;
+
+        /// <summary>For the command palette: collapse/expand the sidebar, or open/close the drawer when there is no room.</summary>
+        void IShellHost.ToggleSidebar()
+        {
+            if (IsSidebarHidden) ToggleDrawer();
+            else ToggleSidebar();
+        }
+
+        // ─── Zoom ───
+
+        /// <summary>Change the UI zoom by <paramref name="delta"/> (0.1 = 10 %); clamped to 80–150 %.</summary>
+        public void ZoomBy(double delta) => SetZoom((_uiSettings?.Current.Zoom ?? 1.0) + delta);
+
+        public void ResetZoom() => SetZoom(1.0);
+
+        private void SetZoom(double zoom)
+        {
+            if (_uiSettings is null || IsDisposed) return;
+            zoom = Math.Round(Math.Clamp(zoom, 0.8, 1.5), 2);
+            _uiSettings.Update(s => s.Zoom = zoom);
+            ToastService.Instance.Info($"Zoom {(int)Math.Round(zoom * 100)} %");
+        }
+
+        // ─── Overlay layer (command palette, setup wizard) ───
+
+        partial void OnOverlayChanged(IOverlayViewModel? value) => OnPropertyChanged(nameof(HasOverlay));
+
+        /// <summary>Show a full-window overlay, closing the current one first.</summary>
+        public void ShowOverlay(IOverlayViewModel overlay)
+        {
+            if (overlay is null || IsDisposed) return;
+            if (Overlay is not null) CloseOverlay();
+
+            overlay.CloseRequested += OnOverlayCloseRequested;
+            Overlay = overlay;
+            try { overlay.OnShown(); }
+            catch (Exception ex) { Logger?.LogWarning(ex, "Overlay OnShown failed"); }
+        }
+
+        public void CloseOverlay()
+        {
+            var overlay = Overlay;
+            if (overlay is null) return;
+
+            overlay.CloseRequested -= OnOverlayCloseRequested;
+            try { overlay.OnClosed(); }
+            catch (Exception ex) { Logger?.LogWarning(ex, "Overlay OnClosed failed"); }
+            Overlay = null;
+
+            // A wizard we created is ours to dispose; the palette is a shared singleton.
+            if (ReferenceEquals(overlay, _ownedOverlay))
             {
-                CurrentView = _monitoringVM;
-                DeselectAll();
-                IsMonitoringSelected = true;
-                Logger?.LogDebug("Switched to Monitoring view");
+                _ownedOverlay = null;
+                SafeDispose(overlay as IDisposable);
+            }
+
+            // The wizard saves devices behind the Sound page's back — let its pickers re-read them.
+            if (overlay is SetupWizardViewModel)
+            {
+                try
+                {
+                    var sound = App.Services?.GetService(typeof(SoundViewModel)) as SoundViewModel;
+                    sound?.Voicemeeter?.Reload();
+                    sound?.Routing?.RefreshState();
+                }
+                catch (Exception ex) { Logger?.LogDebug(ex, "Could not refresh the Sound page after setup"); }
             }
         }
 
-        [RelayCommand]
-        private void SoundView()
+        private void OnOverlayCloseRequested()
         {
-            ThrowIfDisposed();
-            _soundVM ??= App.Services.GetService(typeof(SoundViewModel)) as SoundViewModel;
-            if (_soundVM != null)
+            if (Dispatcher.UIThread.CheckAccess()) CloseOverlay();
+            else Dispatcher.UIThread.Post(CloseOverlay);
+        }
+
+        public void ShowCommandPalette()
+        {
+            if (IsDisposed) return;
+            _commandPaletteVm ??= App.Services?.GetService(typeof(CommandPaletteViewModel)) as CommandPaletteViewModel;
+            object? vm = _commandPaletteVm;
+            if (vm is IOverlayViewModel overlay) ShowOverlay(overlay);
+            else Logger?.LogDebug("Command palette is not an overlay yet");
+        }
+
+        public void ShowSetupWizard()
+        {
+            if (IsDisposed) return;
+            var vm = App.Services?.GetService(typeof(SetupWizardViewModel));
+            if (vm is IOverlayViewModel overlay)
             {
-                CurrentView = _soundVM;
-                DeselectAll();
-                IsSoundSelected = true;
-                Logger?.LogDebug("Switched to Sound view");
+                _ownedOverlay = overlay;
+                ShowOverlay(overlay);
+            }
+            else
+            {
+                SafeDispose(vm as IDisposable);
+                Logger?.LogDebug("Setup wizard is not an overlay yet");
             }
         }
 
-        [RelayCommand]
-        private void SoundboardView()
+        /// <summary>
+        /// First run with Voicemeeter installed but no headphones chosen yet: offer the audio setup
+        /// wizard. The checks (registry, JSON) run off the UI thread; the overlay opens on it.
+        /// </summary>
+        private void ScheduleFirstRunSetup()
         {
-            ThrowIfDisposed();
-            _soundboardVM ??= App.Services.GetService(typeof(SoundboardViewModel)) as SoundboardViewModel;
-            if (_soundboardVM != null)
-            {
-                CurrentView = _soundboardVM;
-                DeselectAll();
-                IsSoundboardSelected = true;
-                Logger?.LogDebug("Switched to Soundboard view");
-            }
-        }
+            if (_uiSettings is null || _uiSettings.Current.AudioSetupCompleted || _voicemeeter is null) return;
 
-        [RelayCommand]
-        private void UtilitiesView()
-        {
-            ThrowIfDisposed();
-            _utilitiesVM ??= App.Services.GetService(typeof(UtilitiesViewModel)) as UtilitiesViewModel;
-            if (_utilitiesVM != null)
+            _ = Task.Run(async () =>
             {
-                CurrentView = _utilitiesVM;
-                DeselectAll();
-                IsUtilitiesSelected = true;
-                Logger?.LogDebug("Switched to Utilities view");
-            }
-        }
+                try
+                {
+                    if (!_voicemeeter.IsInstalled) return;
+                    var settingsService = App.Services?.GetService(typeof(VoicemeeterSettingsService)) as VoicemeeterSettingsService;
+                    if (settingsService is null) return;
+                    if (!string.IsNullOrWhiteSpace(settingsService.Load().Settings.MonitorDeviceName)) return;
 
-        [RelayCommand]
-        private void AutoClickerView()
-        {
-            ThrowIfDisposed();
-            _autoClickerVM ??= App.Services.GetService(typeof(AutoClickerViewModel)) as AutoClickerViewModel;
-            if (_autoClickerVM != null)
-            {
-                CurrentView = _autoClickerVM;
-                DeselectAll();
-                IsAutoClickerSelected = true;
-                Logger?.LogDebug("Switched to AutoClicker view");
-            }
-        }
+                    // Let the window finish appearing before covering it.
+                    await Task.Delay(1500).ConfigureAwait(false);
 
-        [RelayCommand]
-        private void ClipboardView()
-        {
-            ThrowIfDisposed();
-            _clipboardVM ??= App.Services.GetService(typeof(ClipboardViewModel)) as ClipboardViewModel;
-            if (_clipboardVM != null)
-            {
-                CurrentView = _clipboardVM;
-                DeselectAll();
-                IsClipboardSelected = true;
-                Logger?.LogDebug("Switched to Clipboard view");
-            }
-        }
-
-        [RelayCommand]
-        private void StandingView()
-        {
-            ThrowIfDisposed();
-            _standingVM ??= App.Services.GetService(typeof(StandingViewModel)) as StandingViewModel;
-            if (_standingVM != null)
-            {
-                CurrentView = _standingVM;
-                DeselectAll();
-                IsStandingSelected = true;
-                Logger?.LogDebug("Switched to Standing view");
-            }
-        }
-
-        [RelayCommand]
-        private void NotesView()
-        {
-            ThrowIfDisposed();
-            _notesVM ??= App.Services.GetService(typeof(QuickNotesViewModel)) as QuickNotesViewModel;
-            if (_notesVM != null)
-            {
-                CurrentView = _notesVM;
-                DeselectAll();
-                IsNotesSelected = true;
-                Logger?.LogDebug("Switched to Notes view");
-            }
-        }
-
-        [RelayCommand]
-        private void HotkeySettingsView()
-        {
-            ThrowIfDisposed();
-            _hotkeySettingsVM ??= App.Services.GetService(typeof(HotkeySettingsViewModel)) as HotkeySettingsViewModel;
-            if (_hotkeySettingsVM != null)
-            {
-                CurrentView = _hotkeySettingsVM;
-                DeselectAll();
-                IsHotkeySettingsSelected = true;
-                Logger?.LogDebug("Switched to Hotkey Settings view");
-            }
-        }
-
-        [RelayCommand]
-        private void LayoutsView()
-        {
-            ThrowIfDisposed();
-            _layoutsVM ??= App.Services.GetService(typeof(WindowLayoutsViewModel)) as WindowLayoutsViewModel;
-            if (_layoutsVM != null)
-            {
-                CurrentView = _layoutsVM;
-                DeselectAll();
-                IsLayoutsSelected = true;
-                Logger?.LogDebug("Switched to Window Layouts view");
-            }
-        }
-
-        [RelayCommand]
-        private void NetworkView()
-        {
-            ThrowIfDisposed();
-            _networkVM ??= App.Services.GetService(typeof(NetworkViewModel)) as NetworkViewModel;
-            if (_networkVM != null)
-            {
-                CurrentView = _networkVM;
-                DeselectAll();
-                IsNetworkSelected = true;
-                Logger?.LogDebug("Switched to Network view");
-            }
-        }
-
-        [RelayCommand]
-        private void RandomizerView()
-        {
-            ThrowIfDisposed();
-            _randomizerVM ??= App.Services.GetService(typeof(RandomizerViewModel)) as RandomizerViewModel;
-            if (_randomizerVM != null)
-            {
-                CurrentView = _randomizerVM;
-                DeselectAll();
-                IsRandomizerSelected = true;
-                Logger?.LogDebug("Switched to Randomizer view");
-            }
-        }
-
-        [RelayCommand]
-        private void MetronomeView()
-        {
-            ThrowIfDisposed();
-            _metronomeVM ??= App.Services.GetService(typeof(MetronomeViewModel)) as MetronomeViewModel;
-            if (_metronomeVM != null)
-            {
-                CurrentView = _metronomeVM;
-                DeselectAll();
-                IsMetronomeSelected = true;
-                Logger?.LogDebug("Switched to Metronome view");
-            }
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        if (IsDisposed || _uiSettings.Current.AudioSetupCompleted || Overlay is not null) return;
+                        ShowSetupWizard();
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Logger?.LogWarning(ex, "First-run setup check failed");
+                }
+            });
         }
 
         protected override void Dispose(bool disposing)
@@ -658,23 +758,22 @@ namespace CenterHubNew.MVVM.ViewModel
                     _updateService.UpdateChanged -= OnUpdateChanged;
                 if (_routing is not null)
                     _routing.DesktopOutputRestored -= OnDesktopOutputRestored;
+                if (_uiSettings is not null)
+                    _uiSettings.Changed -= OnUiSettingsChanged;
+
+                foreach (var item in NavItems) item.Selected -= OnNavItemSelected;
+                try { CloseOverlay(); }
+                catch (Exception ex) { Logger?.LogWarning(ex, "Error closing the overlay"); }
 
                 // Dispose each page independently: one throwing Dispose used to skip the rest
                 // (including Notes, whose Dispose saves the open note). Notes goes first.
-                SafeDispose(_notesVM);
-                SafeDispose(CurrentView as IDisposable);
-                SafeDispose(_monitoringVM);
-                SafeDispose(_soundVM);
-                SafeDispose(_soundboardVM);
-                SafeDispose(_utilitiesVM);
-                SafeDispose(_autoClickerVM);
-                SafeDispose(_clipboardVM);
-                SafeDispose(_standingVM);
-                SafeDispose(_hotkeySettingsVM);
-                SafeDispose(_layoutsVM);
-                SafeDispose(_networkVM);
-                SafeDispose(_randomizerVM);
-                SafeDispose(_metronomeVM);
+                var pages = _pageVms.Values.ToList();
+                foreach (var notes in pages.OfType<QuickNotesViewModel>()) SafeDispose(notes);
+                foreach (var page in pages)
+                {
+                    if (page is QuickNotesViewModel) continue;
+                    SafeDispose(page as IDisposable);
+                }
             }
             base.Dispose(disposing);
         }

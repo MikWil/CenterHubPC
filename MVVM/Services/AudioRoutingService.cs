@@ -133,6 +133,21 @@ namespace CenterHubNew.MVVM.Services
         public bool RefreshStatus() => _vm.RefreshStatus() == VoicemeeterStatus.Running;
         public string? ActivePresetId => _store.Load().ActivePresetId;
 
+        /// <summary>Why the last Voicemeeter start / restart failed, in words fit for the user (null when it succeeded).</summary>
+        public string? LastError => _vm.LastError;
+
+        /// <summary>
+        /// Start Voicemeeter if it isn't running and wait until its engine is ready (no routing is
+        /// changed). False when it is not installed or did not come up — see <see cref="LastError"/>.
+        /// </summary>
+        public async Task<bool> StartVoicemeeterAsync(System.Threading.CancellationToken ct = default)
+        {
+            if (!_vm.IsInstalled) return false;
+            await _applyGate.WaitAsync(ct).ConfigureAwait(false);
+            try { return await _vm.EnsureRunningAsync(ct).ConfigureAwait(false); }
+            finally { _applyGate.Release(); }
+        }
+
         /// <summary>Push a single source's routing to Voicemeeter immediately (live board edits). No-op if not running.</summary>
         public void LiveSet(AudioSourceRoute route)
         {

@@ -326,6 +326,16 @@ namespace CenterHubNew.MVVM.ViewModel
         }
 
         /// <summary>
+        /// Apply the preset with this id through the board (so the chips and rows stay in sync).
+        /// Does nothing when the id is unknown. Used by the command palette.
+        /// </summary>
+        public Task ApplyPresetByIdAsync(string id)
+        {
+            var chip = PresetChips.FirstOrDefault(c => c.Id == id);
+            return chip is null ? Task.CompletedTask : ApplyPresetCommand.ExecuteAsync(chip);
+        }
+
+        /// <summary>
         /// Bypass Banana: close it (it locks the headset while it runs) and make the headset and
         /// its mic the Windows defaults — for apps that talk to the headset themselves, e.g. Teams.
         /// </summary>

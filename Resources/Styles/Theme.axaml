@@ -2,101 +2,190 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <Styles.Resources>
+        <!-- =====================================================
+             DESIGN TOKENS: one palette per theme variant.
+             Mica tints the window with the wallpaper, so surfaces use high-alpha
+             tints (Mica shows through subtly, other apps don't).
+             Brushes repeat their colour literally (no StaticResource inside a theme
+             dictionary). A custom accent is layered on top by ThemeService through
+             Application.Resources, so keep the Accent* keys in sync with it.
+             Views use {DynamicResource ...} for these so theme switches repaint live.
+        ===================================================== -->
         <ResourceDictionary>
-
-            <!-- =====================================================
-                 FLUENT / MICA PALETTE
-                 Mica tints the window with the desktop wallpaper, so
-                 our "background" colors use alpha so the tint shows.
-            ===================================================== -->
-
-            <!-- === Surface tints ===
-                 Mica needs the window to be transparent at the *OS* layer,
-                 but our content should NOT be see-through to other windows
-                 behind us. So we paint a high-alpha dark tint everywhere —
-                 Mica still shows through subtly, but other apps don't. -->
-            <Color x:Key="SurfaceBase">#D80F0F16</Color>           <!-- ~85% — root content surface -->
-            <Color x:Key="SidebarTint">#EE0B0B12</Color>           <!-- ~93% — sidebar most solid -->
-            <Color x:Key="TitleBarTint">#E80B0B12</Color>          <!-- ~91% — title bar nearly solid -->
-            <Color x:Key="CardSurface">#E81B1B28</Color>           <!-- ~91% — cards are solid for readability -->
-            <Color x:Key="CardSurfaceElevated">#F0252535</Color>   <!-- ~94% — inner/elevated -->
-            <Color x:Key="CardSurfaceHover">#FA2D2D40</Color>      <!-- ~98% on hover -->
-            <Color x:Key="InputSurface">#E81A1A26</Color>
-            <Color x:Key="InputSurfaceFocus">#F01D1D2A</Color>
-
-            <!-- === Borders / hairlines === -->
-            <Color x:Key="BorderHairline">#33FFFFFF</Color>         <!-- light hairline at low alpha -->
-            <Color x:Key="BorderStrong">#55FFFFFF</Color>
-            <Color x:Key="BorderSubtle">#1AFFFFFF</Color>           <!-- very faint -->
-
-            <!-- === Text === -->
-            <Color x:Key="TextPrimary">#F4F3FA</Color>
-            <Color x:Key="TextSecondary">#B8B6CA</Color>
-            <Color x:Key="TextMuted">#7E7C95</Color>
-            <Color x:Key="TextOnAccent">#0B1320</Color>
-
-            <!-- === Fluent accent (sky blue, Windows-default flavor) === -->
-            <Color x:Key="AccentPrimary">#4CC2FF</Color>            <!-- Win11 default accent -->
-            <Color x:Key="AccentHover">#82D1FF</Color>
-            <Color x:Key="AccentPressed">#3FA9DD</Color>
-            <Color x:Key="AccentLight">#BEE6FD</Color>
-            <Color x:Key="AccentSubtle">#264C2540</Color>           <!-- accent-tinted surface -->
-
-            <!-- === Semantic colors === -->
-            <Color x:Key="SuccessColor">#5DDB7C</Color>
-            <Color x:Key="SuccessSubtle">#40175026</Color>
-            <Color x:Key="ErrorColor">#F87171</Color>
-            <Color x:Key="ErrorSubtle">#40501818</Color>
-            <Color x:Key="WarningColor">#FACC15</Color>
-            <Color x:Key="WarningSubtle">#404A2F00</Color>
-            <Color x:Key="InfoColor">#818CF8</Color>
-
-            <!-- === Per-metric accent colors === -->
-            <Color x:Key="CpuColor">#4CC2FF</Color>
-            <Color x:Key="GpuColor">#B585FF</Color>
-            <Color x:Key="RamColor">#5DDB7C</Color>
-            <Color x:Key="DiskColor">#FACC15</Color>
-
-            <!-- === Brushes === -->
-            <SolidColorBrush x:Key="SidebarBackgroundBrush"   Color="{StaticResource SidebarTint}"/>
-            <SolidColorBrush x:Key="TitleBarBackgroundBrush"  Color="{StaticResource TitleBarTint}"/>
-            <SolidColorBrush x:Key="BackgroundDarkBrush"      Color="{StaticResource SurfaceBase}"/>
-            <SolidColorBrush x:Key="BackgroundMainBrush"      Color="{StaticResource SurfaceBase}"/>
-            <SolidColorBrush x:Key="CardBackgroundBrush"      Color="{StaticResource CardSurface}"/>
-            <SolidColorBrush x:Key="CardInnerBrush"           Color="{StaticResource CardSurfaceElevated}"/>
-            <SolidColorBrush x:Key="CardHoverBrush"           Color="{StaticResource CardSurfaceHover}"/>
-            <SolidColorBrush x:Key="InputBackgroundBrush"     Color="{StaticResource InputSurface}"/>
-            <SolidColorBrush x:Key="BorderBrush"              Color="{StaticResource BorderHairline}"/>
-            <SolidColorBrush x:Key="BorderSubtleBrush"        Color="{StaticResource BorderSubtle}"/>
-            <SolidColorBrush x:Key="BorderStrongBrush"        Color="{StaticResource BorderStrong}"/>
-
-            <SolidColorBrush x:Key="TextPrimaryBrush"         Color="{StaticResource TextPrimary}"/>
-            <SolidColorBrush x:Key="TextSecondaryBrush"       Color="{StaticResource TextSecondary}"/>
-            <SolidColorBrush x:Key="TextMutedBrush"           Color="{StaticResource TextMuted}"/>
-            <SolidColorBrush x:Key="TextOnAccentBrush"        Color="{StaticResource TextOnAccent}"/>
-
-            <SolidColorBrush x:Key="AccentBrush"              Color="{StaticResource AccentPrimary}"/>
-            <SolidColorBrush x:Key="AccentHoverBrush"         Color="{StaticResource AccentHover}"/>
-            <SolidColorBrush x:Key="AccentPressedBrush"       Color="{StaticResource AccentPressed}"/>
-            <SolidColorBrush x:Key="AccentLightBrush"         Color="{StaticResource AccentLight}"/>
-            <SolidColorBrush x:Key="AccentSubtleBrush"        Color="{StaticResource AccentSubtle}"/>
-
-            <SolidColorBrush x:Key="SuccessBrush"             Color="{StaticResource SuccessColor}"/>
-            <SolidColorBrush x:Key="SuccessSubtleBrush"       Color="{StaticResource SuccessSubtle}"/>
-            <SolidColorBrush x:Key="ErrorBrush"               Color="{StaticResource ErrorColor}"/>
-            <SolidColorBrush x:Key="ErrorSubtleBrush"         Color="{StaticResource ErrorSubtle}"/>
-            <SolidColorBrush x:Key="WarningBrush"             Color="{StaticResource WarningColor}"/>
-            <SolidColorBrush x:Key="WarningSubtleBrush"       Color="{StaticResource WarningSubtle}"/>
-            <SolidColorBrush x:Key="InfoBrush"                Color="{StaticResource InfoColor}"/>
-
-            <SolidColorBrush x:Key="CpuBrush"  Color="{StaticResource CpuColor}"/>
-            <SolidColorBrush x:Key="GpuBrush"  Color="{StaticResource GpuColor}"/>
-            <SolidColorBrush x:Key="RamBrush"  Color="{StaticResource RamColor}"/>
-            <SolidColorBrush x:Key="DiskBrush" Color="{StaticResource DiskColor}"/>
-
-            <!-- For legacy refs - now Mica-transparent -->
-            <SolidColorBrush x:Key="WindowBackgroundBrush"    Color="{StaticResource SurfaceBase}"/>
-
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Dark">
+                    <Color x:Key="SurfaceBase">#D80F0F16</Color>
+                    <Color x:Key="SidebarTint">#EE0B0B12</Color>
+                    <Color x:Key="TitleBarTint">#E80B0B12</Color>
+                    <Color x:Key="CardSurface">#E81B1B28</Color>
+                    <Color x:Key="CardSurfaceElevated">#F0252535</Color>
+                    <Color x:Key="CardSurfaceHover">#FA2D2D40</Color>
+                    <Color x:Key="InputSurface">#E81A1A26</Color>
+                    <Color x:Key="InputSurfaceFocus">#F01D1D2A</Color>
+                    <Color x:Key="BorderHairline">#33FFFFFF</Color>
+                    <Color x:Key="BorderStrong">#55FFFFFF</Color>
+                    <Color x:Key="BorderSubtle">#1AFFFFFF</Color>
+                    <Color x:Key="TextPrimary">#F4F3FA</Color>
+                    <Color x:Key="TextSecondary">#B8B6CA</Color>
+                    <Color x:Key="TextMuted">#7E7C95</Color>
+                    <Color x:Key="TextOnAccent">#0B1320</Color>
+                    <Color x:Key="AccentPrimary">#4CC2FF</Color>
+                    <Color x:Key="AccentHover">#82D1FF</Color>
+                    <Color x:Key="AccentPressed">#3FA9DD</Color>
+                    <Color x:Key="AccentLight">#BEE6FD</Color>
+                    <Color x:Key="AccentSubtle">#264CC2FF</Color>
+                    <Color x:Key="SuccessColor">#5DDB7C</Color>
+                    <Color x:Key="SuccessSubtle">#40175026</Color>
+                    <Color x:Key="ErrorColor">#F87171</Color>
+                    <Color x:Key="ErrorSubtle">#40501818</Color>
+                    <Color x:Key="WarningColor">#FACC15</Color>
+                    <Color x:Key="WarningSubtle">#404A2F00</Color>
+                    <Color x:Key="InfoColor">#818CF8</Color>
+                    <Color x:Key="CpuColor">#4CC2FF</Color>
+                    <Color x:Key="GpuColor">#B585FF</Color>
+                    <Color x:Key="RamColor">#5DDB7C</Color>
+                    <Color x:Key="DiskColor">#FACC15</Color>
+                    <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#EE0B0B12"/>
+                    <SolidColorBrush x:Key="TitleBarBackgroundBrush" Color="#E80B0B12"/>
+                    <SolidColorBrush x:Key="BackgroundDarkBrush" Color="#D80F0F16"/>
+                    <SolidColorBrush x:Key="BackgroundMainBrush" Color="#D80F0F16"/>
+                    <SolidColorBrush x:Key="CardBackgroundBrush" Color="#E81B1B28"/>
+                    <SolidColorBrush x:Key="CardInnerBrush" Color="#F0252535"/>
+                    <SolidColorBrush x:Key="CardHoverBrush" Color="#FA2D2D40"/>
+                    <SolidColorBrush x:Key="InputBackgroundBrush" Color="#E81A1A26"/>
+                    <SolidColorBrush x:Key="BorderBrush" Color="#33FFFFFF"/>
+                    <SolidColorBrush x:Key="BorderSubtleBrush" Color="#1AFFFFFF"/>
+                    <SolidColorBrush x:Key="BorderStrongBrush" Color="#55FFFFFF"/>
+                    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F4F3FA"/>
+                    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#B8B6CA"/>
+                    <SolidColorBrush x:Key="TextMutedBrush" Color="#7E7C95"/>
+                    <SolidColorBrush x:Key="TextOnAccentBrush" Color="#0B1320"/>
+                    <SolidColorBrush x:Key="AccentBrush" Color="#4CC2FF"/>
+                    <SolidColorBrush x:Key="AccentHoverBrush" Color="#82D1FF"/>
+                    <SolidColorBrush x:Key="AccentPressedBrush" Color="#3FA9DD"/>
+                    <SolidColorBrush x:Key="AccentLightBrush" Color="#BEE6FD"/>
+                    <SolidColorBrush x:Key="AccentSubtleBrush" Color="#264CC2FF"/>
+                    <SolidColorBrush x:Key="SuccessBrush" Color="#5DDB7C"/>
+                    <SolidColorBrush x:Key="SuccessSubtleBrush" Color="#40175026"/>
+                    <SolidColorBrush x:Key="ErrorBrush" Color="#F87171"/>
+                    <SolidColorBrush x:Key="ErrorSubtleBrush" Color="#40501818"/>
+                    <SolidColorBrush x:Key="WarningBrush" Color="#FACC15"/>
+                    <SolidColorBrush x:Key="WarningSubtleBrush" Color="#404A2F00"/>
+                    <SolidColorBrush x:Key="InfoBrush" Color="#818CF8"/>
+                    <SolidColorBrush x:Key="CpuBrush" Color="#4CC2FF"/>
+                    <SolidColorBrush x:Key="GpuBrush" Color="#B585FF"/>
+                    <SolidColorBrush x:Key="RamBrush" Color="#5DDB7C"/>
+                    <SolidColorBrush x:Key="DiskBrush" Color="#FACC15"/>
+                    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#D80F0F16"/>
+                    <LinearGradientBrush x:Key="HeroBackgroundBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Color="#221B1B28" Offset="0"/>
+                        <GradientStop Color="#88141422" Offset="1"/>
+                    </LinearGradientBrush>
+                    <SolidColorBrush x:Key="RouteHoverBrush" Color="#14FFFFFF"/>
+                    <SolidColorBrush x:Key="RouteYouBgBrush" Color="#173C31"/>
+                    <SolidColorBrush x:Key="RouteYouBorderBrush" Color="#1D9E75"/>
+                    <SolidColorBrush x:Key="RouteYouFgBrush" Color="#5DCAA5"/>
+                    <SolidColorBrush x:Key="RouteYouHoverBgBrush" Color="#1D4A3C"/>
+                    <SolidColorBrush x:Key="RouteYouHoverBorderBrush" Color="#5DCAA5"/>
+                    <SolidColorBrush x:Key="RouteYouHoverFgBrush" Color="#9FE1CB"/>
+                    <SolidColorBrush x:Key="RouteOthersBgBrush" Color="#241F4A"/>
+                    <SolidColorBrush x:Key="RouteOthersBorderBrush" Color="#7F77DD"/>
+                    <SolidColorBrush x:Key="RouteOthersFgBrush" Color="#AFA9EC"/>
+                    <SolidColorBrush x:Key="RouteOthersHoverBgBrush" Color="#2E2860"/>
+                    <SolidColorBrush x:Key="RouteOthersHoverBorderBrush" Color="#AFA9EC"/>
+                    <SolidColorBrush x:Key="RouteOthersHoverFgBrush" Color="#CECBF6"/>
+                    <SolidColorBrush x:Key="HoverOverlayBrush" Color="#14FFFFFF"/>
+                    <SolidColorBrush x:Key="SelectedOverlayBrush" Color="#22FFFFFF"/>
+                    <SolidColorBrush x:Key="TrackBrush" Color="#22FFFFFF"/>
+                    <SolidColorBrush x:Key="AccentEdgeBrush" Color="#33FFFFFF"/>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Light">
+                    <Color x:Key="SurfaceBase">#E6F3F3F7</Color>
+                    <Color x:Key="SidebarTint">#F2EBEBF0</Color>
+                    <Color x:Key="TitleBarTint">#F0EBEBF0</Color>
+                    <Color x:Key="CardSurface">#F5FFFFFF</Color>
+                    <Color x:Key="CardSurfaceElevated">#F7F5F5F9</Color>
+                    <Color x:Key="CardSurfaceHover">#FFFFFFFF</Color>
+                    <Color x:Key="InputSurface">#F5FFFFFF</Color>
+                    <Color x:Key="InputSurfaceFocus">#FFFFFFFF</Color>
+                    <Color x:Key="BorderHairline">#24000000</Color>
+                    <Color x:Key="BorderStrong">#45000000</Color>
+                    <Color x:Key="BorderSubtle">#12000000</Color>
+                    <Color x:Key="TextPrimary">#1B1B24</Color>
+                    <Color x:Key="TextSecondary">#4A4A5C</Color>
+                    <Color x:Key="TextMuted">#707086</Color>
+                    <Color x:Key="TextOnAccent">#FFFFFF</Color>
+                    <Color x:Key="AccentPrimary">#0078D4</Color>
+                    <Color x:Key="AccentHover">#1A86D9</Color>
+                    <Color x:Key="AccentPressed">#006CBE</Color>
+                    <Color x:Key="AccentLight">#005A9E</Color>
+                    <Color x:Key="AccentSubtle">#220078D4</Color>
+                    <Color x:Key="SuccessColor">#0F7B0F</Color>
+                    <Color x:Key="SuccessSubtle">#2616A34A</Color>
+                    <Color x:Key="ErrorColor">#C42B1C</Color>
+                    <Color x:Key="ErrorSubtle">#22C42B1C</Color>
+                    <Color x:Key="WarningColor">#9D5D00</Color>
+                    <Color x:Key="WarningSubtle">#30F7B500</Color>
+                    <Color x:Key="InfoColor">#4F46E5</Color>
+                    <Color x:Key="CpuColor">#0078D4</Color>
+                    <Color x:Key="GpuColor">#7C3AED</Color>
+                    <Color x:Key="RamColor">#16A34A</Color>
+                    <Color x:Key="DiskColor">#B45309</Color>
+                    <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#F2EBEBF0"/>
+                    <SolidColorBrush x:Key="TitleBarBackgroundBrush" Color="#F0EBEBF0"/>
+                    <SolidColorBrush x:Key="BackgroundDarkBrush" Color="#E6F3F3F7"/>
+                    <SolidColorBrush x:Key="BackgroundMainBrush" Color="#E6F3F3F7"/>
+                    <SolidColorBrush x:Key="CardBackgroundBrush" Color="#F5FFFFFF"/>
+                    <SolidColorBrush x:Key="CardInnerBrush" Color="#F7F5F5F9"/>
+                    <SolidColorBrush x:Key="CardHoverBrush" Color="#FFFFFFFF"/>
+                    <SolidColorBrush x:Key="InputBackgroundBrush" Color="#F5FFFFFF"/>
+                    <SolidColorBrush x:Key="BorderBrush" Color="#24000000"/>
+                    <SolidColorBrush x:Key="BorderSubtleBrush" Color="#12000000"/>
+                    <SolidColorBrush x:Key="BorderStrongBrush" Color="#45000000"/>
+                    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#1B1B24"/>
+                    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#4A4A5C"/>
+                    <SolidColorBrush x:Key="TextMutedBrush" Color="#707086"/>
+                    <SolidColorBrush x:Key="TextOnAccentBrush" Color="#FFFFFF"/>
+                    <SolidColorBrush x:Key="AccentBrush" Color="#0078D4"/>
+                    <SolidColorBrush x:Key="AccentHoverBrush" Color="#1A86D9"/>
+                    <SolidColorBrush x:Key="AccentPressedBrush" Color="#006CBE"/>
+                    <SolidColorBrush x:Key="AccentLightBrush" Color="#005A9E"/>
+                    <SolidColorBrush x:Key="AccentSubtleBrush" Color="#220078D4"/>
+                    <SolidColorBrush x:Key="SuccessBrush" Color="#0F7B0F"/>
+                    <SolidColorBrush x:Key="SuccessSubtleBrush" Color="#2616A34A"/>
+                    <SolidColorBrush x:Key="ErrorBrush" Color="#C42B1C"/>
+                    <SolidColorBrush x:Key="ErrorSubtleBrush" Color="#22C42B1C"/>
+                    <SolidColorBrush x:Key="WarningBrush" Color="#9D5D00"/>
+                    <SolidColorBrush x:Key="WarningSubtleBrush" Color="#30F7B500"/>
+                    <SolidColorBrush x:Key="InfoBrush" Color="#4F46E5"/>
+                    <SolidColorBrush x:Key="CpuBrush" Color="#0078D4"/>
+                    <SolidColorBrush x:Key="GpuBrush" Color="#7C3AED"/>
+                    <SolidColorBrush x:Key="RamBrush" Color="#16A34A"/>
+                    <SolidColorBrush x:Key="DiskBrush" Color="#B45309"/>
+                    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#E6F3F3F7"/>
+                    <LinearGradientBrush x:Key="HeroBackgroundBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Color="#F2FFFFFF" Offset="0"/>
+                        <GradientStop Color="#E6EEF2F8" Offset="1"/>
+                    </LinearGradientBrush>
+                    <SolidColorBrush x:Key="RouteHoverBrush" Color="#0A000000"/>
+                    <SolidColorBrush x:Key="RouteYouBgBrush" Color="#E3F5EE"/>
+                    <SolidColorBrush x:Key="RouteYouBorderBrush" Color="#1D9E75"/>
+                    <SolidColorBrush x:Key="RouteYouFgBrush" Color="#0F6B4F"/>
+                    <SolidColorBrush x:Key="RouteYouHoverBgBrush" Color="#CDEDE0"/>
+                    <SolidColorBrush x:Key="RouteYouHoverBorderBrush" Color="#0F7B5C"/>
+                    <SolidColorBrush x:Key="RouteYouHoverFgBrush" Color="#0A4F3A"/>
+                    <SolidColorBrush x:Key="RouteOthersBgBrush" Color="#ECEBFA"/>
+                    <SolidColorBrush x:Key="RouteOthersBorderBrush" Color="#7F77DD"/>
+                    <SolidColorBrush x:Key="RouteOthersFgBrush" Color="#4B43A8"/>
+                    <SolidColorBrush x:Key="RouteOthersHoverBgBrush" Color="#DCD9F6"/>
+                    <SolidColorBrush x:Key="RouteOthersHoverBorderBrush" Color="#5B52C4"/>
+                    <SolidColorBrush x:Key="RouteOthersHoverFgBrush" Color="#332C86"/>
+                    <SolidColorBrush x:Key="HoverOverlayBrush" Color="#0A000000"/>
+                    <SolidColorBrush x:Key="SelectedOverlayBrush" Color="#12000000"/>
+                    <SolidColorBrush x:Key="TrackBrush" Color="#1F000000"/>
+                    <SolidColorBrush x:Key="AccentEdgeBrush" Color="#26000000"/>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
     </Styles.Resources>
 
@@ -104,7 +193,7 @@
          BASE TYPOGRAPHY — Segoe UI Variable (Win11)
     ========================================================= -->
     <Style Selector="TextBlock">
-        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
         <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI, $default"/>
         <Setter Property="FontSize"   Value="13"/>
         <!-- LineHeight intentionally not set globally — was clipping large metric numbers -->
@@ -114,20 +203,20 @@
          CARDS (Fluent surfaces, 12px radius, hairline border)
     ========================================================= -->
     <Style Selector="Border.card">
-        <Setter Property="Background"      Value="{StaticResource CardBackgroundBrush}"/>
+        <Setter Property="Background"      Value="{DynamicResource CardBackgroundBrush}"/>
         <Setter Property="CornerRadius"    Value="12"/>
         <Setter Property="Padding"         Value="20"/>
         <Setter Property="Margin"          Value="0,0,0,12"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="BorderBrush"     Value="{StaticResource BorderHairline}"/>
+        <Setter Property="BorderBrush"     Value="{DynamicResource BorderHairline}"/>
     </Style>
 
     <Style Selector="Border.card-inner">
-        <Setter Property="Background"      Value="{StaticResource CardInnerBrush}"/>
+        <Setter Property="Background"      Value="{DynamicResource CardInnerBrush}"/>
         <Setter Property="CornerRadius"    Value="10"/>
         <Setter Property="Padding"         Value="14"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="BorderBrush"     Value="{StaticResource BorderSubtleBrush}"/>
+        <Setter Property="BorderBrush"     Value="{DynamicResource BorderSubtleBrush}"/>
     </Style>
 
     <!-- =========================================================
@@ -136,14 +225,14 @@
 
     <!-- Primary (accent filled) -->
     <Style Selector="Button.primary">
-        <Setter Property="Background"   Value="{StaticResource AccentBrush}"/>
-        <Setter Property="Foreground"   Value="{StaticResource TextOnAccentBrush}"/>
+        <Setter Property="Background"   Value="{DynamicResource AccentBrush}"/>
+        <Setter Property="Foreground"   Value="{DynamicResource TextOnAccentBrush}"/>
         <Setter Property="FontWeight"   Value="SemiBold"/>
         <Setter Property="FontSize"     Value="13"/>
         <Setter Property="Padding"      Value="16,8"/>
         <Setter Property="CornerRadius" Value="6"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="BorderBrush"  Value="#33FFFFFF"/>
+        <Setter Property="BorderBrush"  Value="{DynamicResource AccentEdgeBrush}"/>
         <Setter Property="Cursor"       Value="Hand"/>
         <Setter Property="HorizontalContentAlignment" Value="Center"/>
         <Setter Property="VerticalContentAlignment"   Value="Center"/>
@@ -174,10 +263,10 @@
         </Setter>
     </Style>
     <Style Selector="Button.primary:pointerover /template/ Border#Bg">
-        <Setter Property="Background" Value="{StaticResource AccentHoverBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
     </Style>
     <Style Selector="Button.primary:pressed /template/ Border#Bg">
-        <Setter Property="Background" Value="{StaticResource AccentPressedBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource AccentPressedBrush}"/>
     </Style>
     <Style Selector="Button.primary:disabled">
         <Setter Property="Opacity" Value="0.4"/>
@@ -185,13 +274,13 @@
 
     <!-- Secondary (translucent surface) -->
     <Style Selector="Button.secondary">
-        <Setter Property="Background"       Value="{StaticResource CardInnerBrush}"/>
-        <Setter Property="Foreground"       Value="{StaticResource TextPrimaryBrush}"/>
+        <Setter Property="Background"       Value="{DynamicResource CardInnerBrush}"/>
+        <Setter Property="Foreground"       Value="{DynamicResource TextPrimaryBrush}"/>
         <Setter Property="FontSize"         Value="13"/>
         <Setter Property="Padding"          Value="16,8"/>
         <Setter Property="CornerRadius"     Value="6"/>
         <Setter Property="BorderThickness"  Value="1"/>
-        <Setter Property="BorderBrush"      Value="{StaticResource BorderHairline}"/>
+        <Setter Property="BorderBrush"      Value="{DynamicResource BorderHairline}"/>
         <Setter Property="Cursor"           Value="Hand"/>
         <Setter Property="HorizontalContentAlignment" Value="Center"/>
         <Setter Property="VerticalContentAlignment"   Value="Center"/>
@@ -222,11 +311,11 @@
         </Setter>
     </Style>
     <Style Selector="Button.secondary:pointerover /template/ Border#Bg">
-        <Setter Property="Background"  Value="{StaticResource CardHoverBrush}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource BorderStrongBrush}"/>
+        <Setter Property="Background"  Value="{DynamicResource CardHoverBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderStrongBrush}"/>
     </Style>
     <Style Selector="Button.secondary:pressed /template/ Border#Bg">
-        <Setter Property="Background"  Value="{StaticResource CardBackgroundBrush}"/>
+        <Setter Property="Background"  Value="{DynamicResource CardBackgroundBrush}"/>
     </Style>
     <Style Selector="Button.secondary:disabled">
         <Setter Property="Opacity" Value="0.4"/>
@@ -234,14 +323,14 @@
 
     <!-- Danger -->
     <Style Selector="Button.danger">
-        <Setter Property="Background"   Value="{StaticResource ErrorSubtleBrush}"/>
-        <Setter Property="Foreground"   Value="{StaticResource ErrorBrush}"/>
+        <Setter Property="Background"   Value="{DynamicResource ErrorSubtleBrush}"/>
+        <Setter Property="Foreground"   Value="{DynamicResource ErrorBrush}"/>
         <Setter Property="FontWeight"   Value="SemiBold"/>
         <Setter Property="FontSize"     Value="13"/>
         <Setter Property="Padding"      Value="16,8"/>
         <Setter Property="CornerRadius" Value="6"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="BorderBrush"  Value="{StaticResource ErrorBrush}"/>
+        <Setter Property="BorderBrush"  Value="{DynamicResource ErrorBrush}"/>
         <Setter Property="Cursor"       Value="Hand"/>
         <Setter Property="HorizontalContentAlignment" Value="Center"/>
         <Setter Property="VerticalContentAlignment"   Value="Center"/>
@@ -267,17 +356,17 @@
         </Setter>
     </Style>
     <Style Selector="Button.danger:pointerover /template/ Border#Bg">
-        <Setter Property="Background"  Value="{StaticResource ErrorBrush}"/>
+        <Setter Property="Background"  Value="{DynamicResource ErrorBrush}"/>
     </Style>
     <Style Selector="Button.danger:pointerover">
-        <Setter Property="Foreground"  Value="{StaticResource TextOnAccentBrush}"/>
+        <Setter Property="Foreground"  Value="{DynamicResource TextOnAccentBrush}"/>
     </Style>
 
     <!-- Ghost / icon-only -->
     <Style Selector="Button.ghost">
         <Setter Property="Background"       Value="Transparent"/>
         <Setter Property="BorderThickness"  Value="0"/>
-        <Setter Property="Foreground"       Value="{StaticResource TextMutedBrush}"/>
+        <Setter Property="Foreground"       Value="{DynamicResource TextMutedBrush}"/>
         <Setter Property="Cursor"           Value="Hand"/>
         <Setter Property="CornerRadius"     Value="6"/>
         <Setter Property="HorizontalContentAlignment" Value="Center"/>
@@ -302,16 +391,16 @@
         </Setter>
     </Style>
     <Style Selector="Button.ghost:pointerover /template/ Border#Bg">
-        <Setter Property="Background" Value="{StaticResource CardInnerBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource CardInnerBrush}"/>
     </Style>
     <Style Selector="Button.ghost:pointerover">
-        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
     </Style>
 
     <!-- Chrome (title bar) -->
     <Style Selector="Button.chrome">
         <Setter Property="Background"       Value="Transparent"/>
-        <Setter Property="Foreground"       Value="{StaticResource TextSecondaryBrush}"/>
+        <Setter Property="Foreground"       Value="{DynamicResource TextSecondaryBrush}"/>
         <Setter Property="BorderThickness"  Value="0"/>
         <Setter Property="Width"            Value="46"/>
         <Setter Property="Height"           Value="32"/>
@@ -334,7 +423,7 @@
         </Setter>
     </Style>
     <Style Selector="Button.chrome:pointerover /template/ Border#Bg">
-        <Setter Property="Background" Value="{StaticResource CardInnerBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource CardInnerBrush}"/>
     </Style>
     <!-- Close button: red on hover (Win11 convention) -->
     <Style Selector="Button.chrome.close:pointerover /template/ Border#Bg">
@@ -351,11 +440,11 @@
          INPUTS
     ========================================================= -->
     <Style Selector="TextBox.input">
-        <Setter Property="Background"               Value="{StaticResource InputBackgroundBrush}"/>
-        <Setter Property="Foreground"               Value="{StaticResource TextPrimaryBrush}"/>
-        <Setter Property="BorderBrush"              Value="{StaticResource BorderHairline}"/>
-        <Setter Property="CaretBrush"               Value="{StaticResource AccentBrush}"/>
-        <Setter Property="SelectionBrush"           Value="{StaticResource AccentSubtleBrush}"/>
+        <Setter Property="Background"               Value="{DynamicResource InputBackgroundBrush}"/>
+        <Setter Property="Foreground"               Value="{DynamicResource TextPrimaryBrush}"/>
+        <Setter Property="BorderBrush"              Value="{DynamicResource BorderHairline}"/>
+        <Setter Property="CaretBrush"               Value="{DynamicResource AccentBrush}"/>
+        <Setter Property="SelectionBrush"           Value="{DynamicResource AccentSubtleBrush}"/>
         <Setter Property="BorderThickness"          Value="1"/>
         <Setter Property="Padding"                  Value="10,8"/>
         <Setter Property="FontSize"                 Value="13"/>
@@ -363,17 +452,17 @@
         <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
     <Style Selector="TextBox.input:pointerover">
-        <Setter Property="BorderBrush" Value="{StaticResource BorderStrongBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderStrongBrush}"/>
     </Style>
     <Style Selector="TextBox.input:focus">
-        <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
         <Setter Property="BorderThickness" Value="1,1,1,2"/>
     </Style>
 
     <Style Selector="ComboBox.dropdown">
-        <Setter Property="Background"       Value="{StaticResource InputBackgroundBrush}"/>
-        <Setter Property="Foreground"       Value="{StaticResource TextPrimaryBrush}"/>
-        <Setter Property="BorderBrush"      Value="{StaticResource BorderHairline}"/>
+        <Setter Property="Background"       Value="{DynamicResource InputBackgroundBrush}"/>
+        <Setter Property="Foreground"       Value="{DynamicResource TextPrimaryBrush}"/>
+        <Setter Property="BorderBrush"      Value="{DynamicResource BorderHairline}"/>
         <Setter Property="BorderThickness"  Value="1"/>
         <Setter Property="Padding"          Value="10,8"/>
         <Setter Property="FontSize"         Value="13"/>
@@ -381,10 +470,10 @@
         <Setter Property="CornerRadius"     Value="6"/>
     </Style>
     <Style Selector="ComboBox.dropdown:pointerover">
-        <Setter Property="BorderBrush" Value="{StaticResource BorderStrongBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderStrongBrush}"/>
     </Style>
     <Style Selector="ComboBox.dropdown:focus">
-        <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
     </Style>
 
     <!-- =========================================================
@@ -395,12 +484,12 @@
         <Setter Property="Background" Value="Transparent"/>
     </Style>
     <Style Selector="ScrollBar /template/ Thumb">
-        <Setter Property="Background"   Value="{StaticResource BorderStrongBrush}"/>
+        <Setter Property="Background"   Value="{DynamicResource BorderStrongBrush}"/>
         <Setter Property="CornerRadius" Value="3"/>
         <Setter Property="Margin"       Value="1"/>
     </Style>
     <Style Selector="ScrollBar /template/ Thumb:pointerover">
-        <Setter Property="Background" Value="{StaticResource TextMutedBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource TextMutedBrush}"/>
     </Style>
 
     <!-- =========================================================
@@ -408,25 +497,25 @@
     ========================================================= -->
     <Style Selector="ProgressBar">
         <Setter Property="Height"          Value="4"/>
-        <Setter Property="Foreground"      Value="{StaticResource AccentBrush}"/>
-        <Setter Property="Background"      Value="#22FFFFFF"/>
+        <Setter Property="Foreground"      Value="{DynamicResource AccentBrush}"/>
+        <Setter Property="Background"      Value="{DynamicResource TrackBrush}"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="CornerRadius"    Value="2"/>
     </Style>
-    <Style Selector="ProgressBar.cpu">  <Setter Property="Foreground" Value="{StaticResource CpuBrush}"/>  </Style>
-    <Style Selector="ProgressBar.gpu">  <Setter Property="Foreground" Value="{StaticResource GpuBrush}"/>  </Style>
-    <Style Selector="ProgressBar.ram">  <Setter Property="Foreground" Value="{StaticResource RamBrush}"/>  </Style>
-    <Style Selector="ProgressBar.disk"> <Setter Property="Foreground" Value="{StaticResource DiskBrush}"/> </Style>
+    <Style Selector="ProgressBar.cpu">  <Setter Property="Foreground" Value="{DynamicResource CpuBrush}"/>  </Style>
+    <Style Selector="ProgressBar.gpu">  <Setter Property="Foreground" Value="{DynamicResource GpuBrush}"/>  </Style>
+    <Style Selector="ProgressBar.ram">  <Setter Property="Foreground" Value="{DynamicResource RamBrush}"/>  </Style>
+    <Style Selector="ProgressBar.disk"> <Setter Property="Foreground" Value="{DynamicResource DiskBrush}"/> </Style>
 
     <!-- =========================================================
          SLIDER (Fluent thumb)
     ========================================================= -->
     <Style Selector="Slider /template/ Track > ProgressBar">
-        <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
-        <Setter Property="Background" Value="#22FFFFFF"/>
+        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource TrackBrush}"/>
     </Style>
     <Style Selector="Slider /template/ Thumb">
-        <Setter Property="Background"   Value="{StaticResource AccentBrush}"/>
+        <Setter Property="Background"   Value="{DynamicResource AccentBrush}"/>
         <Setter Property="Width"        Value="16"/>
         <Setter Property="Height"       Value="16"/>
         <Setter Property="CornerRadius" Value="8"/>
@@ -436,7 +525,7 @@
          CHECKBOX (Fluent pill)
     ========================================================= -->
     <Style Selector="CheckBox">
-        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
         <Setter Property="FontSize"   Value="13"/>
         <Setter Property="Padding"    Value="8,0,0,0"/>
         <Setter Property="Cursor"     Value="Hand"/>
@@ -446,7 +535,7 @@
          TOGGLE SWITCH (pill style)
     ========================================================= -->
     <Style Selector="ToggleSwitch">
-        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
         <Setter Property="FontSize"   Value="13"/>
     </Style>
 
@@ -461,7 +550,7 @@
         <Setter Property="Margin"               Value="6,1,6,1"/>
         <Setter Property="HorizontalAlignment"  Value="Stretch"/>
         <Setter Property="Background"           Value="Transparent"/>
-        <Setter Property="Foreground"           Value="{StaticResource TextSecondaryBrush}"/>
+        <Setter Property="Foreground"           Value="{DynamicResource TextSecondaryBrush}"/>
         <Setter Property="Transitions">
             <Transitions>
                 <BrushTransition Property="Background" Duration="0:0:0.1"/>
@@ -473,7 +562,7 @@
                     <!-- Active accent bar -->
                     <Border x:Name="NavAccent"
                             Width="3" Height="16" CornerRadius="2"
-                            Background="{StaticResource AccentBrush}"
+                            Background="{DynamicResource AccentBrush}"
                             HorizontalAlignment="Left" VerticalAlignment="Center"
                             Opacity="0"/>
                     <Border x:Name="NavBorder"
@@ -507,23 +596,23 @@
         <Setter Property="Opacity" Value="1"/>
     </Style>
     <Style Selector="RadioButton.navtab:checked /template/ Border#NavBorder">
-        <Setter Property="Background" Value="#22FFFFFF"/>
+        <Setter Property="Background" Value="{DynamicResource SelectedOverlayBrush}"/>
     </Style>
     <Style Selector="RadioButton.navtab:checked /template/ TextBlock#NavText">
-        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
     </Style>
     <Style Selector="RadioButton.navtab:checked /template/ TextBlock#NavIcon">
-        <Setter Property="Foreground" Value="{StaticResource AccentHoverBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource AccentHoverBrush}"/>
     </Style>
     <Style Selector="RadioButton.navtab:pointerover /template/ Border#NavBorder">
-        <Setter Property="Background" Value="#14FFFFFF"/>
+        <Setter Property="Background" Value="{DynamicResource HoverOverlayBrush}"/>
     </Style>
     <Style Selector="RadioButton.navtab:pointerover /template/ TextBlock#NavText">
-        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
     </Style>
     <Style Selector="RadioButton.navtab:pointerover /template/ TextBlock#NavIcon">
-        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
     </Style>
 
     <!-- =========================================================
@@ -535,6 +624,61 @@
     </Style>
     <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
         <Setter Property="Background"  Value="Transparent"/>
+    </Style>
+
+    <!-- =========================================================
+         SIDEBAR — group headers + icon rail
+         Avalonia has no selector specificity: later styles win, so the
+         .rail and .compact overrides must stay below the base styles.
+    ========================================================= -->
+    <Style Selector="TextBlock.navheader">
+        <Setter Property="FontSize"      Value="9"/>
+        <Setter Property="FontWeight"    Value="Bold"/>
+        <Setter Property="LetterSpacing" Value="1.5"/>
+        <Setter Property="Foreground"    Value="{DynamicResource TextMutedBrush}"/>
+        <Setter Property="Margin"        Value="18,10,0,6"/>
+    </Style>
+
+    <!-- Rail (56 px): icon only, centred; the title lives in the tooltip. -->
+    <Style Selector=".rail TextBlock.navheader">
+        <Setter Property="IsVisible" Value="False"/>
+    </Style>
+    <Style Selector=".rail RadioButton.navtab">
+        <Setter Property="Padding" Value="0,9"/>
+    </Style>
+    <Style Selector=".rail RadioButton.navtab /template/ TextBlock#NavText">
+        <Setter Property="IsVisible" Value="False"/>
+    </Style>
+    <Style Selector=".rail RadioButton.navtab /template/ TextBlock#NavIcon">
+        <Setter Property="Grid.ColumnSpan"      Value="2"/>
+        <Setter Property="HorizontalAlignment"  Value="Center"/>
+    </Style>
+
+    <!-- =========================================================
+         COMPACT DENSITY — added as the "compact" class on the content root
+    ========================================================= -->
+    <Style Selector=".compact Border.card">
+        <Setter Property="Padding" Value="14"/>
+        <Setter Property="Margin"  Value="0,0,0,8"/>
+    </Style>
+    <Style Selector=".compact Border.card-inner">
+        <Setter Property="Padding" Value="10"/>
+    </Style>
+    <Style Selector=".compact Button.primary">
+        <Setter Property="Padding" Value="12,6"/>
+    </Style>
+    <Style Selector=".compact Button.secondary">
+        <Setter Property="Padding" Value="12,6"/>
+    </Style>
+    <Style Selector=".compact TextBox.input">
+        <Setter Property="Padding" Value="8,5"/>
+    </Style>
+    <Style Selector=".compact RadioButton.navtab">
+        <Setter Property="Padding" Value="14,6"/>
+        <Setter Property="Margin"  Value="6,0"/>
+    </Style>
+    <Style Selector=".compact .rail RadioButton.navtab">
+        <Setter Property="Padding" Value="0,6"/>
     </Style>
 
 </Styles>

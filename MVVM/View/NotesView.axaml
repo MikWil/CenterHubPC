@@ -3,126 +3,163 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+             xmlns:controls="clr-namespace:CenterHubNew.MVVM.Controls"
              x:Class="CenterHubNew.MVVM.View.NotesView"
              x:DataType="viewmodel:QuickNotesViewModel"
              mc:Ignorable="d"
+             controls:Responsive.NarrowBelow="700"
              Background="Transparent">
 
-    <Grid Margin="24,20" ColumnDefinitions="260,*">
+    <UserControl.Styles>
+        <!-- Wide: list (fixed width) left of the editor, both filling the height.
+             Narrow (< 700): list on top with a limited height, editor below filling the rest. -->
+        <Style Selector="Border.notesList">
+            <Setter Property="Grid.Row" Value="0"/>
+            <Setter Property="Grid.RowSpan" Value="2"/>
+            <Setter Property="Grid.Column" Value="0"/>
+            <Setter Property="Grid.ColumnSpan" Value="1"/>
+            <Setter Property="Width" Value="280"/>
+            <Setter Property="Margin" Value="0,0,10,0"/>
+        </Style>
+        <Style Selector="UserControl:narrow Border.notesList">
+            <Setter Property="Grid.RowSpan" Value="1"/>
+            <Setter Property="Grid.ColumnSpan" Value="2"/>
+            <Setter Property="Width" Value="NaN"/>
+            <Setter Property="Height" Value="200"/>
+            <Setter Property="Padding" Value="12"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+        <Style Selector="Border.notesEditor">
+            <Setter Property="Grid.Row" Value="0"/>
+            <Setter Property="Grid.RowSpan" Value="2"/>
+            <Setter Property="Grid.Column" Value="1"/>
+            <Setter Property="Grid.ColumnSpan" Value="1"/>
+            <Setter Property="Margin" Value="10,0,0,0"/>
+        </Style>
+        <Style Selector="UserControl:narrow Border.notesEditor">
+            <Setter Property="Grid.Row" Value="1"/>
+            <Setter Property="Grid.RowSpan" Value="1"/>
+            <Setter Property="Grid.Column" Value="0"/>
+            <Setter Property="Grid.ColumnSpan" Value="2"/>
+            <Setter Property="Padding" Value="12"/>
+            <Setter Property="Margin" Value="0"/>
+        </Style>
+        <Style Selector="UserControl:narrow TextBlock.editorHeading">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+    </UserControl.Styles>
 
-        <!-- LEFT: Notes List -->
-        <Border Grid.Column="0" Classes="card" Margin="0,0,10,0">
-            <Grid RowDefinitions="Auto,Auto,*">
+    <controls:PageHost Title="Notes" Subtitle="Quick personal notes"
+                       Mode="Data" IsScrollable="False">
+        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,*" Margin="0,0,0,16">
 
-                <StackPanel Grid.Row="0" Margin="0,0,0,14">
-                    <TextBlock Text="Notes"
-                               FontSize="18" FontWeight="SemiBold"
-                               Foreground="{StaticResource TextPrimaryBrush}"/>
-                    <TextBlock Text="Quick personal notes"
-                               FontSize="11" Foreground="{StaticResource TextMutedBrush}"
-                               Margin="0,2,0,0"/>
-                </StackPanel>
+            <!-- LEFT (top when narrow): Notes List -->
+            <Border Classes="card notesList">
+                <Grid RowDefinitions="Auto,*">
 
-                <Button Grid.Row="1" Content="+ New Note" Classes="primary"
-                        Command="{Binding CreateNoteCommand}"
-                        HorizontalAlignment="Stretch"
-                        Margin="0,0,0,14" Padding="12,9"/>
+                    <Button Grid.Row="0" Content="+ New Note" Classes="primary"
+                            Command="{Binding CreateNoteCommand}"
+                            HorizontalAlignment="Stretch"
+                            Margin="0,0,0,12" Padding="12,9"/>
 
-                <ListBox Grid.Row="2"
-                         ItemsSource="{Binding Notes}"
-                         SelectedItem="{Binding SelectedNote, Mode=TwoWay}"
-                         Background="Transparent"
-                         BorderThickness="0">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <Border Background="{StaticResource CardInnerBrush}"
-                                    CornerRadius="8" Padding="12,10" Margin="0,0,0,5">
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold"
-                                                   FontSize="13" TextTrimming="CharacterEllipsis"
-                                                   Foreground="{StaticResource TextPrimaryBrush}"/>
-                                        <TextBlock Text="{Binding ModifiedAt, StringFormat='{}{0:MMM dd, HH:mm}'}"
-                                                   FontSize="10" Foreground="{StaticResource TextMutedBrush}"
-                                                   Margin="0,4,0,0"/>
-                                    </StackPanel>
-                                    <Button Grid.Column="1"
-                                            Classes="ghost" Padding="6,4"
-                                            ToolTip.Tip="Delete note"
-                                            VerticalAlignment="Center"
-                                            Command="{Binding DataContext.DeleteNoteCommand, RelativeSource={RelativeSource AncestorType={x:Type ListBox}}}"
-                                            CommandParameter="{Binding}">
-                                        <TextBlock Text="&#xD7;" FontSize="14"
-                                                   Foreground="{StaticResource ErrorBrush}"/>
-                                    </Button>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                    <ListBox.Styles>
-                        <Style Selector="ListBoxItem">
-                            <Setter Property="Padding"     Value="0"/>
-                            <Setter Property="Background"  Value="Transparent"/>
-                        </Style>
-                        <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
-                            <Setter Property="Background" Value="Transparent"/>
-                        </Style>
-                        <Style Selector="ListBoxItem:selected > Border">
-                            <Setter Property="BorderBrush"     Value="{StaticResource AccentBrush}"/>
-                            <Setter Property="BorderThickness"  Value="1"/>
-                        </Style>
-                    </ListBox.Styles>
-                </ListBox>
-            </Grid>
-        </Border>
-
-        <!-- RIGHT: Note Editor -->
-        <Border Grid.Column="1" Classes="card" Margin="10,0,0,0">
-            <Grid RowDefinitions="Auto,Auto,*,Auto">
-
-                <StackPanel Grid.Row="0" Margin="0,0,0,14">
-                    <TextBlock Text="Editor"
-                               FontSize="18" FontWeight="SemiBold"
-                               Foreground="{StaticResource TextPrimaryBrush}"/>
-                </StackPanel>
-
-                <!-- Title -->
-                <Border Grid.Row="1" Background="{StaticResource CardInnerBrush}"
-                        CornerRadius="8" Padding="2" Margin="0,0,0,10">
-                    <TextBox Text="{Binding CurrentTitle, Mode=TwoWay}"
-                             Background="Transparent" BorderThickness="0"
-                             Foreground="{StaticResource TextPrimaryBrush}"
-                             FontSize="15" FontWeight="SemiBold"
-                             Padding="12,9"
-                             Watermark="Note title..."/>
-                </Border>
-
-                <!-- Content -->
-                <Border Grid.Row="2" Background="{StaticResource CardInnerBrush}" CornerRadius="8" Padding="4">
-                    <TextBox Text="{Binding CurrentContent, Mode=TwoWay}"
-                             Background="Transparent" BorderThickness="0"
-                             Foreground="{StaticResource TextPrimaryBrush}"
-                             AcceptsReturn="True" AcceptsTab="True"
-                             TextWrapping="Wrap"
-                             FontSize="13"
-                             Padding="12"
-                             VerticalContentAlignment="Top"/>
-                </Border>
-
-                <!-- Actions -->
-                <Grid Grid.Row="3" Margin="0,12,0,0" ColumnDefinitions="Auto,*,Auto">
-                    <Button Grid.Column="0" Classes="primary" Padding="22,9"
-                            Command="{Binding SaveCurrentNoteCommand}"
-                            Content="Save"/>
-                    <TextBlock Grid.Column="1"
-                               Text="{Binding SelectedNote.ModifiedAt, StringFormat='Last saved: {0:MMM dd, yyyy HH:mm}'}"
-                               FontSize="11" Foreground="{StaticResource TextMutedBrush}"
-                               VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                    <Button Grid.Column="2" Content="Export" Classes="secondary"
-                            Padding="16,9" Click="ExportBtn_Click"
-                            ToolTip.Tip="Export as text file"/>
+                    <ListBox Grid.Row="1"
+                             ItemsSource="{Binding Notes}"
+                             SelectedItem="{Binding SelectedNote, Mode=TwoWay}"
+                             Background="Transparent"
+                             BorderThickness="0">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{DynamicResource CardInnerBrush}"
+                                        CornerRadius="8" Padding="12,10" Margin="0,0,0,5">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold"
+                                                       FontSize="13" TextTrimming="CharacterEllipsis"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="{Binding ModifiedAt, StringFormat='{}{0:MMM dd, HH:mm}'}"
+                                                       FontSize="10" Foreground="{DynamicResource TextMutedBrush}"
+                                                       Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1"
+                                                Classes="ghost" Padding="6,4"
+                                                ToolTip.Tip="Delete note"
+                                                VerticalAlignment="Center"
+                                                Command="{Binding DataContext.DeleteNoteCommand, RelativeSource={RelativeSource AncestorType={x:Type ListBox}}}"
+                                                CommandParameter="{Binding}">
+                                            <TextBlock Text="&#xD7;" FontSize="14"
+                                                       Foreground="{DynamicResource ErrorBrush}"/>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                        <ListBox.Styles>
+                            <Style Selector="ListBoxItem">
+                                <Setter Property="Padding"     Value="0"/>
+                                <Setter Property="Background"  Value="Transparent"/>
+                            </Style>
+                            <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                                <Setter Property="Background" Value="Transparent"/>
+                            </Style>
+                            <Style Selector="ListBoxItem:selected > Border">
+                                <Setter Property="BorderBrush"     Value="{DynamicResource AccentBrush}"/>
+                                <Setter Property="BorderThickness"  Value="1"/>
+                            </Style>
+                        </ListBox.Styles>
+                    </ListBox>
                 </Grid>
-            </Grid>
-        </Border>
-    </Grid>
+            </Border>
+
+            <!-- RIGHT (below when narrow): Note Editor -->
+            <Border Classes="card notesEditor">
+                <Grid RowDefinitions="Auto,Auto,*,Auto">
+
+                    <StackPanel Grid.Row="0" Margin="0,0,0,14">
+                        <TextBlock Text="Editor" Classes="editorHeading"
+                                   FontSize="18" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    </StackPanel>
+
+                    <!-- Title -->
+                    <Border Grid.Row="1" Background="{DynamicResource CardInnerBrush}"
+                            CornerRadius="8" Padding="2" Margin="0,0,0,10">
+                        <TextBox Text="{Binding CurrentTitle, Mode=TwoWay}"
+                                 Background="Transparent" BorderThickness="0"
+                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                 FontSize="15" FontWeight="SemiBold"
+                                 Padding="12,9"
+                                 Watermark="Note title..."/>
+                    </Border>
+
+                    <!-- Content -->
+                    <Border Grid.Row="2" Background="{DynamicResource CardInnerBrush}" CornerRadius="8" Padding="4">
+                        <TextBox Text="{Binding CurrentContent, Mode=TwoWay}"
+                                 Background="Transparent" BorderThickness="0"
+                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                 AcceptsReturn="True" AcceptsTab="True"
+                                 TextWrapping="Wrap"
+                                 FontSize="13"
+                                 Padding="12"
+                                 VerticalContentAlignment="Top"/>
+                    </Border>
+
+                    <!-- Actions -->
+                    <Grid Grid.Row="3" Margin="0,12,0,0" ColumnDefinitions="Auto,*,Auto">
+                        <Button Grid.Column="0" Classes="primary" Padding="22,9"
+                                Command="{Binding SaveCurrentNoteCommand}"
+                                Content="Save"/>
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding SelectedNote.ModifiedAt, StringFormat='Last saved: {0:MMM dd, yyyy HH:mm}'}"
+                                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                                   Margin="8,0"
+                                   TextWrapping="Wrap" TextAlignment="Center"
+                                   VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        <Button Grid.Column="2" Content="Export" Classes="secondary"
+                                Padding="16,9" Click="ExportBtn_Click"
+                                ToolTip.Tip="Export as text file"/>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+    </controls:PageHost>
 </UserControl>

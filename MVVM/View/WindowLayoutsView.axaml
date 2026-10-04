@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
              xmlns:models="clr-namespace:CenterHubNew.MVVM.Models"
+             xmlns:controls="clr-namespace:CenterHubNew.MVVM.Controls"
              x:Class="CenterHubNew.MVVM.View.WindowLayoutsView"
              x:DataType="viewmodel:WindowLayoutsViewModel"
              mc:Ignorable="d"
@@ -11,37 +12,27 @@
 
     <Grid>
         <!-- Main content -->
-        <ScrollViewer VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Disabled"
-                      Padding="24,20" Background="Transparent">
-            <Border MaxWidth="980" HorizontalAlignment="Center">
-            <StackPanel Spacing="0">
+        <controls:PageHost Title="Window Layouts"
+                           Subtitle="Snapshot your window arrangement and restore it with one click"
+                           Mode="Data">
 
-                <!-- PAGE HEADER -->
-                <Grid Margin="0,0,0,20" ColumnDefinitions="*,Auto">
-                    <StackPanel Grid.Column="0">
-                        <TextBlock Text="Window Layouts"
-                                   FontSize="22" FontWeight="Bold"
-                                   Foreground="{StaticResource TextPrimaryBrush}"/>
-                        <TextBlock Text="Snapshot your window arrangement and restore it with one click"
-                                   FontSize="12"
-                                   Foreground="{StaticResource TextMutedBrush}"
-                                   Margin="0,2,0,0"/>
+            <controls:PageHost.HeaderActions>
+                <Button Classes="primary"
+                        Padding="18,9" FontSize="13"
+                        Command="{Binding BeginCaptureCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="&#xE7C1;"
+                                   FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"
+                                   FontSize="14"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock Text="Capture Current Layout"
+                                   FontSize="13" FontWeight="SemiBold"
+                                   VerticalAlignment="Center"/>
                     </StackPanel>
-                    <Button Grid.Column="1" Classes="primary"
-                            Padding="18,9" FontSize="13"
-                            Command="{Binding BeginCaptureCommand}">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Text="&#xE7C1;"
-                                       FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"
-                                       FontSize="14"
-                                       VerticalAlignment="Center"/>
-                            <TextBlock Text="Capture Current Layout"
-                                       FontSize="13" FontWeight="SemiBold"
-                                       VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                </Grid>
+                </Button>
+            </controls:PageHost.HeaderActions>
+
+            <StackPanel Spacing="0">
 
                 <!-- HOW IT WORKS — only when no layouts saved yet -->
                 <Border Classes="card" Margin="0,0,0,12"
@@ -49,25 +40,26 @@
                     <Grid ColumnDefinitions="Auto,*">
                         <Border Grid.Column="0"
                                 Width="48" Height="48" CornerRadius="10"
-                                Background="{StaticResource AccentSubtleBrush}"
-                                BorderThickness="1" BorderBrush="{StaticResource AccentBrush}"
+                                Background="{DynamicResource AccentSubtleBrush}"
+                                BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}"
                                 VerticalAlignment="Center">
                             <TextBlock Text="&#xE737;"
                                        FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"
                                        FontSize="22"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       Foreground="{StaticResource AccentBrush}"/>
+                                       Foreground="{DynamicResource AccentBrush}"/>
                         </Border>
                         <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
                             <TextBlock Text="No layouts saved yet"
                                        FontSize="14" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"/>
+                                       TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
                             <TextBlock TextWrapping="Wrap" FontSize="12"
-                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
                                        Margin="0,2,0,0">
                                 <Run Text="Arrange your windows the way you like them, then click"/>
                                 <Run Text="Capture Current Layout" FontWeight="SemiBold"
-                                     Foreground="{StaticResource AccentBrush}"/>
+                                     Foreground="{DynamicResource AccentBrush}"/>
                                 <Run Text="above. Give it a name (e.g.&#x202F;'Work', 'Meeting', 'Gaming') and you can restore that exact arrangement any time."/>
                             </TextBlock>
                         </StackPanel>
@@ -76,55 +68,65 @@
 
                 <!-- SAVED LAYOUTS -->
                 <ItemsControl ItemsSource="{Binding Layouts}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <controls:AdaptiveColumnsPanel MinColumnWidth="340" MaxColumns="3"
+                                                           ColumnSpacing="12" RowSpacing="12"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="models:WindowLayoutItem">
-                            <Border Classes="card" Padding="18,16">
-                                <Grid ColumnDefinitions="Auto,*,Auto">
+                            <Border Classes="card" Padding="18,16" Margin="0">
+                                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
                                     <!-- Icon -->
-                                    <Border Grid.Column="0"
+                                    <Border Grid.Row="0" Grid.Column="0"
                                             Width="46" Height="46" CornerRadius="10"
-                                            Background="{StaticResource CardInnerBrush}"
-                                            BorderThickness="1" BorderBrush="{StaticResource BorderHairline}"
+                                            Background="{DynamicResource CardInnerBrush}"
+                                            BorderThickness="1" BorderBrush="{DynamicResource BorderHairline}"
                                             VerticalAlignment="Center">
                                         <TextBlock Text="&#xE737;"
                                                    FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"
                                                    FontSize="20"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                   Foreground="{StaticResource AccentBrush}"/>
+                                                   Foreground="{DynamicResource AccentBrush}"/>
                                     </Border>
 
                                     <!-- Title + metadata -->
-                                    <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
+                                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding Name}"
                                                    FontSize="15" FontWeight="SemiBold"
-                                                   Foreground="{StaticResource TextPrimaryBrush}"/>
-                                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,3,0,0">
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                        <WrapPanel Orientation="Horizontal" Margin="0,3,0,0">
                                             <TextBlock Text="{Binding CountDisplay}"
                                                        FontSize="11" FontWeight="SemiBold"
-                                                       Foreground="{StaticResource AccentBrush}"/>
-                                            <TextBlock Text="·" FontSize="11"
-                                                       Foreground="{StaticResource TextMutedBrush}"/>
+                                                       Foreground="{DynamicResource AccentBrush}"/>
+                                            <TextBlock Text="·" FontSize="11" Margin="6,0"
+                                                       Foreground="{DynamicResource TextMutedBrush}"/>
                                             <TextBlock Text="{Binding SavedAtDisplay}"
                                                        FontSize="11"
-                                                       Foreground="{StaticResource TextMutedBrush}"/>
-                                        </StackPanel>
+                                                       Foreground="{DynamicResource TextMutedBrush}"/>
+                                        </WrapPanel>
                                         <TextBlock Text="{Binding AppsDisplay}"
                                                    FontSize="11"
-                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                                    Margin="0,4,0,0"
+                                                   TextWrapping="Wrap" MaxLines="2"
                                                    TextTrimming="CharacterEllipsis"/>
                                     </StackPanel>
 
                                     <!-- Actions -->
-                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6"
-                                                VerticalAlignment="Center">
+                                    <WrapPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                               Orientation="Horizontal" Margin="0,12,0,0">
                                         <Button Classes="primary" Padding="16,8" FontSize="12"
+                                                Margin="0,0,6,0"
                                                 ToolTip.Tip="Restore this layout now"
                                                 Command="{Binding $parent[ItemsControl].((viewmodel:WindowLayoutsViewModel)DataContext).ApplyCommand}"
                                                 CommandParameter="{Binding}">
                                             <TextBlock Text="Apply" FontWeight="SemiBold"/>
                                         </Button>
                                         <Button Classes="secondary" Padding="10,8" FontSize="12"
+                                                Margin="0,0,6,0"
                                                 ToolTip.Tip="Overwrite with the current window arrangement"
                                                 Command="{Binding $parent[ItemsControl].((viewmodel:WindowLayoutsViewModel)DataContext).RecaptureCommand}"
                                                 CommandParameter="{Binding}">
@@ -133,6 +135,7 @@
                                                        FontSize="14"/>
                                         </Button>
                                         <Button Classes="secondary" Padding="10,8" FontSize="12"
+                                                Margin="0,0,6,0"
                                                 ToolTip.Tip="Rename"
                                                 Command="{Binding $parent[ItemsControl].((viewmodel:WindowLayoutsViewModel)DataContext).BeginRenameCommand}"
                                                 CommandParameter="{Binding}">
@@ -147,9 +150,9 @@
                                             <TextBlock Text="&#xE74D;"
                                                        FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"
                                                        FontSize="14"
-                                                       Foreground="{StaticResource ErrorBrush}"/>
+                                                       Foreground="{DynamicResource ErrorBrush}"/>
                                         </Button>
-                                    </StackPanel>
+                                    </WrapPanel>
                                 </Grid>
                             </Border>
                         </DataTemplate>
@@ -157,17 +160,17 @@
                 </ItemsControl>
 
                 <!-- HINT — only when layouts exist -->
-                <Border Classes="card" Margin="0,0,0,0"
+                <Border Classes="card" Margin="0,12,0,0"
                         IsVisible="{Binding HasLayouts}">
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,10" Spacing="8">
                             <Border Width="3" Height="14" CornerRadius="2"
-                                    Background="{StaticResource SuccessBrush}" VerticalAlignment="Center"/>
+                                    Background="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
                             <TextBlock Text="TIPS" FontSize="10" FontWeight="Bold" LetterSpacing="1"
-                                       Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                       Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
                         </StackPanel>
                         <TextBlock TextWrapping="Wrap" FontSize="12"
-                                   Foreground="{StaticResource TextSecondaryBrush}">
+                                   Foreground="{DynamicResource TextSecondaryBrush}">
                             <Run Text="• The first three layouts can be bound to global hotkeys (Apply Layout 1 / 2 / 3) in the Hotkeys page — perfect for F-key shortcuts."/>
                             <LineBreak/>
                             <Run Text="• Windows are matched by process name and a fragment of the title — works even after closing and reopening the app."/>
@@ -178,30 +181,25 @@
                         </TextBlock>
                     </StackPanel>
                 </Border>
-
-                <!-- Trailing breathing room — last card otherwise sits flush
-                     against the viewport edge at max scroll. -->
-                <Border Height="24"/>
             </StackPanel>
-            </Border>
-        </ScrollViewer>
+        </controls:PageHost>
 
         <!-- ===== CAPTURE NAME DIALOG ===== -->
         <Border Background="#A8000000" IsVisible="{Binding IsNameDialogOpen}" ZIndex="500">
-            <Border Width="420"
-                    Background="{StaticResource CardBackgroundBrush}"
-                    BorderThickness="1" BorderBrush="{StaticResource BorderHairline}"
+            <Border MaxWidth="420" Margin="16"
+                    Background="{DynamicResource CardBackgroundBrush}"
+                    BorderThickness="1" BorderBrush="{DynamicResource BorderHairline}"
                     CornerRadius="12" Padding="24"
-                    VerticalAlignment="Center" HorizontalAlignment="Center"
+                    VerticalAlignment="Center" HorizontalAlignment="Stretch"
                     BoxShadow="0 12 40 0 #80000000">
                 <StackPanel Spacing="0">
                     <TextBlock Text="Name this layout"
                                FontSize="17" FontWeight="SemiBold"
-                               Foreground="{StaticResource TextPrimaryBrush}"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
                                Margin="0,0,0,6"/>
                     <TextBlock Text="It'll snapshot every visible window's position, size, and monitor."
                                FontSize="12"
-                               Foreground="{StaticResource TextMutedBrush}"
+                               Foreground="{DynamicResource TextMutedBrush}"
                                Margin="0,0,0,16"
                                TextWrapping="Wrap"/>
                     <TextBox Text="{Binding NewLayoutName, Mode=TwoWay}"
@@ -222,16 +220,16 @@
 
         <!-- ===== RENAME DIALOG ===== -->
         <Border Background="#A8000000" IsVisible="{Binding IsRenameDialogOpen}" ZIndex="500">
-            <Border Width="420"
-                    Background="{StaticResource CardBackgroundBrush}"
-                    BorderThickness="1" BorderBrush="{StaticResource BorderHairline}"
+            <Border MaxWidth="420" Margin="16"
+                    Background="{DynamicResource CardBackgroundBrush}"
+                    BorderThickness="1" BorderBrush="{DynamicResource BorderHairline}"
                     CornerRadius="12" Padding="24"
-                    VerticalAlignment="Center" HorizontalAlignment="Center"
+                    VerticalAlignment="Center" HorizontalAlignment="Stretch"
                     BoxShadow="0 12 40 0 #80000000">
                 <StackPanel Spacing="0">
                     <TextBlock Text="Rename layout"
                                FontSize="17" FontWeight="SemiBold"
-                               Foreground="{StaticResource TextPrimaryBrush}"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
                                Margin="0,0,0,16"/>
                     <TextBox Text="{Binding RenameInput, Mode=TwoWay}"
                              Classes="input" FontSize="14"

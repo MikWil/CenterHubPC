@@ -10,10 +10,19 @@
 param(
     [string]$Exe = "$PSScriptRoot\..\bin\x64\Debug\net10.0-windows10.0.22621.0\CenterHubNew.exe",
     [string]$OutDir = "$env:TEMP\centerhub-smoke-quiet",
-    [string[]]$Screenshot = @('Metronome', 'Sound')
+    [string[]]$Screenshot = @('Metronome', 'Sound'),
+    # Window sizes ("WIDTHxHEIGHT") to resize to after the page tour; each size screenshots the
+    # pages in -SizePages. Resizing uses SetWindowPos — still no input and no focus change.
+    [string[]]$Sizes = @(),
+    [string[]]$SizePages = @('Home', 'Sound', 'Metronome')
 )
 
 $ErrorActionPreference = 'Stop'
+
+# "powershell -File" passes "a,b" as ONE string, not an array — split lists ourselves.
+$Screenshot = @($Screenshot | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
+$Sizes = @($Sizes | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
+$SizePages = @($SizePages | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, System.Drawing
 Add-Type -ReferencedAssemblies System.Drawing @"
 using System;
@@ -24,6 +33,8 @@ public static class QuietWin {
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
   [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr dc, uint flags);
   [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint m, IntPtr w, IntPtr l);
+  [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint flags);
+  public static void Resize(IntPtr h, int w, int ht) { SetWindowPos(h, IntPtr.Zero, 40, 40, w, ht, 0x0004 | 0x0010); }   // NOZORDER | NOACTIVATE
   public static void Capture(IntPtr h, string path) {
     RECT r; GetWindowRect(h, out r);
     using (var bmp = new Bitmap(Math.Max(1, r.R - r.L), Math.Max(1, r.B - r.T)))
@@ -48,6 +59,7 @@ function Report([string]$name, [bool]$ok) {
 }
 
 $pages = [ordered]@{
+    'Home' = 'Home'; 'Settings' = 'Settings'
     'Monitoring' = 'Monitoring'; 'Standing' = 'Standing Timer'; 'Notes' = 'Notes'; 'Layouts' = 'Window Layouts'
     'Sound' = 'Sound'; 'Soundboard' = 'Soundboard'; 'Utilities' = 'Utilities'; 'Auto Clicker' = 'Auto Clicker'
     'Clipboard' = 'Clipboard History'; 'Randomizer' = 'Randomizer'; 'Metronome' = 'Metronome'
@@ -63,6 +75,23 @@ function Has-Heading($win, [string]$heading) {
     }
     return $false
 }
+
+function Select-Page($win, [string]$nav) {
+    $item = $win.FindFirst('Descendants', (New-Object System.Windows.Automation.AndCondition(
+        (New-Object System.Windows.Automation.PropertyCondition($AE::ControlTypeProperty, $CT::RadioButton)),
+        (New-Object System.Windows.Automation.PropertyCondition($AE::NameProperty, $nav)))))
+    if ($item) { $item.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select() }
+    return $null -ne $item
+}
+
+# The test instance shares %AppData%\CenterHub with the installed app and saves into it (window size
+# and position, settings it touches). Put every file back afterwards so a test run at an odd window
+# size never becomes the user's layout.
+$dataDir = Join-Path $env:APPDATA 'CenterHub'
+$backupDir = Join-Path $env:TEMP ("centerhub-smoke-backup-" + [Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Force $backupDir | Out-Null
+$hadFiles = @(Get-ChildItem $dataDir -File -Filter '*.json' -ErrorAction SilentlyContinue)
+foreach ($f in $hadFiles) { Copy-Item $f.FullName $backupDir }
 
 $env:CENTERHUB_DEV_INSTANCE = '1'
 $proc = Start-Process $exePath -PassThru
@@ -106,6 +135,24 @@ try {
             "      screenshot: $file"
         }
     }
+
+    $hwnd = [IntPtr]$win.Current.NativeWindowHandle
+    foreach ($size in $Sizes) {
+        $w, $h = $size -split 'x' | ForEach-Object { [int]$_ }
+        [QuietWin]::Resize($hwnd, $w, $h)
+        Start-Sleep -Milliseconds 1200
+        foreach ($nav in $SizePages) {
+            # In the narrow drawer layout the sidebar items are not in the tree; the current page stays.
+            $selected = Select-Page $win $nav
+            Start-Sleep -Milliseconds 1200
+            $proc.Refresh()
+            if ($proc.HasExited) { throw "the app exited at $size" }
+            $file = Join-Path $OutDir ("size-$w-" + ($nav -replace ' ', '') + ".png")
+            [QuietWin]::Capture($hwnd, $file)
+            "      $size $nav$(if (-not $selected) { ' (sidebar item not reachable — current page)' }): $file"
+        }
+        Report "Window resized to $size without crashing" (-not $proc.HasExited)
+    }
 }
 catch { "ERROR: $($_.Exception.Message)"; $failures++ }
 finally {
@@ -115,6 +162,14 @@ finally {
         if ($win) { [QuietWin]::PostMessage([IntPtr]$win.Current.NativeWindowHandle, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null }
         if (-not $proc.WaitForExit(8000)) { $proc.Kill(); "      (had to force-close the test instance)" }
     }
+
+    # Put the user's settings back exactly as they were (and remove files the test created).
+    foreach ($f in @(Get-ChildItem $dataDir -File -Filter '*.json' -ErrorAction SilentlyContinue)) {
+        $original = Join-Path $backupDir $f.Name
+        if (Test-Path $original) { Copy-Item $original $f.FullName -Force }
+        elseif ($hadFiles.Name -notcontains $f.Name) { Remove-Item $f.FullName -Force }
+    }
+    Remove-Item $backupDir -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 if ($failures -eq 0) { 'ALL PASS' } else { "$failures FAILED" }

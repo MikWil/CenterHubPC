@@ -8,88 +8,94 @@
         x:DataType="viewmodel:MainViewModel"
         mc:Ignorable="d"
         Height="880" Width="1360"
-        MinHeight="500" MinWidth="820"
-        SystemDecorations="None"
+        MinHeight="420" MinWidth="480"
+        SystemDecorations="Full"
         TransparencyLevelHint="Mica,AcrylicBlur"
         Background="Transparent"
         WindowStartupLocation="CenterScreen"
         CanResize="True"
         ExtendClientAreaToDecorationsHint="True"
-        ExtendClientAreaChromeHints="NoChrome">
+        ExtendClientAreaChromeHints="PreferSystemChrome"
+        ExtendClientAreaTitleBarHeightHint="46">
 
-    <Border Background="{StaticResource BackgroundDarkBrush}"
-            BorderThickness="1"
-            BorderBrush="{StaticResource BorderHairline}"
-            CornerRadius="8">
-        <Grid RowDefinitions="Auto,Auto,*">
+    <!-- No outer rounded frame: Windows 11 rounds and shadows the window itself. -->
+    <Grid RowDefinitions="Auto,*" Background="{DynamicResource BackgroundDarkBrush}">
 
-            <!-- ===== TITLE BAR ===== -->
-            <Border Grid.Row="0"
-                    Background="{StaticResource TitleBarBackgroundBrush}"
-                    BorderThickness="0,0,0,1"
-                    BorderBrush="{StaticResource BorderHairline}"
-                    CornerRadius="8,8,0,0"
-                    PointerPressed="TitleBar_PointerPressed">
-                <Grid ColumnDefinitions="*,Auto" Height="46">
+        <!-- ===== TITLE BAR (not scaled by the UI zoom) =====
+             Windows draws the native minimize / maximize / close buttons over the right edge,
+             so the last column reserves room for them. -->
+        <Border Grid.Row="0"
+                Background="{DynamicResource TitleBarBackgroundBrush}"
+                BorderThickness="0,0,0,1"
+                BorderBrush="{DynamicResource BorderHairline}"
+                PointerPressed="TitleBar_PointerPressed">
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" Height="46">
 
-                    <!-- App identity -->
-                    <StackPanel Grid.Column="0"
-                                Orientation="Horizontal"
-                                VerticalAlignment="Center"
-                                Margin="20,0,0,0"
-                                Spacing="10">
-                        <!-- Dot logo -->
-                        <Border Width="22" Height="22" CornerRadius="11"
-                                Background="{StaticResource AccentBrush}"
-                                VerticalAlignment="Center">
-                            <Border Width="8" Height="8" CornerRadius="4"
-                                    Background="{StaticResource TextOnAccentBrush}"
-                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <TextBlock Text="CenterHub"
-                                   FontSize="15" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextPrimaryBrush}"
-                                   VerticalAlignment="Center"/>
-                        <TextBlock Text="{Binding AppVersion}"
-                                   FontSize="11"
-                                   Foreground="{StaticResource TextMutedBrush}"
-                                   VerticalAlignment="Center"/>
-                    </StackPanel>
+                <!-- Hamburger: opens the sidebar drawer when the window is too narrow for a column -->
+                <Button Grid.Column="0"
+                        Classes="chrome"
+                        Margin="8,0,0,0"
+                        VerticalAlignment="Center"
+                        IsVisible="{Binding IsSidebarHidden}"
+                        Command="{Binding ToggleDrawerCommand}"
+                        ToolTip.Tip="Menu">
+                    <TextBlock Text="&#xE700;"
+                               FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"
+                               FontSize="16"/>
+                </Button>
 
-                    <!-- Window controls -->
-                    <StackPanel Grid.Column="1"
-                                Orientation="Horizontal"
-                                VerticalAlignment="Center"
-                                Margin="0,0,6,0"
-                                Spacing="2">
-                        <Button Classes="chrome"
-                                FontSize="14"
-                                Foreground="{StaticResource TextMutedBrush}"
-                                Click="FavoritesButton_Click"
-                                ToolTip.Tip="Favorites Panel">
-                            <TextBlock Text="&#x2605;" FontSize="14"/>
-                        </Button>
-                        <Button Classes="chrome"
-                                Foreground="{StaticResource TextMutedBrush}"
-                                Click="MinimizeButton_Click"
-                                ToolTip.Tip="Minimize to tray">
-                            <TextBlock Text="&#x2212;" FontSize="16" FontWeight="Bold"/>
-                        </Button>
-                        <Button Classes="chrome close"
-                                Foreground="{StaticResource TextMutedBrush}"
-                                Click="CloseButton_Click"
-                                ToolTip.Tip="Close">
-                            <TextBlock Text="&#xD7;" FontSize="16" FontWeight="Bold"/>
-                        </Button>
-                    </StackPanel>
-                </Grid>
-            </Border>
+                <!-- App identity -->
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center"
+                            Margin="16,0,0,0"
+                            Spacing="10">
+                    <!-- Dot logo -->
+                    <Border Width="22" Height="22" CornerRadius="11"
+                            Background="{DynamicResource AccentBrush}"
+                            VerticalAlignment="Center">
+                        <Border Width="8" Height="8" CornerRadius="4"
+                                Background="{DynamicResource TextOnAccentBrush}"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Text="CenterHub"
+                               FontSize="15" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding AppVersion}"
+                               FontSize="11"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Favorites -->
+                <Button Grid.Column="3"
+                        Classes="chrome"
+                        FontSize="14"
+                        VerticalAlignment="Center"
+                        Margin="0,0,6,0"
+                        Foreground="{DynamicResource TextMutedBrush}"
+                        Click="FavoritesButton_Click"
+                        ToolTip.Tip="Favorites Panel">
+                    <TextBlock Text="&#x2605;" FontSize="14"/>
+                </Button>
+
+                <!-- Space under the system caption buttons (resized from WindowDecorationMargin) -->
+                <Border Grid.Column="4" x:Name="CaptionSpacer" Width="150" IsHitTestVisible="False"/>
+            </Grid>
+        </Border>
+
+        <!-- ===== EVERYTHING BELOW THE TITLE BAR — scaled by the UI zoom ===== -->
+        <LayoutTransformControl Grid.Row="1" LayoutTransform="{Binding ZoomTransform}">
+            <Grid x:Name="ContentRoot"
+                  RowDefinitions="Auto,*"
+                  Classes.compact="{Binding IsCompact}">
 
             <!-- ===== UPDATE BANNER ===== -->
-            <Border Grid.Row="1"
-                    Background="{StaticResource AccentSubtleBrush}"
+            <Border Grid.Row="0"
+                    Background="{DynamicResource AccentSubtleBrush}"
                     BorderThickness="0,0,0,1"
-                    BorderBrush="{StaticResource AccentBrush}"
+                    BorderBrush="{DynamicResource AccentBrush}"
                     Padding="20,10"
                     IsVisible="{Binding IsUpdateAvailable}">
                 <Grid ColumnDefinitions="Auto,*,Auto,Auto" RowDefinitions="Auto,Auto">
@@ -97,13 +103,13 @@
                     <!-- Status icon -->
                     <Border Grid.Column="0" Grid.RowSpan="2"
                             Width="34" Height="34" CornerRadius="10"
-                            Background="{StaticResource AccentBrush}"
+                            Background="{DynamicResource AccentBrush}"
                             VerticalAlignment="Center" Margin="0,0,14,0">
                         <TextBlock Text="&#xE895;"
                                    FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"
                                    FontSize="17"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   Foreground="{StaticResource TextOnAccentBrush}"/>
+                                   Foreground="{DynamicResource TextOnAccentBrush}"/>
                     </Border>
 
                     <!-- Headline + body preview -->
@@ -111,16 +117,16 @@
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <TextBlock Text="Update available —"
                                        FontSize="13" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
                                        VerticalAlignment="Center"/>
                             <TextBlock Text="{Binding UpdateHeadline}"
                                        FontSize="13" FontWeight="SemiBold"
-                                       Foreground="{StaticResource AccentHoverBrush}"
+                                       Foreground="{DynamicResource AccentHoverBrush}"
                                        VerticalAlignment="Center"/>
                         </StackPanel>
                         <TextBlock Text="{Binding UpdateBodyPreview}"
                                    FontSize="11"
-                                   Foreground="{StaticResource TextMutedBrush}"
+                                   Foreground="{DynamicResource TextMutedBrush}"
                                    TextTrimming="CharacterEllipsis"
                                    MaxWidth="700"
                                    HorizontalAlignment="Left"
@@ -132,7 +138,7 @@
                                      MinWidth="240"
                                      HorizontalAlignment="Left"
                                      Margin="0,6,0,0"
-                                     Foreground="{StaticResource AccentBrush}"
+                                     Foreground="{DynamicResource AccentBrush}"
                                      IsVisible="{Binding IsDownloadingUpdate}"/>
                     </StackPanel>
 
@@ -159,168 +165,87 @@
                         <TextBlock Text="&#xE894;"
                                    FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"
                                    FontSize="14"
-                                   Foreground="{StaticResource TextMutedBrush}"/>
+                                   Foreground="{DynamicResource TextMutedBrush}"/>
                     </Button>
                 </Grid>
             </Border>
 
-            <!-- ===== MAIN LAYOUT: sidebar + content ===== -->
-            <Grid Grid.Row="2">
+            <!-- ===== MAIN LAYOUT: sidebar + content (+ status strip) ===== -->
+            <Grid Grid.Row="1">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="{Binding SidebarWidth}"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- SIDEBAR -->
-                <Border Grid.Column="0"
-                        Background="{StaticResource SidebarBackgroundBrush}"
+                <!-- CONTENT AREA (Mica shows through) -->
+                <Grid Grid.Column="1" Background="Transparent" RowDefinitions="*,Auto">
+                    <ContentControl Grid.Row="0" Content="{Binding CurrentView}"/>
+                    <!-- Bottom-right, in the row above the status strip, so toasts never cover
+                         page-header action buttons or the strip. -->
+                    <view:ToastContainer Grid.Row="0"
+                                         HorizontalAlignment="Right"
+                                         VerticalAlignment="Bottom"
+                                         Margin="0,0,16,16"/>
+                    <!-- Status strip slot -->
+                    <ContentControl Grid.Row="1"
+                                    Content="{Binding StatusStrip}"
+                                    IsVisible="{Binding IsStatusStripVisible}"/>
+                </Grid>
+
+                <!-- Drawer backdrop (only while the sidebar is a drawer and open) -->
+                <Border Grid.ColumnSpan="2"
+                        Background="#80000000"
+                        ZIndex="40"
+                        IsVisible="{Binding IsDrawerOpen}"
+                        PointerPressed="DrawerBackdrop_PointerPressed"/>
+
+                <!-- SIDEBAR. One instance for every mode: the grid column sets its footprint,
+                     and as a drawer it simply overlays the content. -->
+                <Border x:Name="SidebarPanel"
+                        Grid.ColumnSpan="2"
+                        HorizontalAlignment="Left"
+                        ZIndex="50"
+                        Width="{Binding SidebarPanelWidth}"
+                        IsVisible="{Binding IsSidebarPanelVisible}"
+                        Classes.rail="{Binding IsSidebarRail}"
+                        Background="{DynamicResource SidebarBackgroundBrush}"
                         BorderThickness="0,0,1,0"
-                        BorderBrush="{StaticResource BorderHairline}">
+                        BorderBrush="{DynamicResource BorderHairline}">
                     <Grid RowDefinitions="*,Auto">
 
                         <ScrollViewer Grid.Row="0"
                                       VerticalScrollBarVisibility="Hidden"
-                                      Padding="0,12,0,0">
-                            <StackPanel>
-
-                                <!-- DASHBOARD -->
-                                <TextBlock Text="DASHBOARD"
-                                           FontSize="9" FontWeight="Bold" LetterSpacing="1.5"
-                                           Foreground="{StaticResource TextMutedBrush}"
-                                           Margin="18,0,0,6"
-                                           IsVisible="{Binding IsSidebarExpanded}"/>
-                                <RadioButton Classes="navtab"
-                                             Tag="&#xEC4A;"
-                                             Content="Monitoring"
-                                             ToolTip.Tip="Real-time hardware monitoring"
-                                             IsChecked="{Binding IsMonitoringSelected}"
-                                             Command="{Binding MonitoringViewCommand}"
-                                             GroupName="Nav"/>
-
-                                <!-- PRODUCTIVITY -->
-                                <TextBlock Text="PRODUCTIVITY"
-                                           FontSize="9" FontWeight="Bold" LetterSpacing="1.5"
-                                           Foreground="{StaticResource TextMutedBrush}"
-                                           Margin="18,16,0,6"
-                                           IsVisible="{Binding IsSidebarExpanded}"/>
-                                <RadioButton Classes="navtab"
-                                             Tag="&#xE916;"
-                                             Content="Standing"
-                                             ToolTip.Tip="Sit/Stand timer"
-                                             IsChecked="{Binding IsStandingSelected}"
-                                             Command="{Binding StandingViewCommand}"
-                                             GroupName="Nav"/>
-                                <RadioButton Classes="navtab"
-                                             Tag="&#xE70B;"
-                                             Content="Notes"
-                                             ToolTip.Tip="Quick notes"
-                                             IsChecked="{Binding IsNotesSelected}"
-                                             Command="{Binding NotesViewCommand}"
-                                             GroupName="Nav"/>
-                                <RadioButton Classes="navtab"
-                                             Tag="&#xE737;"
-                                             Content="Layouts"
-                                             ToolTip.Tip="Save and restore window arrangements"
-                                             IsChecked="{Binding IsLayoutsSelected}"
-                                             Command="{Binding LayoutsViewCommand}"
-                                             GroupName="Nav"/>
-
-                                <!-- MEDIA -->
-                                <TextBlock Text="MEDIA"
-                                           FontSize="9" FontWeight="Bold" LetterSpacing="1.5"
-                                           Foreground="{StaticResource TextMutedBrush}"
-                                           Margin="18,16,0,6"
-                                           IsVisible="{Binding IsSidebarExpanded}"/>
-                                <RadioButton Classes="navtab"
-                                             Tag="&#xE767;"
-                                             Content="Sound"
-                                             ToolTip.Tip="Audio profiles and devices"
-                                             IsChecked="{Binding IsSoundSelected}"
-                                             Command="{Binding SoundViewCommand}"
-                                             GroupName="Nav"/>
-                                <RadioButton Classes="navtab"
-                                             Tag="&#xE955;"
-                                             Content="Soundboard"
-                                             ToolTip.Tip="Trigger sound clips"
-                                             IsChecked="{Binding IsSoundboardSelected}"
-                                             Command="{Binding SoundboardViewCommand}"
-                                             GroupName="Nav"/>
-
-                                <!-- TOOLS -->
-                                <TextBlock Text="TOOLS"
-                                           FontSize="9" FontWeight="Bold" LetterSpacing="1.5"
-                                           Foreground="{StaticResource TextMutedBrush}"
-                                           Margin="18,16,0,6"
-                                           IsVisible="{Binding IsSidebarExpanded}"/>
-                                <RadioButton Classes="navtab"
-                                             Tag="&#xEC7A;"
-                                             Content="Utilities"
-                                             ToolTip.Tip="Encoders, converters, generators"
-                                             IsChecked="{Binding IsUtilitiesSelected}"
-                                             Command="{Binding UtilitiesViewCommand}"
-                                             GroupName="Nav"/>
-                                <RadioButton Classes="navtab"
-                                             Tag="&#xF272;"
-                                             Content="Auto Clicker"
-                                             ToolTip.Tip="Automated mouse clicks"
-                                             IsChecked="{Binding IsAutoClickerSelected}"
-                                             Command="{Binding AutoClickerViewCommand}"
-                                             GroupName="Nav"/>
-                                <RadioButton Classes="navtab"
-                                             Tag="&#xF0E3;"
-                                             Content="Clipboard"
-                                             ToolTip.Tip="Clipboard history"
-                                             IsChecked="{Binding IsClipboardSelected}"
-                                             Command="{Binding ClipboardViewCommand}"
-                                             GroupName="Nav"/>
-
-                                <!-- HOBBY -->
-                                <TextBlock Text="HOBBY"
-                                           FontSize="9" FontWeight="Bold" LetterSpacing="1.5"
-                                           Foreground="{StaticResource TextMutedBrush}"
-                                           Margin="18,16,0,6"
-                                           IsVisible="{Binding IsSidebarExpanded}"/>
-                                <RadioButton Classes="navtab"
-                                             Tag="&#xF4A5;"
-                                             Content="Randomizer"
-                                             ToolTip.Tip="Pick a random option from a custom list"
-                                             IsChecked="{Binding IsRandomizerSelected}"
-                                             Command="{Binding RandomizerViewCommand}"
-                                             GroupName="Nav"/>
-                                <RadioButton Classes="navtab"
-                                             Tag="&#xEC4F;"
-                                             Content="Metronome"
-                                             ToolTip.Tip="Audible click track at any tempo"
-                                             IsChecked="{Binding IsMetronomeSelected}"
-                                             Command="{Binding MetronomeViewCommand}"
-                                             GroupName="Nav"/>
-
-                                <!-- SYSTEM -->
-                                <TextBlock Text="SYSTEM"
-                                           FontSize="9" FontWeight="Bold" LetterSpacing="1.5"
-                                           Foreground="{StaticResource TextMutedBrush}"
-                                           Margin="18,16,0,6"
-                                           IsVisible="{Binding IsSidebarExpanded}"/>
-                                <RadioButton Classes="navtab"
-                                             Tag="&#xE701;"
-                                             Content="Network"
-                                             ToolTip.Tip="Wi-Fi signal + connection fixes"
-                                             IsChecked="{Binding IsNetworkSelected}"
-                                             Command="{Binding NetworkViewCommand}"
-                                             GroupName="Nav"/>
-                                <RadioButton Classes="navtab"
-                                             Tag="&#xE92E;"
-                                             Content="Hotkeys"
-                                             ToolTip.Tip="Global keyboard shortcuts"
-                                             IsChecked="{Binding IsHotkeySettingsSelected}"
-                                             Command="{Binding HotkeySettingsViewCommand}"
-                                             GroupName="Nav"/>
-                            </StackPanel>
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      Padding="0,6,0,0">
+                            <ItemsControl ItemsSource="{Binding NavGroups}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="viewmodel:NavGroupViewModel">
+                                        <StackPanel Margin="0,0,0,6">
+                                            <TextBlock Classes="navheader"
+                                                       Text="{Binding DisplayHeader}"/>
+                                            <ItemsControl ItemsSource="{Binding Items}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="viewmodel:NavItemViewModel">
+                                                        <RadioButton Classes="navtab"
+                                                                     GroupName="Nav"
+                                                                     Content="{Binding Title}"
+                                                                     Tag="{Binding Glyph}"
+                                                                     ToolTip.Tip="{Binding Tooltip}"
+                                                                     IsChecked="{Binding IsSelected, Mode=TwoWay}"/>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </ScrollViewer>
 
-                        <!-- Collapse / expand button -->
+                        <!-- Collapse / expand button (Expanded <-> Rail) -->
                         <Button Grid.Row="1"
                                 Command="{Binding ToggleSidebarCommand}"
+                                IsVisible="{Binding !IsSidebarHidden}"
+                                ToolTip.Tip="{Binding SidebarToggleTooltip}"
                                 Cursor="Hand"
                                 Margin="8,0,8,16"
                                 Classes="secondary"
@@ -329,31 +254,21 @@
                                 HorizontalContentAlignment="Center">
                             <TextBlock Text="{Binding SidebarToggleIcon}"
                                        FontSize="13"
-                                       Foreground="{StaticResource TextMutedBrush}"
+                                       Foreground="{DynamicResource TextMutedBrush}"
                                        HorizontalAlignment="Center"/>
                         </Button>
                     </Grid>
                 </Border>
-
-                <!-- CONTENT AREA (Mica shows through) -->
-                <Grid Grid.Column="1" Background="Transparent">
-                    <ContentControl Content="{Binding CurrentView}"/>
-                    <!-- Bottom-right so toasts never cover page-header action buttons. -->
-                    <view:ToastContainer HorizontalAlignment="Right"
-                                         VerticalAlignment="Bottom"
-                                         Margin="0,0,16,16"/>
-                </Grid>
             </Grid>
 
-
             <!-- ===== "WHAT'S NEW" POPUP (after an update) ===== -->
-            <Border Grid.RowSpan="3"
+            <Border Grid.RowSpan="2"
                     Background="#A8000000"
                     IsVisible="{Binding IsWhatsNewOpen}"
                     ZIndex="1100">
                 <Border Width="560" MaxHeight="620"
-                        Background="{StaticResource CardBackgroundBrush}"
-                        BorderThickness="1" BorderBrush="{StaticResource BorderHairline}"
+                        Background="{DynamicResource CardBackgroundBrush}"
+                        BorderThickness="1" BorderBrush="{DynamicResource BorderHairline}"
                         CornerRadius="12"
                         Padding="28,24"
                         VerticalAlignment="Center"
@@ -363,17 +278,17 @@
                         <!-- Header -->
                         <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" Margin="0,0,0,16">
                             <Border Width="36" Height="36" CornerRadius="18"
-                                    Background="{StaticResource AccentSubtleBrush}"
-                                    BorderThickness="1" BorderBrush="{StaticResource AccentBrush}"
+                                    Background="{DynamicResource AccentSubtleBrush}"
+                                    BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}"
                                     VerticalAlignment="Center">
                                 <TextBlock Text="&#xE789;" FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
                                            FontSize="16"
                                            HorizontalAlignment="Center" VerticalAlignment="Center"
-                                           Foreground="{StaticResource AccentBrush}"/>
+                                           Foreground="{DynamicResource AccentBrush}"/>
                             </Border>
                             <TextBlock Text="{Binding WhatsNewTitle}"
                                        FontSize="18" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
                                        VerticalAlignment="Center"/>
                         </StackPanel>
 
@@ -382,7 +297,7 @@
                             <SelectableTextBlock Text="{Binding WhatsNewBody}"
                                                  TextWrapping="Wrap"
                                                  FontSize="13" LineHeight="20"
-                                                 Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                 Foreground="{DynamicResource TextSecondaryBrush}"/>
                         </ScrollViewer>
 
                         <!-- Actions -->
@@ -397,13 +312,13 @@
             </Border>
 
             <!-- ===== VOICEMEETER AUDIO-RESTORE PROMPT (after a crash) ===== -->
-            <Border Grid.RowSpan="3"
+            <Border Grid.RowSpan="2"
                     Background="#A8000000"
                     IsVisible="{Binding IsAudioRestoreOpen}"
                     ZIndex="1200">
                 <Border Width="440"
-                        Background="{StaticResource CardBackgroundBrush}"
-                        BorderThickness="1" BorderBrush="{StaticResource BorderHairline}"
+                        Background="{DynamicResource CardBackgroundBrush}"
+                        BorderThickness="1" BorderBrush="{DynamicResource BorderHairline}"
                         CornerRadius="12"
                         Padding="28,24"
                         VerticalAlignment="Center"
@@ -412,23 +327,23 @@
                     <StackPanel Spacing="0">
                         <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,0,12">
                             <Border Width="36" Height="36" CornerRadius="18"
-                                    Background="{StaticResource AccentSubtleBrush}"
-                                    BorderThickness="1" BorderBrush="{StaticResource AccentBrush}"
+                                    Background="{DynamicResource AccentSubtleBrush}"
+                                    BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}"
                                     VerticalAlignment="Center">
                                 <TextBlock Text="&#xE7F3;" FontFamily="Segoe Fluent Icons,Segoe MDL2 Assets"
                                            FontSize="16"
                                            HorizontalAlignment="Center" VerticalAlignment="Center"
-                                           Foreground="{StaticResource AccentBrush}"/>
+                                           Foreground="{DynamicResource AccentBrush}"/>
                             </Border>
                             <TextBlock Text="Voicemeeter isn't running"
                                        FontSize="18" FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
                                        VerticalAlignment="Center"/>
                         </StackPanel>
 
                         <TextBlock Text="{Binding AudioRestoreBody}"
                                    TextWrapping="Wrap" FontSize="13"
-                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                    Margin="0,0,0,22"/>
 
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
@@ -446,6 +361,20 @@
                 </Border>
             </Border>
 
-        </Grid>
-    </Border>
+
+            <!-- ===== OVERLAY LAYER (command palette, setup wizard) ===== -->
+            <Border x:Name="OverlayLayer"
+                    Grid.RowSpan="2"
+                    Background="#A8000000"
+                    IsVisible="{Binding HasOverlay}"
+                    ZIndex="1300"
+                    PointerPressed="OverlayBackdrop_PointerPressed">
+                <ContentControl Content="{Binding Overlay}"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"/>
+            </Border>
+
+            </Grid>
+        </LayoutTransformControl>
+    </Grid>
 </Window>

@@ -42,6 +42,11 @@ namespace CenterHubNew.MVVM.Models
         MetronomeFill,
         MetronomeNextPart,
         MetronomeTapTempo,
+        MetronomeNextSong,
+        MetronomePrevSong,
+
+        // App (added in 7.0 — appended so saved names keep their meaning)
+        AppCommandPalette,
     }
 
     /// <summary>

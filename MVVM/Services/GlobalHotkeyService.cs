@@ -178,6 +178,7 @@ namespace CenterHubNew.MVVM.Services
         private void InitializeDefaultBindings()
         {
             Add(HotkeyAction.AppShowHide, "Show / Hide Window", "APP");
+            Add(HotkeyAction.AppCommandPalette, "Command Palette", "APP");
             Add(HotkeyAction.AutoClickerStartStop, "Start / Stop", "AUTO CLICKER");
             Add(HotkeyAction.AutoClickerCapturePosition, "Capture Position", "AUTO CLICKER");
             Add(HotkeyAction.AudioToggleMic, "Mute / Unmute Mic", "AUDIO");
@@ -196,6 +197,8 @@ namespace CenterHubNew.MVVM.Services
             Add(HotkeyAction.MetronomeFill, "Drum Fill", "METRONOME");
             Add(HotkeyAction.MetronomeNextPart, "Next Song Part", "METRONOME");
             Add(HotkeyAction.MetronomeTapTempo, "Tap Tempo", "METRONOME");
+            Add(HotkeyAction.MetronomeNextSong, "Next Setlist Song", "METRONOME");
+            Add(HotkeyAction.MetronomePrevSong, "Previous Setlist Song", "METRONOME");
             ApplyDefaults();
         }
 

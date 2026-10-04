@@ -1,0 +1,58 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:CenterHubNew.MVVM.ViewModel.Dashboard"
+             x:Class="CenterHubNew.MVVM.View.Dashboard.AddCardsView"
+             x:DataType="vm:CardListEditor">
+
+    <!-- The "Add card" area shown while a card page is being edited. DataContext = the page's CardListEditor.
+         Shared by the Home page and the Favorites window. -->
+
+    <Border Classes="card" Margin="0" Padding="14,12"
+            IsVisible="{Binding IsEditing}">
+        <StackPanel Spacing="10">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0" Text="Add a card" FontSize="13" FontWeight="SemiBold"
+                           VerticalAlignment="Center"/>
+                <Button Grid.Column="1" Classes="secondary" Padding="10,5" FontSize="12"
+                        Content="Reset to default"
+                        Command="{Binding ResetToDefaultCommand}"/>
+            </Grid>
+
+            <TextBlock Text="Every card is already here."
+                       FontSize="11" Foreground="{DynamicResource TextMutedBrush}"
+                       IsVisible="{Binding !HasAvailable}"/>
+
+            <ItemsControl ItemsSource="{Binding Available}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Spacing="6"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <TextBlock Grid.Column="0" Text="{Binding Glyph}"
+                                       FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"
+                                       FontSize="15" Width="26" TextAlignment="Center"
+                                       Foreground="{DynamicResource AccentBrush}"
+                                       VerticalAlignment="Center"/>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="4,0,8,0">
+                                <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding Description}" FontSize="11"
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <Button Grid.Column="2" Classes="secondary" Padding="0"
+                                    Width="30" Height="30" VerticalAlignment="Center"
+                                    Command="{Binding AddCommand}" ToolTip.Tip="Add this card">
+                                <TextBlock Text="&#xE710;"
+                                           FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"
+                                           FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Button>
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </Border>
+</UserControl>

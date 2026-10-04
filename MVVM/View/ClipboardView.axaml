@@ -4,8 +4,10 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
              xmlns:local="clr-namespace:CenterHubNew.MVVM.View"
+             xmlns:controls="clr-namespace:CenterHubNew.MVVM.Controls"
              x:Class="CenterHubNew.MVVM.View.ClipboardView"
              x:DataType="viewmodel:ClipboardViewModel"
+             controls:Responsive.NarrowBelow="560"
              mc:Ignorable="d"
              Background="Transparent">
 
@@ -14,73 +16,84 @@
         <local:BoolToPinBorderConverter x:Key="BoolToPinBorderConverter"/>
     </UserControl.Resources>
 
-    <Grid Margin="24,20" RowDefinitions="Auto,*">
+    <UserControl.Styles>
+        <!-- Entry row: text | Pin Copy x. Below 560 px the buttons move under the text. -->
+        <Style Selector="StackPanel.clip-actions">
+            <Setter Property="Grid.Row" Value="0"/>
+            <Setter Property="Grid.Column" Value="1"/>
+            <Setter Property="Grid.ColumnSpan" Value="1"/>
+            <Setter Property="Margin" Value="8,0,0,0"/>
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+        </Style>
+        <Style Selector="UserControl:narrow StackPanel.clip-actions">
+            <Setter Property="Grid.Row" Value="1"/>
+            <Setter Property="Grid.Column" Value="0"/>
+            <Setter Property="Grid.ColumnSpan" Value="2"/>
+            <Setter Property="Margin" Value="-7,6,0,0"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+        </Style>
+    </UserControl.Styles>
 
-        <!-- HEADER ROW -->
-        <Grid Grid.Row="0" Margin="0,0,0,16" ColumnDefinitions="*,Auto">
-            <StackPanel Grid.Column="0">
-                <TextBlock Text="Clipboard History"
-                           FontSize="22" FontWeight="Bold"
-                           Foreground="{StaticResource TextPrimaryBrush}"/>
-                <TextBlock Text="Captured text entries"
-                           FontSize="12"
-                           Foreground="{StaticResource TextMutedBrush}"
-                           Margin="0,2,0,0"/>
-            </StackPanel>
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+    <!-- Data page: full width; the list scrolls inside the card, so the host itself does not scroll. -->
+    <controls:PageHost Title="Clipboard History" Subtitle="Captured text entries"
+                       Mode="Data" IsScrollable="False">
+        <controls:PageHost.HeaderActions>
+            <WrapPanel Margin="0,0,0,-6">
                 <Button Content="{Binding IsMonitoring, Converter={StaticResource BoolToMonitoringTextConverter}}"
-                        Classes="secondary" Padding="12,7" FontSize="12"
+                        Classes="secondary" Padding="12,7" FontSize="12" Margin="0,0,8,6"
                         Command="{Binding ToggleMonitoringCommand}"/>
-                <Button Content="Clear All" Classes="danger" Padding="12,7" FontSize="12"
+                <Button Content="Clear All" Classes="danger" Padding="12,7" FontSize="12" Margin="0,0,0,6"
                         Command="{Binding ClearHistoryCommand}"/>
-            </StackPanel>
-        </Grid>
+            </WrapPanel>
+        </controls:PageHost.HeaderActions>
 
         <!-- HISTORY LIST -->
-        <Border Grid.Row="1" Classes="card" Padding="12">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Border Classes="card" Padding="12" Margin="0,0,0,16">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <ItemsControl ItemsSource="{Binding ClipboardHistory}" x:Name="ClipboardList">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Background="{StaticResource CardInnerBrush}"
+                            <Border Background="{DynamicResource CardInnerBrush}"
                                     CornerRadius="7" Padding="12,9" Margin="0,0,0,4"
                                     BorderBrush="{Binding IsPinned, Converter={StaticResource BoolToPinBorderConverter}}"
                                     BorderThickness="1">
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                                    <StackPanel Grid.Row="0" Grid.Column="0" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding Preview}"
+                                                   TextWrapping="Wrap"
+                                                   MaxLines="3"
                                                    TextTrimming="CharacterEllipsis"
                                                    FontSize="13"
-                                                   Foreground="{StaticResource TextPrimaryBrush}"/>
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
                                         <TextBlock FontSize="10"
-                                                   Foreground="{StaticResource TextMutedBrush}"
+                                                   Foreground="{DynamicResource TextMutedBrush}"
                                                    Margin="0,3,0,0">
                                             <Run Text="{Binding Timestamp, StringFormat='{}{0:HH:mm}', Mode=OneWay}"/>
                                             <Run Text=" · "/>
                                             <Run Text="{Binding Content.Length, StringFormat='{}{0} chars', Mode=OneWay}"/>
                                         </TextBlock>
                                     </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+                                    <StackPanel Classes="clip-actions" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
                                         <Button Classes="ghost" Padding="7,4"
                                                 ToolTip.Tip="Pin this entry"
                                                 Command="{Binding DataContext.TogglePinCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
                                                 CommandParameter="{Binding}">
                                             <TextBlock Text="Pin" FontSize="11"
-                                                       Foreground="{StaticResource AccentBrush}"/>
+                                                       Foreground="{DynamicResource AccentBrush}"/>
                                         </Button>
                                         <Button Classes="ghost" Padding="7,4"
                                                 ToolTip.Tip="Copy to clipboard"
                                                 Command="{Binding DataContext.CopyToClipboardCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
                                                 CommandParameter="{Binding}">
                                             <TextBlock Text="Copy" FontSize="11"
-                                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
                                         </Button>
                                         <Button Classes="ghost" Padding="7,4"
                                                 ToolTip.Tip="Delete entry"
                                                 Command="{Binding DataContext.DeleteItemCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
                                                 CommandParameter="{Binding}">
                                             <TextBlock Text="&#xD7;" FontSize="13"
-                                                       Foreground="{StaticResource ErrorBrush}"/>
+                                                       Foreground="{DynamicResource ErrorBrush}"/>
                                         </Button>
                                     </StackPanel>
                                 </Grid>
@@ -90,5 +103,5 @@
                 </ItemsControl>
             </ScrollViewer>
         </Border>
-    </Grid>
+    </controls:PageHost>
 </UserControl>

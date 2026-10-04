@@ -1,0 +1,38 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:viewmodel="clr-namespace:CenterHubNew.MVVM.ViewModel"
+             xmlns:controls="clr-namespace:CenterHubNew.MVVM.Controls"
+             xmlns:dash="clr-namespace:CenterHubNew.MVVM.View.Dashboard"
+             x:Class="CenterHubNew.MVVM.View.DashboardView"
+             x:DataType="viewmodel:DashboardViewModel"
+             Background="Transparent">
+
+    <!-- Home: cards the user picks and arranges (Customize). The card list lives in Editor
+         (shared with the Favorites window); each card is a dash:CardView. -->
+    <controls:PageHost Title="Home" Subtitle="{Binding Subtitle}" Mode="Data">
+
+        <controls:PageHost.HeaderActions>
+            <Button Classes="secondary" Padding="14,6"
+                    Content="{Binding Editor.EditButtonText}"
+                    Command="{Binding Editor.ToggleEditCommand}"/>
+        </controls:PageHost.HeaderActions>
+
+        <StackPanel Spacing="12">
+            <ItemsControl ItemsSource="{Binding Editor.Cards}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <controls:AdaptiveColumnsPanel MinColumnWidth="320" MaxColumns="4"
+                                                       ColumnSpacing="12" RowSpacing="12"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <dash:CardView/>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <dash:AddCardsView DataContext="{Binding Editor}"/>
+        </StackPanel>
+    </controls:PageHost>
+</UserControl>

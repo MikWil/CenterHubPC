@@ -285,6 +285,67 @@ namespace CenterHubNew.MVVM.Models
         DrumBar? Pattern,
         bool Muted);
 
+    /// <summary>One song in a setlist: the tempo and beat to load for it.</summary>
+    public sealed class SetlistSong
+    {
+        public string Id { get; set; } = Guid.NewGuid().ToString("N");
+        public string Name { get; set; } = "";
+        public int Bpm { get; set; } = 120;
+
+        /// <summary>True = drum beat, false = plain click.</summary>
+        public bool DrumsMode { get; set; }
+
+        public string? StyleId { get; set; }
+        public DrumKitKind Kit { get; set; } = DrumKitKind.Acoustic;
+        public int BeatsPerMeasure { get; set; } = 4;
+        public ClickSubdivision Subdivision { get; set; } = ClickSubdivision.None;
+        public bool CountIn { get; set; }
+    }
+
+    /// <summary>A named, ordered list of songs.</summary>
+    public sealed class Setlist
+    {
+        public string Id { get; set; } = Guid.NewGuid().ToString("N");
+        public string Name { get; set; } = "";
+        public List<SetlistSong> Songs { get; set; } = new();
+    }
+
+    /// <summary>Pure helpers for the setlist UI (kept free of UI types so they can be unit-tested).</summary>
+    public static class SetlistHelper
+    {
+        /// <summary>"120 BPM · Rock 8ths" for a drum song, "120 BPM · Click 4/4" for a click song.</summary>
+        public static string Describe(SetlistSong song, string? styleName)
+        {
+            string what = song.DrumsMode
+                ? (string.IsNullOrWhiteSpace(styleName) ? "Drums" : styleName!)
+                : $"Click {song.BeatsPerMeasure}/4";
+            return $"{song.Bpm} BPM · {what}";
+        }
+
+        /// <summary>
+        /// The index reached by moving <paramref name="delta"/> songs from <paramref name="current"/>, wrapping
+        /// around at both ends. With nothing current (-1) next goes to the first song and previous to the last.
+        /// Returns -1 for an empty list.
+        /// </summary>
+        public static int Step(int current, int delta, int count)
+        {
+            if (count <= 0) return -1;
+            if (current < 0 || current >= count) return delta >= 0 ? 0 : count - 1;
+            return (((current + delta) % count) + count) % count;
+        }
+
+        /// <summary>Fixes values a hand-edited or older file may hold. Never throws.</summary>
+        public static void Sanitize(SetlistSong song)
+        {
+            song.Id = string.IsNullOrWhiteSpace(song.Id) ? Guid.NewGuid().ToString("N") : song.Id;
+            song.Name ??= "";
+            song.Bpm = Math.Clamp(song.Bpm, 30, 280);
+            song.BeatsPerMeasure = Math.Clamp(song.BeatsPerMeasure, 1, 12);
+            if (!Enum.IsDefined(song.Kit)) song.Kit = DrumKitKind.Acoustic;
+            if (!Enum.IsDefined(song.Subdivision)) song.Subdivision = ClickSubdivision.None;
+        }
+    }
+
     /// <summary>Everything the Metronome page remembers between sessions (metronome.json).</summary>
     public sealed class MetronomeSettings
     {
@@ -323,5 +384,10 @@ namespace CenterHubNew.MVVM.Models
         public bool GapEnabled { get; set; }
         public int GapPlayBars { get; set; } = 2;
         public int GapMuteBars { get; set; } = 2;
+
+        // ── Setlists ──
+        public List<Setlist> Setlists { get; set; } = new();
+        public string? ActiveSetlistId { get; set; }
+        public int ActiveSongIndex { get; set; }
     }
 }
