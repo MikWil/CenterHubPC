@@ -388,7 +388,7 @@ namespace CenterHubNew.MVVM.Models
         // ── Guitar looper ──
         /// <summary>Length of a new loop in bars; 0 = free (ends when Record is pressed again).</summary>
         public int LooperLengthBars { get; set; } = 4;
-        /// <summary>Loop playback level, 0–1.5.</summary>
+        /// <summary>Loop playback level, 0–2.</summary>
         public double LooperVolume { get; set; } = 1.0;
         /// <summary>Delay compensation in milliseconds, 0–400.</summary>
         public int LooperLatencyMs { get; set; } = 60;
@@ -396,8 +396,15 @@ namespace CenterHubNew.MVVM.Models
         public string? LooperInputDeviceId { get; set; }
         /// <summary>The loop plays as soon as the first take ends; off = it waits for Play loop.</summary>
         public bool LooperAutoPlay { get; set; } = true;
-        /// <summary>Record starts the drum machine when it isn't playing; off = Record only arms the looper.</summary>
-        public bool LooperStartsDrums { get; set; } = true;
+        /// <summary>
+        /// Record starts the drum machine when it isn't playing (bar-synced loop). Off (default) = the looper
+        /// works on its own: count-in, record, loop. (Replaces the old LooperStartsDrums key, which is ignored.)
+        /// </summary>
+        public bool LooperRecordStartsDrums { get; set; }
+        /// <summary>Count-in before a free-mode take, in bars: 0, 1 or 2.</summary>
+        public int LooperCountInBars { get; set; } = 1;
+        /// <summary>Make quiet takes louder automatically.</summary>
+        public bool LooperAutoLevel { get; set; } = true;
 
         // ── Setlists ──
         public List<Setlist> Setlists { get; set; } = new();

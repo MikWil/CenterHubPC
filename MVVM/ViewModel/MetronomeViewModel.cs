@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -62,6 +63,14 @@ namespace CenterHubNew.MVVM.ViewModel
         public override string ToString() => Name;
     }
 
+    /// <summary>A selectable count-in length for free-mode looper takes (0 = none).</summary>
+    public sealed class LooperCountInChoice
+    {
+        public string Name { get; init; } = "";
+        public int Bars { get; init; }
+        public override string ToString() => Name;
+    }
+
     /// <summary>A selectable looper input device; a null <see cref="Id"/> means automatic.</summary>
     public sealed class LooperDeviceChoice
     {
@@ -83,31 +92,64 @@ namespace CenterHubNew.MVVM.ViewModel
 
         public static string Layers(int layers) => layers == 1 ? "1 layer" : $"{layers} layers";
 
-        /// <summary>"4 bars · 2 layers"; empty when there is no loop.</summary>
-        public static string LoopInfo(int bars, int layers)
+        /// <summary>"7.4 s" (one decimal, invariant culture).</summary>
+        public static string Seconds(double seconds) =>
+            seconds.ToString("0.0", CultureInfo.InvariantCulture) + " s";
+
+        /// <summary>"120 ms" (whole milliseconds, invariant culture).</summary>
+        public static string Ms(double ms) =>
+            Math.Round(ms).ToString("0", CultureInfo.InvariantCulture) + " ms";
+
+        /// <summary>Length of the loop: "7.4 s" for a free loop, "4 bars" for a bar-synced one; empty when unknown.</summary>
+        public static string LoopLength(int bars, bool isFree, double seconds)
         {
-            if (bars <= 0) return "";
-            return layers > 0 ? $"{Bars(bars)} · {Layers(layers)}" : Bars(bars);
+            if (isFree) return seconds > 0 ? Seconds(seconds) : "";
+            return bars > 0 ? Bars(bars) : (seconds > 0 ? Seconds(seconds) : "");
         }
 
-        public static string Status(LooperState state, int loopBars, int layers, int lengthBars)
+        /// <summary>"4 bars · 2 layers" / "7.4 s · 2 layers"; empty when there is no loop.</summary>
+        public static string LoopInfo(int bars, int layers, bool isFree = false, double seconds = 0)
         {
+            string length = LoopLength(bars, isFree, seconds);
+            if (length.Length == 0) return "";
+            return layers > 0 ? $"{length} · {Layers(layers)}" : length;
+        }
+
+        public static string Status(
+            LooperState state, int loopBars, int layers, int lengthBars,
+            bool isCountingIn = false, int countInBeatsLeft = 0, bool isFree = false, double loopSeconds = 0)
+        {
+            string length = LoopLength(loopBars, isFree, loopSeconds);
             switch (state)
             {
                 case LooperState.Armed:
-                    return "Armed — starts on the next bar";
+                    if (!isCountingIn) return "Armed — starts on the next bar";
+                    return countInBeatsLeft > 0 ? $"Count-in… {countInBeatsLeft}" : "Count-in…";
                 case LooperState.Recording:
-                    return lengthBars > 0 ? $"Recording… {Bars(lengthBars)}" : "Recording… press Finish to end on a bar line";
+                    return lengthBars > 0 ? $"Recording… {Bars(lengthBars)}" : "Recording… press Record to finish";
                 case LooperState.Playing:
-                    return "Playing · " + LoopInfo(loopBars, layers);
+                    return "Playing · " + LoopInfo(loopBars, layers, isFree, loopSeconds);
                 case LooperState.Overdubbing:
-                    return loopBars > 0 ? $"Overdubbing · {Bars(loopBars)}" : "Overdubbing";
+                    return length.Length > 0 ? $"Overdubbing · {length}" : "Overdubbing";
                 case LooperState.Stopped:
-                    return loopBars > 0 ? $"Stopped · {Bars(loopBars)}" : "Stopped";
+                    return length.Length > 0 ? $"Stopped · {length}" : "Stopped";
                 default:
                     return "Empty — press Record";
             }
         }
+
+        /// <summary>"Auto level: +12 dB"; empty when auto level is off or the gain is about 0 dB.</summary>
+        public static string GainText(double gain, bool autoLevel)
+        {
+            if (!autoLevel || gain <= 0 || double.IsNaN(gain)) return "";
+            double db = 20.0 * Math.Log10(gain);
+            if (Math.Abs(db) < 0.5) return "";
+            return "Auto level: " + (db > 0 ? "+" : "−") + Math.Abs(Math.Round(db)).ToString("0", CultureInfo.InvariantCulture) + " dB";
+        }
+
+        /// <summary>Share (0–1) of the recorded length taken by <paramref name="ms"/>; 0 when nothing is recorded.</summary>
+        public static double TrimFraction(double ms, double recordedSeconds) =>
+            recordedSeconds <= 0 ? 0 : Fraction(ms / (recordedSeconds * 1000.0));
 
         public static string RecordLabel(LooperState state, int lengthBars) => state switch
         {
@@ -129,8 +171,8 @@ namespace CenterHubNew.MVVM.ViewModel
             state is LooperState.Recording or LooperState.Overdubbing;
 
         /// <summary>The loop was recorded at a tempo that differs from the current one by at least 1 BPM.</summary>
-        public static bool TempoMismatch(LooperState state, double loopBpm, int currentBpm) =>
-            HasLoop(state) && loopBpm > 0 && Math.Abs(loopBpm - currentBpm) >= 1.0;
+        public static bool TempoMismatch(LooperState state, double loopBpm, int currentBpm, bool isFree = false) =>
+            !isFree && HasLoop(state) && loopBpm > 0 && Math.Abs(loopBpm - currentBpm) >= 1.0;
 
         public static string TempoMismatchText(double loopBpm) => $"Recorded at {(int)Math.Round(loopBpm)} BPM";
 
@@ -459,6 +501,10 @@ namespace CenterHubNew.MVVM.ViewModel
         private bool _looperDevicesBusy;
         private bool _looperDevicesSwapping;
         private bool _looperInputOpen;
+        private bool _trimSyncing;
+        private int _waveLayers = -1;
+        private double _waveRecorded = -1;
+        private bool _wavePrevRecording;
 
         /// <summary>False when no looper service is available (headless tools); the card is hidden then.</summary>
         public bool HasLooper => _looper is not null;
@@ -477,12 +523,24 @@ namespace CenterHubNew.MVVM.ViewModel
         [NotifyPropertyChangedFor(nameof(LooperStatusText))]
         private LooperLengthChoice? _selectedLooperLength;
 
-        [ObservableProperty] private double _looperVolumePercent = 100; // 0–150
+        public IReadOnlyList<LooperCountInChoice> LooperCountInOptions { get; } = new[]
+        {
+            new LooperCountInChoice { Name = "No count-in", Bars = 0 },
+            new LooperCountInChoice { Name = "1 bar",       Bars = 1 },
+            new LooperCountInChoice { Name = "2 bars",      Bars = 2 },
+        };
+
+        /// <summary>Count-in before a take when the drums are not playing.</summary>
+        [ObservableProperty] private LooperCountInChoice? _selectedLooperCountIn;
+
+        [ObservableProperty] private double _looperVolumePercent = 100; // 0–200
         [ObservableProperty] private int _looperLatencyMs = 60;         // 0–400
         /// <summary>The loop plays as soon as the first take ends (off: it waits for Play loop).</summary>
         [ObservableProperty] private bool _looperAutoPlay = true;
-        /// <summary>Record starts the drum machine when it isn't playing (off: Record only arms).</summary>
-        [ObservableProperty] private bool _looperStartsDrums = true;
+        /// <summary>Record also starts the drums when they aren't playing (off, the default: the looper works on its own).</summary>
+        [ObservableProperty] private bool _looperStartsDrums;
+        /// <summary>Make quiet takes louder.</summary>
+        [ObservableProperty] private bool _looperAutoLevel = true;
 
         [ObservableProperty] private IReadOnlyList<LooperDeviceChoice> _looperInputDevices = Array.Empty<LooperDeviceChoice>();
         [ObservableProperty] private LooperDeviceChoice? _selectedLooperInputDevice;
@@ -499,6 +557,9 @@ namespace CenterHubNew.MVVM.ViewModel
         [NotifyPropertyChangedFor(nameof(LooperStopLabel))]
         [NotifyPropertyChangedFor(nameof(LooperStatusText))]
         [NotifyPropertyChangedFor(nameof(LooperTempoMismatch))]
+        [NotifyPropertyChangedFor(nameof(LooperCanTrim))]
+        [NotifyPropertyChangedFor(nameof(LooperResetTrimEnabled))]
+        [NotifyPropertyChangedFor(nameof(LooperPlayhead))]
         private LooperState _looperState;
 
         [ObservableProperty]
@@ -510,6 +571,57 @@ namespace CenterHubNew.MVVM.ViewModel
         [NotifyPropertyChangedFor(nameof(LooperStatusText))]
         [NotifyPropertyChangedFor(nameof(LooperLoopInfo))]
         private int _looperLayerCount;
+
+        /// <summary>The count-in clicks are running (state Armed).</summary>
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(LooperStatusText))]
+        private bool _looperIsCountingIn;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(LooperStatusText))]
+        private int _looperCountInBeatsLeft;
+
+        /// <summary>The loop is not tied to the drum machine's bars.</summary>
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(LooperStatusText))]
+        [NotifyPropertyChangedFor(nameof(LooperLoopInfo))]
+        [NotifyPropertyChangedFor(nameof(LooperTempoMismatch))]
+        private bool _looperIsFreeLoop;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(LooperStatusText))]
+        [NotifyPropertyChangedFor(nameof(LooperLoopInfo))]
+        [NotifyPropertyChangedFor(nameof(LooperLoopSecondsText))]
+        private double _looperLoopSeconds;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(LooperHasGainText))]
+        private string _looperGainText = "";
+
+        // ── Trim (non-destructive) ──
+        /// <summary>Peaks (0..1) of the untrimmed take for the waveform strip; empty when there is no loop.</summary>
+        [ObservableProperty] private float[] _looperWaveform = Array.Empty<float>();
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(LooperTrimMaxMs))]
+        [NotifyPropertyChangedFor(nameof(LooperTrimStartFraction))]
+        [NotifyPropertyChangedFor(nameof(LooperTrimEndFraction))]
+        private double _looperRecordedSeconds;
+
+        /// <summary>Milliseconds cut from the start of the take (two-way; the service clamps so 100 ms remain).</summary>
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(LooperTrimStartFraction))]
+        [NotifyPropertyChangedFor(nameof(LooperHasTrim))]
+        [NotifyPropertyChangedFor(nameof(LooperResetTrimEnabled))]
+        private double _looperTrimStartMs;
+
+        /// <summary>Milliseconds cut from the end of the take (two-way).</summary>
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(LooperTrimEndFraction))]
+        [NotifyPropertyChangedFor(nameof(LooperTrimEndMs))]
+        [NotifyPropertyChangedFor(nameof(LooperHasTrim))]
+        [NotifyPropertyChangedFor(nameof(LooperResetTrimEnabled))]
+        private double _looperTrimEndCutMs;
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(LooperTempoMismatch))]
@@ -524,6 +636,7 @@ namespace CenterHubNew.MVVM.ViewModel
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(LooperPositionFill))]
         [NotifyPropertyChangedFor(nameof(LooperPositionRest))]
+        [NotifyPropertyChangedFor(nameof(LooperPlayhead))]
         private double _looperPositionPercent; // 0–100
 
         [ObservableProperty]
@@ -545,6 +658,8 @@ namespace CenterHubNew.MVVM.ViewModel
         [NotifyPropertyChangedFor(nameof(LooperUndoEnabled))]
         [NotifyPropertyChangedFor(nameof(LooperClearEnabled))]
         [NotifyPropertyChangedFor(nameof(LooperExportEnabled))]
+        [NotifyPropertyChangedFor(nameof(LooperCanTrim))]
+        [NotifyPropertyChangedFor(nameof(LooperResetTrimEnabled))]
         private bool _isLooperCalibrating;
 
         [ObservableProperty] private string _looperCalibrationText = "";
@@ -557,12 +672,35 @@ namespace CenterHubNew.MVVM.ViewModel
         public bool LooperHasInputDeviceName => LooperInputDeviceName.Length > 0;
 
         public string LooperStatusText =>
-            LooperText.Status(LooperState, LooperLoopBars, LooperLayerCount, SelectedLooperLength?.Bars ?? 0);
+            LooperText.Status(LooperState, LooperLoopBars, LooperLayerCount, SelectedLooperLength?.Bars ?? 0,
+                LooperIsCountingIn, LooperCountInBeatsLeft, LooperIsFreeLoop, LooperLoopSeconds);
         public string LooperRecordLabel => LooperText.RecordLabel(LooperState, SelectedLooperLength?.Bars ?? 0);
         public string LooperStopLabel => LooperText.StopLabel(LooperState);
-        public string LooperLoopInfo => LooperText.LoopInfo(LooperLoopBars, LooperLayerCount);
+        public string LooperLoopInfo =>
+            LooperText.LoopInfo(LooperLoopBars, LooperLayerCount, LooperIsFreeLoop, LooperLoopSeconds);
+        /// <summary>"7.4 s"; empty when there is no loop.</summary>
+        public string LooperLoopSecondsText => LooperLoopSeconds > 0 ? LooperText.Seconds(LooperLoopSeconds) : "";
+        public bool LooperHasGainText => LooperGainText.Length > 0;
 
-        public bool LooperTempoMismatch => LooperText.TempoMismatch(LooperState, LooperLoopBpm, Bpm);
+        public bool LooperTempoMismatch => LooperText.TempoMismatch(LooperState, LooperLoopBpm, Bpm, LooperIsFreeLoop);
+
+        // Trim
+        /// <summary>Largest value of the trim sliders (the service keeps 100 ms of the take).</summary>
+        public double LooperTrimMaxMs => Math.Max(1.0, LooperRecordedSeconds * 1000.0 - 100.0);
+        /// <summary>Absolute end of the kept part, in ms from the start of the take.</summary>
+        public double LooperTrimEndMs => Math.Max(0.0, LooperRecordedSeconds * 1000.0 - LooperTrimEndCutMs);
+        /// <summary>Share (0–1) of the take cut from the start / end (for the waveform shading).</summary>
+        public double LooperTrimStartFraction => LooperText.TrimFraction(LooperTrimStartMs, LooperRecordedSeconds);
+        public double LooperTrimEndFraction => LooperText.TrimFraction(LooperTrimEndCutMs, LooperRecordedSeconds);
+        public bool LooperHasTrim => LooperTrimStartMs >= 0.5 || LooperTrimEndCutMs >= 0.5;
+        /// <summary>A loop exists and isn't being recorded, overdubbed or calibrated.</summary>
+        public bool LooperCanTrim => LooperHasLoop && !LooperIsRecording && !IsLooperCalibrating;
+        public bool LooperResetTrimEnabled => LooperHasTrim && LooperCanTrim;
+        /// <summary>Playhead for the waveform: 0..1 of the trimmed loop while playing, -1 (hidden) otherwise.</summary>
+        public double LooperPlayhead =>
+            LooperState is LooperState.Playing or LooperState.Overdubbing
+                ? LooperText.Fraction(LooperPositionPercent / 100.0)
+                : -1.0;
         public string LooperTempoMismatchText => LooperText.TempoMismatchText(LooperLoopBpm);
         public string LooperMatchTempoText => LooperText.MatchTempoText(LooperLoopBpm);
 
@@ -681,6 +819,7 @@ namespace CenterHubNew.MVVM.ViewModel
             nameof(GapEnabled), nameof(GapPlayBars), nameof(GapMuteBars),
             nameof(SelectedLooperLength), nameof(LooperVolumePercent), nameof(LooperLatencyMs),
             nameof(SelectedLooperInputDevice), nameof(LooperAutoPlay), nameof(LooperStartsDrums),
+            nameof(SelectedLooperCountIn), nameof(LooperAutoLevel),
         };
 
         // Top-to-bottom order of the pattern grid rows.
@@ -769,10 +908,13 @@ namespace CenterHubNew.MVVM.ViewModel
             // Looper options (backing fields again), then push them into the service.
             int lengthBars = MetronomeSettingsHelper.LooperLengthOrDefault(s.LooperLengthBars);
             _selectedLooperLength = LooperLengthOptions.First(o => o.Bars == lengthBars);
-            _looperVolumePercent = double.IsNaN(s.LooperVolume) ? 100 : Math.Clamp(s.LooperVolume, 0.0, 1.5) * 100.0;
+            int countInBars = MetronomeSettingsHelper.LooperCountInOrDefault(s.LooperCountInBars);
+            _selectedLooperCountIn = LooperCountInOptions.First(o => o.Bars == countInBars);
+            _looperVolumePercent = double.IsNaN(s.LooperVolume) ? 100 : Math.Clamp(s.LooperVolume, 0.0, 2.0) * 100.0;
             _looperLatencyMs = Math.Clamp(s.LooperLatencyMs, 0, 400);
             _looperAutoPlay = s.LooperAutoPlay;
-            _looperStartsDrums = s.LooperStartsDrums;
+            _looperStartsDrums = s.LooperRecordStartsDrums;
+            _looperAutoLevel = s.LooperAutoLevel;
             var initialDevices = new List<LooperDeviceChoice> { _automaticInput };
             LooperDeviceChoice selectedDevice = _automaticInput;
             if (!string.IsNullOrEmpty(s.LooperInputDeviceId))
@@ -791,6 +933,8 @@ namespace CenterHubNew.MVVM.ViewModel
                     _looper.Volume = (float)(_looperVolumePercent / 100.0);
                     _looper.LatencyMs = _looperLatencyMs;
                     _looper.AutoPlay = _looperAutoPlay;
+                    _looper.CountInBars = countInBars;
+                    _looper.AutoLevel = _looperAutoLevel;
                     _looper.InputDeviceId = selectedDevice.Id;
                 }
                 catch (Exception ex)
@@ -891,8 +1035,9 @@ namespace CenterHubNew.MVVM.ViewModel
         // =====================================================
 
         /// <summary>
-        /// The pedal: Record / Overdub / Finish. Starts the drum machine first when it isn't running
-        /// and <see cref="LooperStartsDrums"/> is on; otherwise the looper just arms and waits for it.
+        /// The pedal: Record / Overdub / Finish. Never needs the drums: with them stopped the looper runs on
+        /// its own (count-in, record, loop). When <see cref="LooperStartsDrums"/> is on, Record starts the
+        /// drum machine first so the loop is bar-synced.
         /// </summary>
         [RelayCommand]
         public void LooperRecord()
@@ -1081,6 +1226,96 @@ namespace CenterHubNew.MVVM.ViewModel
             RefreshLooper();
         }
 
+        /// <summary>Back to the whole take.</summary>
+        [RelayCommand]
+        private void ResetLooperTrim()
+        {
+            if (IsDisposed || _looper is null || !LooperCanTrim) return;
+            _looper.ResetTrim();
+            RefreshLooper();
+        }
+
+        /// <summary>Moves one trim slider by 10 ms; <paramref name="which"/> is "start-", "start+", "end-" or "end+".</summary>
+        [RelayCommand]
+        private void NudgeTrim(string? which)
+        {
+            if (IsDisposed || _looper is null || !LooperCanTrim) return;
+            double max = LooperTrimMaxMs;
+            switch (which)
+            {
+                case "start-": LooperTrimStartMs = Math.Clamp(LooperTrimStartMs - 10, 0, max); break;
+                case "start+": LooperTrimStartMs = Math.Clamp(LooperTrimStartMs + 10, 0, max); break;
+                case "end-":   LooperTrimEndCutMs = Math.Clamp(LooperTrimEndCutMs - 10, 0, max); break;
+                case "end+":   LooperTrimEndCutMs = Math.Clamp(LooperTrimEndCutMs + 10, 0, max); break;
+            }
+        }
+
+        /// <summary>A trim slider moved: hand both ends to the service, then show what it actually accepted.</summary>
+        private void ApplyTrimFromUi()
+        {
+            var looper = _looper;
+            if (IsDisposed || looper is null || LooperRecordedSeconds <= 0) return;
+            double recordedMs = LooperRecordedSeconds * 1000.0;
+            try
+            {
+                // The service takes the amounts cut from each side, like the sliders.
+                looper.SetTrim(LooperTrimStartMs, LooperTrimEndCutMs);
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogWarning(ex, "Couldn't trim the loop");
+            }
+            ReadLooperTrim(looper);
+        }
+
+        /// <summary>Copies the service's trim into the sliders without echoing it back.</summary>
+        private void ReadLooperTrim(LooperService looper)
+        {
+            double recordedMs = LooperRecordedSeconds * 1000.0;
+            double start = Math.Max(0.0, looper.TrimStartMs);
+            double cut = recordedMs <= 0 ? 0.0 : Math.Max(0.0, looper.TrimEndMs);   // ms cut from the end
+
+            _trimSyncing = true;
+            try
+            {
+                LooperTrimStartMs = recordedMs <= 0 ? 0.0 : start;
+                LooperTrimEndCutMs = cut;
+            }
+            finally
+            {
+                _trimSyncing = false;
+            }
+        }
+
+        /// <summary>Recorded length, trim and the waveform. The waveform is only re-read when the take itself changed.</summary>
+        private void RefreshLooperTrim(LooperService looper)
+        {
+            bool hasLoop = LooperText.HasLoop(looper.State);
+            bool recordingNow = LooperText.IsRecording(looper.State);
+            double recorded = hasLoop ? looper.RecordedSeconds : 0.0;
+            int layers = looper.LayerCount;
+
+            LooperRecordedSeconds = recorded;
+            ReadLooperTrim(looper);
+
+            if (!hasLoop)
+            {
+                if (LooperWaveform.Length != 0) LooperWaveform = Array.Empty<float>();
+                _waveLayers = -1;
+                _waveRecorded = -1;
+            }
+            else if (layers != _waveLayers
+                     || Math.Abs(recorded - _waveRecorded) > 0.0005
+                     || (_wavePrevRecording && !recordingNow))
+            {
+                try { LooperWaveform = looper.GetWaveform(240) ?? Array.Empty<float>(); }
+                catch (Exception ex) { Logger?.LogWarning(ex, "Couldn't read the loop waveform"); }
+                _waveLayers = layers;
+                _waveRecorded = recorded;
+            }
+            _wavePrevRecording = recordingNow;
+        }
+
         /// <summary>Mirrors the service's state into the bindable properties (setters ignore unchanged values).</summary>
         private void RefreshLooper()
         {
@@ -1091,8 +1326,14 @@ namespace CenterHubNew.MVVM.ViewModel
             LooperLoopBars = looper.LoopBars;
             LooperLayerCount = looper.LayerCount;
             LooperLoopBpm = looper.LoopBpm;
+            LooperIsCountingIn = looper.IsCountingIn;
+            LooperCountInBeatsLeft = looper.CountInBeatsLeft;
+            LooperIsFreeLoop = looper.IsFreeLoop;
+            LooperLoopSeconds = looper.LoopSeconds;
+            LooperGainText = LooperText.GainText(looper.LoopGain, looper.AutoLevel);
             LooperCanUndo = looper.CanUndo;
             LooperPositionPercent = LooperText.Fraction(looper.Position) * 100.0;
+            RefreshLooperTrim(looper);
             LooperInputLevelPercent = LooperText.Fraction(looper.InputLevel) * 100.0;
             LooperInputDeviceName = looper.InputDeviceName ?? "";
             LooperError = looper.LastError ?? "";
@@ -1489,7 +1730,7 @@ namespace CenterHubNew.MVVM.ViewModel
 
         partial void OnLooperVolumePercentChanged(double value)
         {
-            double clamped = double.IsNaN(value) ? 100 : Math.Clamp(value, 0.0, 150.0);
+            double clamped = double.IsNaN(value) ? 100 : Math.Clamp(value, 0.0, 200.0);
             if (clamped != value) { LooperVolumePercent = clamped; return; }
             if (_initializing || IsDisposed || _looper is null) return;
             _looper.Volume = (float)(clamped / 100.0);
@@ -1507,6 +1748,29 @@ namespace CenterHubNew.MVVM.ViewModel
         {
             if (_initializing || IsDisposed || _looper is null) return;
             _looper.AutoPlay = value;
+        }
+
+        partial void OnLooperAutoLevelChanged(bool value)
+        {
+            if (_initializing || IsDisposed || _looper is null) return;
+            _looper.AutoLevel = value;
+            RefreshLooper(); // the gain text changes with it
+        }
+
+        partial void OnSelectedLooperCountInChanged(LooperCountInChoice? value)
+        {
+            if (_initializing || IsDisposed || value is null || _looper is null) return;
+            _looper.CountInBars = value.Bars;
+        }
+
+        partial void OnLooperTrimStartMsChanged(double value)
+        {
+            if (!_trimSyncing) ApplyTrimFromUi();
+        }
+
+        partial void OnLooperTrimEndCutMsChanged(double value)
+        {
+            if (!_trimSyncing) ApplyTrimFromUi();
         }
 
         partial void OnSelectedLooperInputDeviceChanged(LooperDeviceChoice? value)
@@ -2019,10 +2283,12 @@ namespace CenterHubNew.MVVM.ViewModel
                     GapPlayBars = (int)GapPlayBars,
                     GapMuteBars = (int)GapMuteBars,
                     LooperLengthBars = SelectedLooperLength?.Bars ?? 4,
-                    LooperVolume = Math.Clamp(LooperVolumePercent / 100.0, 0.0, 1.5),
+                    LooperVolume = Math.Clamp(LooperVolumePercent / 100.0, 0.0, 2.0),
                     LooperLatencyMs = Math.Clamp(LooperLatencyMs, 0, 400),
                     LooperAutoPlay = LooperAutoPlay,
-                    LooperStartsDrums = LooperStartsDrums,
+                    LooperRecordStartsDrums = LooperStartsDrums,
+                    LooperCountInBars = SelectedLooperCountIn?.Bars ?? 1,
+                    LooperAutoLevel = LooperAutoLevel,
                     LooperInputDeviceId = SelectedLooperInputDevice?.Id,
                     Setlists = Setlists.Select(l => l.Model).ToList(),
                     ActiveSetlistId = SelectedSetlist?.Model.Id,

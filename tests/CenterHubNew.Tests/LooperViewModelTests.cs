@@ -43,6 +43,62 @@ public class LooperTextTests
     }
 
     [Fact]
+    public void Status_text_for_the_count_in_and_free_recording()
+    {
+        // Armed while the count-in clicks run shows the beats left; armed with drums playing waits for the bar.
+        Assert.Equal("Count-in… 3", LooperText.Status(LooperState.Armed, 0, 0, 0, isCountingIn: true, countInBeatsLeft: 3));
+        Assert.Equal("Count-in…", LooperText.Status(LooperState.Armed, 0, 0, 0, isCountingIn: true, countInBeatsLeft: 0));
+        Assert.Equal("Armed — starts on the next bar", LooperText.Status(LooperState.Armed, 0, 0, 4, isCountingIn: false));
+
+        Assert.Equal("Recording… press Record to finish", LooperText.Status(LooperState.Recording, 0, 0, 0));
+        Assert.Equal("Recording… 4 bars", LooperText.Status(LooperState.Recording, 0, 0, 4));
+    }
+
+    [Fact]
+    public void Status_text_for_free_loops_uses_seconds()
+    {
+        Assert.Equal("Playing · 7.4 s · 2 layers",
+            LooperText.Status(LooperState.Playing, 0, 2, 0, isFree: true, loopSeconds: 7.4));
+        Assert.Equal("Stopped · 7.4 s",
+            LooperText.Status(LooperState.Stopped, 0, 1, 0, isFree: true, loopSeconds: 7.4));
+        Assert.Equal("Overdubbing · 7.4 s",
+            LooperText.Status(LooperState.Overdubbing, 0, 2, 0, isFree: true, loopSeconds: 7.4));
+        Assert.Equal("Playing · 4 bars · 1 layer",
+            LooperText.Status(LooperState.Playing, 4, 1, 4, isFree: false, loopSeconds: 7.4));
+        Assert.Equal("Stopped · 4 bars",
+            LooperText.Status(LooperState.Stopped, 4, 1, 4, isFree: false, loopSeconds: 7.4));
+        Assert.Equal("7.4 s", LooperText.Seconds(7.38));
+        Assert.Equal("120 ms", LooperText.Ms(119.6));
+    }
+
+    [Fact]
+    public void Tempo_mismatch_ignores_free_loops()
+    {
+        Assert.True(LooperText.TempoMismatch(LooperState.Playing, 100, 120, isFree: false));
+        Assert.False(LooperText.TempoMismatch(LooperState.Playing, 100, 120, isFree: true));
+    }
+
+    [Theory]
+    [InlineData(1.0, true, "")]
+    [InlineData(1.05, true, "")]
+    [InlineData(4.0, true, "Auto level: +12 dB")]
+    [InlineData(0.5, true, "Auto level: −6 dB")]
+    [InlineData(4.0, false, "")]
+    [InlineData(0.0, true, "")]
+    public void Gain_text(double gain, bool autoLevel, string expected)
+    {
+        Assert.Equal(expected, LooperText.GainText(gain, autoLevel));
+    }
+
+    [Fact]
+    public void Trim_fraction_is_a_share_of_the_recorded_length()
+    {
+        Assert.Equal(0.25, LooperText.TrimFraction(500, 2.0), 6);
+        Assert.Equal(0, LooperText.TrimFraction(500, 0));
+        Assert.Equal(1, LooperText.TrimFraction(5000, 2.0));
+    }
+
+    [Fact]
     public void Loop_state_flags()
     {
         Assert.False(LooperText.HasLoop(LooperState.Empty));
@@ -108,6 +164,43 @@ public class LooperSettingsTests : IDisposable
         Assert.Equal(1.0, s.LooperVolume);
         Assert.Equal(60, s.LooperLatencyMs);
         Assert.Null(s.LooperInputDeviceId);
+        Assert.False(s.LooperRecordStartsDrums);
+        Assert.Equal(1, s.LooperCountInBars);
+        Assert.True(s.LooperAutoLevel);
+    }
+
+    [Fact]
+    public void Old_starts_drums_setting_is_ignored()
+    {
+        var s = LoadFromJson("{ \"LooperStartsDrums\": true }");
+        Assert.False(s.LooperRecordStartsDrums);
+
+        var on = LoadFromJson("{ \"LooperRecordStartsDrums\": true }");
+        Assert.True(on.LooperRecordStartsDrums);
+    }
+
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(1, 1)]
+    [InlineData(2, 2)]
+    [InlineData(3, 1)]
+    [InlineData(-1, 1)]
+    [InlineData(8, 1)]
+    public void Count_in_bars_are_restricted_to_the_offered_values(int stored, int expected)
+    {
+        var s = LoadFromJson($"{{ \"LooperCountInBars\": {stored} }}");
+        Assert.Equal(expected, s.LooperCountInBars);
+    }
+
+    [Fact]
+    public void Auto_level_can_be_turned_off_and_round_trips()
+    {
+        var service = new MetronomeSettingsService(null, _folder);
+        service.Save(new MetronomeSettings { LooperAutoLevel = false, LooperCountInBars = 2, LooperRecordStartsDrums = true });
+        var loaded = new MetronomeSettingsService(null, _folder).Load();
+        Assert.False(loaded.LooperAutoLevel);
+        Assert.Equal(2, loaded.LooperCountInBars);
+        Assert.True(loaded.LooperRecordStartsDrums);
     }
 
     [Fact]
@@ -148,7 +241,7 @@ public class LooperSettingsTests : IDisposable
     public void Volume_and_latency_are_clamped()
     {
         var high = LoadFromJson("{ \"LooperVolume\": 9, \"LooperLatencyMs\": 5000 }");
-        Assert.Equal(1.5, high.LooperVolume);
+        Assert.Equal(2.0, high.LooperVolume);
         Assert.Equal(400, high.LooperLatencyMs);
 
         var low = LoadFromJson("{ \"LooperVolume\": -3, \"LooperLatencyMs\": -20 }");

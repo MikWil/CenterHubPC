@@ -86,6 +86,7 @@ internal static class Program
             case "widths": RenderWidths(outDir); return 0;
             case "palette": RenderPalette(outDir); return 0;
             case "looper-probe": return LooperProbe(outDir);
+            case "looper-free": return LooperFreeProbe(outDir);
             default: RenderMetronome(outDir); return 0;
         }
     }
@@ -355,6 +356,32 @@ internal static class Program
         using var looper = new LooperService(service, new AudioDeviceService(), new VoicemeeterSettingsService(null, temp));
         var vm = new MetronomeViewModel(service, new MetronomeSettingsService(null, temp), null, null, looper) { IsDrumsMode = true };
 
+        // Give the looper a loop without any device: drive the engine offline and feed a decaying strum.
+        {
+            var engine = (LooperEngine)typeof(LooperService).GetField("_looper", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(looper)!;
+            const int rate = 44100;
+            engine.PressRecordFree(0, 0, rate * 3, 120, 0);
+            var buffer = new float[1024];
+            var input = new float[512];
+            long fed = 0;
+            while (service.Engine.FramesRendered < rate * 4)
+            {
+                service.Engine.Read(buffer, 0, buffer.Length);
+                for (int i = 0; i < input.Length; i++)
+                {
+                    long f = fed + i;
+                    double t = (f % (rate * 3 / 4)) / (double)rate;           // a strum every 0.75 s
+                    input[i] = (float)(0.08 * Math.Exp(-t * 5) * Math.Sin(2 * Math.PI * 196 * f / rate));
+                }
+                engine.WriteInput(fed, input, 0, input.Length);
+                fed += input.Length;
+            }
+            while (service.Engine.TryDequeueEvent(out _)) { }
+            looper.SetTrim(180, 320);
+            typeof(MetronomeViewModel).GetMethod("RefreshLooper", BindingFlags.Instance | BindingFlags.NonPublic)?.Invoke(vm, null);
+            Console.WriteLine($"offline loop: {looper.State}, {looper.LoopSeconds:F2} s, gain x{looper.LoopGain:F1}");
+        }
+
         foreach (int width in new[] { 480, 640, 900, 1300 })
         {
             var view = new MetronomeView { DataContext = vm };
@@ -438,6 +465,16 @@ internal static class Program
             }
         }
 
+        // What Banana itself uses for its hardware strips (read-only).
+        try
+        {
+            using var vm = new VoicemeeterService();
+            Console.WriteLine($"Banana: {vm.RefreshStatus()}");
+            for (int strip = 0; strip < 3; strip++)
+                Console.WriteLine($"  Banana strip {strip} input: \"{vm.GetHardwareInputName(strip)}\"");
+        }
+        catch (Exception ex) { Console.WriteLine($"Banana: could not read ({ex.Message})"); }
+
         // Optional 4th argument: part of an input device's name to probe instead of the automatic choice.
         string? want = Environment.GetCommandLineArgs().Skip(1).ElementAtOrDefault(2);
         foreach (var d in looper.GetInputDevices())
@@ -500,6 +537,75 @@ internal static class Program
 
         bool ok = seen.Contains(LooperState.Recording) && looper.State == LooperState.Playing && Math.Abs(frames - expected) <= 2;
         Console.WriteLine(ok ? "PASS (structure) — holes are only meaningful if the input is not digital silence" : "FAIL");
+        return ok ? 0 : 1;
+    }
+
+    /// <summary>
+    /// The looper on its own (drum machine stopped), silently on the real devices: automatic input
+    /// (must be the Sound tab's guitar = Banana's guitar strip), count-in, a fixed 1-bar take, loop,
+    /// trim, export. Master volume 0, so neither the count-in nor the loop is heard.
+    /// </summary>
+    private static int LooperFreeProbe(string outDir)
+    {
+        using var service = new MetronomeService();
+        service.Engine.MasterVolume = 0f;
+        service.Engine.Bpm = 120;
+        service.Engine.SetStyle(null);
+        service.Engine.SetClickBeats(4);
+
+        using var vm = new VoicemeeterService();
+        Console.WriteLine($"Banana: {vm.RefreshStatus()}, guitar strip input: \"{vm.GetHardwareInputName(1)}\"");
+        using var looper = new LooperService(service, new AudioDeviceService(), new VoicemeeterSettingsService(), vm);
+        looper.CountInBars = 1;
+        looper.LengthBars = 1;
+
+        var clock = Stopwatch.StartNew();
+        var pumpTick = typeof(MetronomeService).GetMethod("OnPumpTick", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var seen = new List<string>();
+        void Pump(int ms)
+        {
+            long until = clock.ElapsedMilliseconds + ms;
+            while (clock.ElapsedMilliseconds < until)
+            {
+                Dispatcher.UIThread.RunJobs();
+                pumpTick.Invoke(service, new object?[] { null, EventArgs.Empty });
+                string now = looper.State + (looper.IsCountingIn ? $"(count-in {looper.CountInBeatsLeft})" : "");
+                if (seen.Count == 0 || seen[^1] != now) seen.Add(now);
+                Thread.Sleep(10);
+            }
+        }
+
+        Console.WriteLine($"automatic input would be: \"{looper.InputDeviceName}\"");
+        looper.PressRecord();                       // drums are stopped → free mode
+        Console.WriteLine($"after Record: {looper.State}, input \"{looper.InputDeviceName}\" open={looper.IsInputOpen} format={looper.InputFormat} error={looper.LastError ?? "-"}");
+        Pump(9000);                                 // 2 s count-in + 2 s take + ~2.5 loop cycles
+        var stats = looper.InputStats;
+        Console.WriteLine($"states: {string.Join(" -> ", seen)}");
+        Console.WriteLine($"free={looper.IsFreeLoop} bars={looper.LoopBars} seconds={looper.LoopSeconds:F3} recorded={looper.RecordedSeconds:F3} layers={looper.LayerCount} gain x{looper.LoopGain:F2} drums playing={service.IsPlaying}");
+        Console.WriteLine($"capture buffers {stats.Buffers}, stretched corrections {stats.Slips}, real gaps/overlaps {stats.Jumps}, clock error {looper.ClockErrorFrames:F0} frames");
+
+        looper.SetTrim(150, 250);
+        Console.WriteLine($"trim 150/250 ms -> loop {looper.LoopSeconds:F3} s (start {looper.TrimStartMs:F0}, end {looper.TrimEndMs:F0}); waveform buckets {looper.GetWaveform(240).Length}");
+        string wav = Path.Combine(outDir, "looper-free.wav");
+        bool exported = looper.ExportWav(wav);
+        long frames = 0;
+        if (exported) { using var reader = new AudioFileReader(wav); frames = reader.Length / reader.WaveFormat.BlockAlign; }
+        try { File.Delete(wav); } catch { }
+        Console.WriteLine($"export: {exported}, {frames} frames ({frames / 44100.0:F3} s)");
+
+        looper.PressStop();
+        Pump(300);
+        Console.WriteLine($"after Stop: {looper.State}");
+        looper.Clear();
+        looper.CloseInput();
+        Pump(2500);
+        var outputField = typeof(MetronomeService).GetField("_output", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        Console.WriteLine($"after Clear: {looper.State}, output closed after idle: {outputField.GetValue(service) == null}");
+
+        bool ok = seen.Any(s => s.StartsWith("Armed(count-in")) && seen.Contains("Recording") && seen.Contains("Playing")
+                  && looper.InputDeviceName?.Contains("KATANA", StringComparison.OrdinalIgnoreCase) == true
+                  && Math.Abs(frames / 44100.0 - 1.6) < 0.01 && stats.Jumps <= 1;
+        Console.WriteLine(ok ? "PASS" : "FAIL");
         return ok ? 0 : 1;
     }
 

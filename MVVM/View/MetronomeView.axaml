@@ -644,7 +644,7 @@
                                 HorizontalAlignment="Stretch"
                                 IsEnabled="{Binding LooperStopEnabled}"
                                 Command="{Binding LooperStopCommand}"
-                                ToolTip.Tip="Silence the loop, or start it again on the next bar">
+                                ToolTip.Tip="Silence the loop; press again to play it from the start">
                             <TextBlock Text="{Binding LooperStopLabel}"/>
                         </Button>
                         <Button Classes="secondary" Padding="10,16" FontSize="14" FontWeight="SemiBold"
@@ -687,6 +687,88 @@
                                    IsVisible="{Binding LooperHasLoop}"/>
                     </Grid>
 
+                    <!-- Waveform of the take; trimmed-away parts are dimmed -->
+                    <Border Height="56" CornerRadius="8" ClipToBounds="True" Margin="0,0,0,12"
+                            Background="{DynamicResource CardInnerBrush}"
+                            IsVisible="{Binding LooperHasLoop}">
+                        <controls:WaveformView Peaks="{Binding LooperWaveform}"
+                                               TrimStart="{Binding LooperTrimStartFraction}"
+                                               TrimEnd="{Binding LooperTrimEndFraction}"
+                                               Position="{Binding LooperPlayhead}"
+                                               WaveBrush="{DynamicResource AccentBrush}"
+                                               DimBrush="{DynamicResource BorderStrongBrush}"
+                                               PlayheadBrush="{DynamicResource TextPrimaryBrush}"/>
+                    </Border>
+
+                    <!-- Trim: cut milliseconds off either end (non-destructive) -->
+                    <StackPanel Margin="0,0,0,12" IsVisible="{Binding LooperHasLoop}"
+                                IsEnabled="{Binding LooperCanTrim}">
+                        <TextBlock Text="TRIM"
+                                   FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   Margin="0,0,0,4"/>
+                        <controls:AdaptiveColumnsPanel Classes="looperOpts" MinColumnWidth="260"
+                                                       ColumnSpacing="16" RowSpacing="6" Margin="0,0,0,8">
+                            <StackPanel>
+                                <TextBlock Text="Cut from start" FontSize="11"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <Grid ColumnDefinitions="Auto,*,Auto,58">
+                                    <Button Grid.Column="0" Classes="secondary" Padding="10,4" FontSize="13"
+                                            Content="−" CommandParameter="start-"
+                                            Command="{Binding NudgeTrimCommand}"
+                                            ToolTip.Tip="Cut 10 ms less"/>
+                                    <Slider Grid.Column="1" Minimum="0"
+                                            Maximum="{Binding LooperTrimMaxMs}"
+                                            Value="{Binding LooperTrimStartMs, Mode=TwoWay}"
+                                            VerticalAlignment="Center" Margin="8,0"/>
+                                    <Button Grid.Column="2" Classes="secondary" Padding="10,4" FontSize="13"
+                                            Content="+" CommandParameter="start+"
+                                            Command="{Binding NudgeTrimCommand}"
+                                            ToolTip.Tip="Cut 10 ms more"/>
+                                    <TextBlock Grid.Column="3"
+                                               Text="{Binding LooperTrimStartMs, StringFormat='{}{0:0} ms'}"
+                                               FontSize="12" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"
+                                               VerticalAlignment="Center" TextAlignment="Right"/>
+                                </Grid>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="Cut from end" FontSize="11"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <Grid ColumnDefinitions="Auto,*,Auto,58">
+                                    <Button Grid.Column="0" Classes="secondary" Padding="10,4" FontSize="13"
+                                            Content="−" CommandParameter="end-"
+                                            Command="{Binding NudgeTrimCommand}"
+                                            ToolTip.Tip="Cut 10 ms less"/>
+                                    <Slider Grid.Column="1" Minimum="0"
+                                            Maximum="{Binding LooperTrimMaxMs}"
+                                            Value="{Binding LooperTrimEndCutMs, Mode=TwoWay}"
+                                            VerticalAlignment="Center" Margin="8,0"/>
+                                    <Button Grid.Column="2" Classes="secondary" Padding="10,4" FontSize="13"
+                                            Content="+" CommandParameter="end+"
+                                            Command="{Binding NudgeTrimCommand}"
+                                            ToolTip.Tip="Cut 10 ms more"/>
+                                    <TextBlock Grid.Column="3"
+                                               Text="{Binding LooperTrimEndCutMs, StringFormat='{}{0:0} ms'}"
+                                               FontSize="12" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"
+                                               VerticalAlignment="Center" TextAlignment="Right"/>
+                                </Grid>
+                            </StackPanel>
+                        </controls:AdaptiveColumnsPanel>
+                        <WrapPanel Orientation="Horizontal">
+                            <Button Classes="secondary" Padding="14,7" FontSize="12" Margin="0,0,12,0"
+                                    IsEnabled="{Binding LooperResetTrimEnabled}"
+                                    Command="{Binding ResetLooperTrimCommand}"
+                                    ToolTip.Tip="Use the whole take again">
+                                <TextBlock Text="Reset trim" FontWeight="SemiBold"/>
+                            </Button>
+                            <TextBlock Text="{Binding LooperLoopSecondsText, StringFormat='Loop length: {0}'}"
+                                       FontSize="11" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextMutedBrush}"/>
+                        </WrapPanel>
+                    </StackPanel>
+
                     <!-- Loop was recorded at another tempo -->
                     <Border CornerRadius="8" Padding="12,8" Margin="0,0,0,12"
                             Background="{DynamicResource WarningSubtleBrush}"
@@ -713,24 +795,40 @@
                                                    ColumnSpacing="16" RowSpacing="14" Margin="0,0,0,12">
                         <!-- Left: length, volume, export -->
                         <StackPanel Spacing="14">
-                            <StackPanel>
-                                <TextBlock Text="LENGTH"
-                                           FontSize="9" FontWeight="Bold" LetterSpacing="1"
-                                           Foreground="{DynamicResource TextMutedBrush}"
-                                           Margin="0,0,0,6"/>
-                                <ComboBox ItemsSource="{Binding LooperLengthOptions}"
-                                          SelectedItem="{Binding SelectedLooperLength, Mode=TwoWay}"
-                                          IsEnabled="{Binding LooperControlsEnabled}"
-                                          HorizontalAlignment="Stretch"
-                                          ToolTip.Tip="How many bars a new loop lasts. Free = until you press Finish."/>
-                            </StackPanel>
+                            <Grid ColumnDefinitions="*,10,*">
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="LENGTH"
+                                               FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                               Foreground="{DynamicResource TextMutedBrush}"
+                                               Margin="0,0,0,6"/>
+                                    <ComboBox ItemsSource="{Binding LooperLengthOptions}"
+                                              SelectedItem="{Binding SelectedLooperLength, Mode=TwoWay}"
+                                              IsEnabled="{Binding LooperControlsEnabled}"
+                                              HorizontalAlignment="Stretch"
+                                              ToolTip.Tip="How long a new loop lasts. Free = until you press Record again."/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="COUNT-IN"
+                                               FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                               Foreground="{DynamicResource TextMutedBrush}"
+                                               Margin="0,0,0,6"/>
+                                    <ComboBox ItemsSource="{Binding LooperCountInOptions}"
+                                              SelectedItem="{Binding SelectedLooperCountIn, Mode=TwoWay}"
+                                              IsEnabled="{Binding LooperControlsEnabled}"
+                                              HorizontalAlignment="Stretch"
+                                              ToolTip.Tip="Clicks before recording starts"/>
+                                    <TextBlock Text="Used when the drums are not playing"
+                                               FontSize="10" TextWrapping="Wrap" Margin="2,4,0,0"
+                                               Foreground="{DynamicResource TextMutedBrush}"/>
+                                </StackPanel>
+                            </Grid>
                             <StackPanel>
                                 <TextBlock Text="LOOP VOLUME"
                                            FontSize="9" FontWeight="Bold" LetterSpacing="1"
                                            Foreground="{DynamicResource TextMutedBrush}"
                                            Margin="0,0,0,2"/>
                                 <Grid ColumnDefinitions="*,Auto">
-                                    <Slider Grid.Column="0" Minimum="0" Maximum="150"
+                                    <Slider Grid.Column="0" Minimum="0" Maximum="200"
                                             Value="{Binding LooperVolumePercent, Mode=TwoWay}"
                                             VerticalAlignment="Center"/>
                                     <TextBlock Grid.Column="1"
@@ -748,12 +846,22 @@
                                 <TextBlock Text="Export WAV" FontWeight="SemiBold"/>
                             </Button>
                             <StackPanel Spacing="6">
+                                <CheckBox IsChecked="{Binding LooperAutoLevel, Mode=TwoWay}"
+                                          ToolTip.Tip="Raises a quiet take to a good level (and lowers a very loud one)">
+                                    <TextBlock Text="Auto level (make quiet takes louder)" TextWrapping="Wrap"/>
+                                </CheckBox>
+                                <TextBlock Text="{Binding LooperGainText}"
+                                           FontSize="11" Margin="28,-4,0,0"
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           IsVisible="{Binding LooperHasGainText}"/>
                                 <CheckBox IsChecked="{Binding LooperAutoPlay, Mode=TwoWay}"
-                                          Content="Play the loop automatically after recording"
-                                          ToolTip.Tip="Off: the take is kept silent until you press Play loop"/>
+                                          ToolTip.Tip="Off: the take is kept silent until you press Play loop">
+                                    <TextBlock Text="Play the loop automatically after recording" TextWrapping="Wrap"/>
+                                </CheckBox>
                                 <CheckBox IsChecked="{Binding LooperStartsDrums, Mode=TwoWay}"
-                                          Content="Record starts the metronome / drums"
-                                          ToolTip.Tip="Off: Record only arms the looper; recording begins on the first bar once you press Start"/>
+                                          ToolTip.Tip="Off: the looper works on its own — Record gives a count-in, then records">
+                                    <TextBlock Text="Record also starts the drums" TextWrapping="Wrap"/>
+                                </CheckBox>
                             </StackPanel>
                         </StackPanel>
 
@@ -840,7 +948,7 @@
                                FontSize="12" TextWrapping="Wrap" Margin="0,0,0,8"
                                Foreground="{DynamicResource ErrorBrush}"
                                IsVisible="{Binding LooperHasError}"/>
-                    <TextBlock Text="The looper follows the drum machine's bars, so it runs while the drums or click are playing."
+                    <TextBlock Text="Works on its own: Record → count-in → play → Record again to finish (or pick a length). With the drums playing it follows their bars."
                                FontSize="10" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextMutedBrush}"/>
                 </StackPanel>

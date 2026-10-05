@@ -35,6 +35,7 @@ namespace CenterHubNew.MVVM.Services
             public float Fade;         // current fade multiplier (1 = full)
             public float FadeStep;     // per-frame decrement; 0 = not fading
             public long Seq;           // start order, used to steal the oldest
+            public bool CountIn;       // a looper count-in click (can be cancelled)
         }
 
         private readonly object _gate = new();
@@ -420,6 +421,49 @@ namespace CenterHubNew.MVVM.Services
             }
         }
 
+        /// <summary>Beats per bar of what plays: the selected style's, or the click-only setting.</summary>
+        public int BeatsPerBar
+        {
+            get { lock (_gate) return Math.Max(1, _activeStyle?.Beats ?? _clickBeats); }
+        }
+
+        /// <summary>
+        /// Schedules a count-in for the looper: <paramref name="beats"/> clicks, <paramref name="beatFrames"/>
+        /// apart (the exact, fractional spacing — each click is placed at round(i × beatFrames), so there is
+        /// no drift), accent on beat 1 of every <paramref name="beatsPerBar"/>. Independent of the sequencer
+        /// (works while stopped). Returns the engine frame of the first click. The click volume has a floor
+        /// of 0.5 so the clicks are always audible.
+        /// </summary>
+        public long ScheduleCountIn(int beats, int beatsPerBar, double beatFrames)
+        {
+            lock (_gate)
+            {
+                float volume = Math.Max(_clickVolume, 0.5f);
+                beatsPerBar = Math.Max(1, beatsPerBar);
+                for (int i = 0; i < beats; i++)
+                {
+                    bool accent = i % beatsPerBar == 0;
+                    float gain = MathF.Pow(accent ? 1f : 0.8f, 1.5f) * 0.9f * volume;
+                    AddVoice(_kit.GetClick(_clickSound, accent), gain, gain, null, null, (int)Math.Round(i * beatFrames), countIn: true);
+                }
+                return _framesRendered;
+            }
+        }
+
+        /// <summary>Silences the count-in clicks that have not sounded yet (and fades the one that is).</summary>
+        public void CancelCountIn()
+        {
+            lock (_gate)
+            {
+                for (int i = 0; i < _voices.Length; i++)
+                {
+                    if (_voices[i].Data == null || !_voices[i].CountIn) continue;
+                    if (_voices[i].Delay > 0) _voices[i].Data = null;
+                    else FadeVoice(ref _voices[i], ChokeFadeMs);
+                }
+            }
+        }
+
         /// <summary>Plays one drum piece so the user can audition the kit (works while stopped).</summary>
         public void PreviewVoice(DrumVoice voice)
         {
@@ -674,7 +718,7 @@ namespace CenterHubNew.MVVM.Services
             AddVoice(_kit.GetClick(_clickSound, accent), gain, gain, null);
         }
 
-        private void AddVoice(float[] data, float gainL, float gainR, DrumVoice? kind, float[]? dataR = null, int delay = 0)
+        private void AddVoice(float[] data, float gainL, float gainR, DrumVoice? kind, float[]? dataR = null, int delay = 0, bool countIn = false)
         {
             int slot = -1;
             long oldest = long.MaxValue;
@@ -704,6 +748,7 @@ namespace CenterHubNew.MVVM.Services
                 Fade = 1f,
                 FadeStep = 0f,
                 Seq = ++_voiceSeq,
+                CountIn = countIn,
             };
         }
 
@@ -727,7 +772,7 @@ namespace CenterHubNew.MVVM.Services
 
             int tick = _tick;
             // A real bar starts (the count-in does not count) — the looper is slaved to these.
-            if (tick == 0 && _section != DrumSection.CountIn) _looper?.OnBarStart(frame, _bpm);
+            if (tick == 0 && _section != DrumSection.CountIn) _looper?.OnBarStart(frame, _bpm, _beatsInBar);
             bool onGrid = tick % _ticksPerStep == 0;
             bool beatStart = tick % TicksPerBeat == 0;
             var pattern = _pattern;

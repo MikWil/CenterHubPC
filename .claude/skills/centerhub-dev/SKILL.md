@@ -259,6 +259,11 @@ something "works", and when releasing.
   clock error over time; `looper-probe KATANA` probes a device by name.
 - Never fold stereo to mono by picking the louder channel per sample (distortion) — average the
   channels that carry signal.
+- Standalone looper check on real devices, silent: `… -- <out> looper-free` (automatic input must
+  resolve to the Katana, count-in → record → loop, auto level, trim, export length, output closes).
+  `… widths` loads an offline loop so the waveform/trim UI shows in the render.
+- When two agents code against a shared interface, spell out units/meaning of every parameter
+  (the UI agent read `SetTrim(start, end)` as positions, the core as amounts cut).
 - **"Real drums" (`DrumKitKind.Acoustic`, the default)** plays recorded hits from
   `Assets/Drums/acoustic.chdk` (embedded resource; public-domain Open Source Drumkit, see
   `Assets/Drums/README.md`; rebuild with `tools/page-render … build-drumkit`). Velocity picks the

@@ -101,6 +101,14 @@ namespace CenterHubNew.MVVM.Services
         }
 
         /// <summary>
+        /// Opens the output if it is not open (without starting the sequencer) and keeps the pump alive.
+        /// The looper needs it for its free mode: the output's clock is the loop's clock. While the looper
+        /// is armed, recording or playing a free loop the engine reports itself busy, so the idle shutdown
+        /// leaves the output open. False when no output could be opened.
+        /// </summary>
+        public bool EnsureOutputOpen() => EnsureOutput();
+
+        /// <summary>
         /// Plays <paramref name="count"/> plain clicks at <paramref name="bpm"/> without starting the
         /// sequencer (looper calibration). Returns the engine frame of the first click (the others follow
         /// every <paramref name="intervalFrames"/>), or -1 when no output could be opened.

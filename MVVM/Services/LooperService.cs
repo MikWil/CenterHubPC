@@ -15,8 +15,10 @@ namespace CenterHubNew.MVVM.Services
     /// <summary>
     /// The guitar looper as the UI sees it: captures the guitar from an audio input, places every captured
     /// sample at the engine frame that was audible when it was played (so a note on the beat lands on the
-    /// beat), and drives <see cref="LooperEngine"/>, which is mixed into the drum machine's output. Never
-    /// opens an output itself. Commands and properties are for the UI thread; capture runs on NAudio's thread.
+    /// beat), and drives <see cref="LooperEngine"/>, which is mixed into the drum machine's output. Without
+    /// the drums it runs on the output's own clock (free mode: count-in, then a loop that cycles by its own
+    /// length); it asks <see cref="MetronomeService"/> to open that output, it has none of its own.
+    /// Commands and properties are for the UI thread; capture runs on NAudio's thread.
     /// </summary>
     public sealed class LooperService : IDisposable
     {
@@ -37,6 +39,7 @@ namespace CenterHubNew.MVVM.Services
             public bool IsFloat;
             public int SourceRate;
             public WdlResampler? Resampler;
+            public int ResamplerDelay;                   // engine-rate frames the sinc filter delays the stream by
             public float[] Mono = new float[4096];
             public float[] Resampled = new float[4096];
             public long Total;                           // engine-rate samples produced so far
@@ -74,9 +77,21 @@ namespace CenterHubNew.MVVM.Services
         private readonly MetronomeService _metronome;
         private readonly IAudioDeviceService _audio;
         private readonly VoicemeeterSettingsService _voicemeeterSettings;
+        private readonly IVoicemeeterService? _voicemeeter;
         private readonly ILogger<LooperService>? _logger;
         private readonly LooperEngine _looper;
         private readonly int _rate;
+
+        // Free mode count-in: the clicks are scheduled on the engine's clock; recording starts at _countInEnd.
+        private long _countInEnd;
+        private int _countInBeats;
+        private double _countInBeatFrames;
+        private int _countInBars = 1;
+
+        // What Banana's guitar strip uses, asked on the UI thread at most every few seconds.
+        private static readonly TimeSpan BananaNameMaxAge = TimeSpan.FromSeconds(5);
+        private string? _bananaName;
+        private long _bananaNameAt;
 
         private CaptureSession? _session;
         private CalibrationCapture? _calibration;
@@ -92,11 +107,13 @@ namespace CenterHubNew.MVVM.Services
         private bool _disposed;
 
         public LooperService(MetronomeService metronome, IAudioDeviceService audio,
-                             VoicemeeterSettingsService voicemeeterSettings, ILogger<LooperService>? logger = null)
+                             VoicemeeterSettingsService voicemeeterSettings, IVoicemeeterService? voicemeeter = null,
+                             ILogger<LooperService>? logger = null)
         {
             _metronome = metronome ?? throw new ArgumentNullException(nameof(metronome));
             _audio = audio ?? throw new ArgumentNullException(nameof(audio));
             _voicemeeterSettings = voicemeeterSettings ?? throw new ArgumentNullException(nameof(voicemeeterSettings));
+            _voicemeeter = voicemeeter;
             _logger = logger;
             _rate = metronome.Engine.WaveFormat.SampleRate;
             _looper = new LooperEngine(_rate);
@@ -108,8 +125,70 @@ namespace CenterHubNew.MVVM.Services
 
         public LooperState State => _looper.State;
 
-        /// <summary>Length of the recorded loop in bars (0 when empty).</summary>
+        /// <summary>Bars of a bar-synced loop, or of a free take recorded with a fixed length (0 when empty or free-length).</summary>
         public int LoopBars => _looper.LoopBars;
+
+        /// <summary>True when the loop is not tied to the drum machine's bars (recorded without it, or trimmed).</summary>
+        public bool IsFreeLoop => _looper.IsFreeLoop;
+
+        /// <summary>Current (trimmed) loop length in seconds; 0 when empty.</summary>
+        public double LoopSeconds => _looper.LoopSeconds;
+
+        /// <summary>Untrimmed length of the take in seconds; 0 when empty.</summary>
+        public double RecordedSeconds => _looper.RecordedSeconds;
+
+        /// <summary>Milliseconds cut from the start of the loop.</summary>
+        public double TrimStartMs => _looper.TrimStartMs;
+
+        /// <summary>Milliseconds cut from the end of the loop.</summary>
+        public double TrimEndMs => _looper.TrimEndMs;
+
+        /// <summary>Cuts the loop (all layers, non-destructive, at once); at least 100 ms stay. Trimming a bar-synced loop frees it.</summary>
+        public void SetTrim(double startMs, double endMs)
+        {
+            if (!_disposed) _looper.SetTrim(startMs, endMs);
+        }
+
+        public void ResetTrim()
+        {
+            if (!_disposed) _looper.ResetTrim();
+        }
+
+        /// <summary>Peak (0..1) per bucket over the untrimmed take, all layers mixed, after the auto-level gain; empty when there is no loop.</summary>
+        public float[] GetWaveform(int buckets) => _looper.GetWaveform(buckets);
+
+        /// <summary>True (default): the first take is raised to a healthy level when it ends.</summary>
+        public bool AutoLevel
+        {
+            get => _looper.AutoLevel;
+            set => _looper.AutoLevel = value;
+        }
+
+        /// <summary>The gain auto-level chose (1 when off or empty).</summary>
+        public float LoopGain => _looper.LoopGain;
+
+        /// <summary>Bars of count-in before a free take (drums not playing): 0, 1 or 2. Default 1.</summary>
+        public int CountInBars
+        {
+            get => Volatile.Read(ref _countInBars);
+            set => Volatile.Write(ref _countInBars, Math.Clamp(value, 0, 2));
+        }
+
+        /// <summary>Armed and the count-in clicks are running.</summary>
+        public bool IsCountingIn => CountInBeatsLeft > 0;
+
+        /// <summary>Count-in beats still to go (0 when not counting in).</summary>
+        public int CountInBeatsLeft
+        {
+            get
+            {
+                long end = Volatile.Read(ref _countInEnd);
+                if (end <= 0 || _countInBeatFrames <= 0 || _looper.State != LooperState.Armed) return 0;
+                long left = end - NowFrame();
+                if (left <= 0) return 0;
+                return Math.Min(_countInBeats, (int)Math.Ceiling(left / _countInBeatFrames));
+            }
+        }
 
         /// <summary>Tempo the loop was recorded at (0 when empty).</summary>
         public double LoopBpm => _looper.LoopBpm;
@@ -189,7 +268,7 @@ namespace CenterHubNew.MVVM.Services
             set => _looper.AutoPlay = value;
         }
 
-        /// <summary>Loop playback gain 0..1.5.</summary>
+        /// <summary>Loop playback gain 0..2 (on top of the auto-level gain).</summary>
         public float Volume
         {
             get => _looper.Volume;
@@ -274,12 +353,16 @@ namespace CenterHubNew.MVVM.Services
                 };
                 if (session.SourceRate != _rate)
                 {
+                    // Sinc interpolation (the default is linear, which aliases a 48 kHz mic into 44.1 kHz).
+                    const int sincSize = 64;
                     var resampler = new WdlResampler();
-                    resampler.SetMode(true, 2, false);
+                    resampler.SetMode(true, 0, true, sincSize, 32);
                     resampler.SetFilterParms();
                     resampler.SetFeedMode(true);        // input driven: we hand over whatever the device delivered
                     resampler.SetRates(session.SourceRate, _rate);
                     session.Resampler = resampler;
+                    // A linear-phase filter delays the stream by half its length; the samples are older than they arrive.
+                    session.ResamplerDelay = (int)Math.Round(sincSize / 2.0 * _rate / session.SourceRate);
                 }
 
                 capture.DataAvailable += (_, e) => OnCaptureData(session, e);
@@ -323,14 +406,70 @@ namespace CenterHubNew.MVVM.Services
         {
             if (_disposed) return;
             if (!IsInputOpen && !OpenInput()) return;
-            _looper.PressRecord(NowFrame());
+
+            var state = _looper.State;
+            if (state == LooperState.Empty && !_metronome.IsPlaying)
+            {
+                ArmFreeTake();
+            }
+            else
+            {
+                // Overdubs of a free loop need the output (the loop's clock) too; bar-synced use is unchanged.
+                if (state is LooperState.Stopped or LooperState.Playing) _metronome.EnsureOutputOpen();
+                _looper.PressRecord(NowFrame());
+                if (state == LooperState.Armed) CancelCountIn();
+            }
             EnsureTimer();
         }
 
         public void PressStop()
         {
             if (_disposed) return;
+            var state = _looper.State;
+            if (state == LooperState.Stopped) _metronome.EnsureOutputOpen();   // a free loop restarts at once, on the output's clock
             _looper.PressStop(NowFrame());
+            if (state == LooperState.Armed) CancelCountIn();
+        }
+
+        // Free mode: the drums are off, so the looper runs on the output's own clock. Count-in clicks are
+        // scheduled sample-exactly; the take starts on the frame where the next downbeat would be.
+        private void ArmFreeTake()
+        {
+            // The capture clock needs the output's position: open it first (the count-in lets the clock settle).
+            if (!_metronome.EnsureOutputOpen())
+            {
+                SetError("Could not open the audio output for the looper");
+                return;
+            }
+
+            var engine = _metronome.Engine;
+            double bpm = engine.Bpm;
+            int beatsPerBar = engine.BeatsPerBar;
+            double beatFrames = _rate * 60.0 / bpm;
+            long now = NowFrame();
+
+            long start = now;
+            int bars = CountInBars;
+            Volatile.Write(ref _countInEnd, 0);
+            if (bars > 0)
+            {
+                int beats = bars * beatsPerBar;
+                long first = engine.ScheduleCountIn(beats, beatsPerBar, beatFrames);
+                start = first + (long)Math.Round(beats * beatFrames);
+                _countInBeats = beats;
+                _countInBeatFrames = beatFrames;
+                Volatile.Write(ref _countInEnd, start);
+            }
+
+            int fixedBars = LengthBars;
+            long fixedFrames = fixedBars > 0 ? (long)Math.Round(fixedBars * beatsPerBar * beatFrames) : 0;
+            _looper.PressRecordFree(now, start, fixedFrames, bpm, fixedBars);
+        }
+
+        private void CancelCountIn()
+        {
+            Volatile.Write(ref _countInEnd, 0);
+            try { _metronome.Engine.CancelCountIn(); } catch { /* best effort */ }
         }
 
         /// <summary>Removes the newest overdub layer (not the first take).</summary>
@@ -448,19 +587,34 @@ namespace CenterHubNew.MVVM.Services
                 if (picked != null) return picked;
             }
 
-            // 2. The guitar from Sound setup: by id, then by name.
+            // 2. What Banana's guitar strip actually uses (what the Sound tab shows), while Voicemeeter runs.
+            var banana = GetBananaGuitarName();
+            if (!string.IsNullOrWhiteSpace(banana))
+            {
+                var match = MatchDeviceName(all, banana);
+                if (match != null) return match;
+            }
+
+            // 3. The guitar saved in the Sound setup — unless it is the very device saved as the microphone
+            //    (an unset guitar once defaulted to the headset mic).
             try
             {
-                var guitar = _voicemeeterSettings.Load().Settings;
-                if (!string.IsNullOrEmpty(guitar.GuitarDeviceId))
+                var s = _voicemeeterSettings.Load().Settings;
+                bool sameAsMic =
+                    (!string.IsNullOrEmpty(s.GuitarDeviceId) && string.Equals(s.GuitarDeviceId, s.MicrophoneDeviceId, StringComparison.OrdinalIgnoreCase)) ||
+                    (!string.IsNullOrEmpty(s.GuitarDeviceName) && string.Equals(s.GuitarDeviceName, s.MicrophoneDeviceName, StringComparison.OrdinalIgnoreCase));
+                if (!sameAsMic)
                 {
-                    var byId = all.FirstOrDefault(d => string.Equals(d.Id, guitar.GuitarDeviceId, StringComparison.OrdinalIgnoreCase));
-                    if (byId != null) return byId;
-                }
-                if (!string.IsNullOrEmpty(guitar.GuitarDeviceName))
-                {
-                    var byName = all.FirstOrDefault(d => string.Equals(d.Name, guitar.GuitarDeviceName, StringComparison.OrdinalIgnoreCase));
-                    if (byName != null) return byName;
+                    if (!string.IsNullOrEmpty(s.GuitarDeviceId))
+                    {
+                        var byId = all.FirstOrDefault(d => string.Equals(d.Id, s.GuitarDeviceId, StringComparison.OrdinalIgnoreCase));
+                        if (byId != null) return byId;
+                    }
+                    if (!string.IsNullOrEmpty(s.GuitarDeviceName))
+                    {
+                        var byName = all.FirstOrDefault(d => string.Equals(d.Name, s.GuitarDeviceName, StringComparison.OrdinalIgnoreCase));
+                        if (byName != null) return byName;
+                    }
                 }
             }
             catch (Exception ex)
@@ -468,7 +622,7 @@ namespace CenterHubNew.MVVM.Services
                 _logger?.LogWarning(ex, "Looper: could not read the guitar device from the Voicemeeter settings");
             }
 
-            // 3. Windows' default recording device — unless that is one of Voicemeeter's own outputs.
+            // 4. Windows' default recording device — unless that is one of Voicemeeter's own outputs.
             var def = _audio.GetDefaultRecording();
             if (def != null)
             {
@@ -478,6 +632,48 @@ namespace CenterHubNew.MVVM.Services
                 if (match != null && !AudioRoutingService.IsVoicemeeterDevice(match.Name)) return match;
             }
             return null;
+        }
+
+        // The input Banana's guitar strip has right now, or null (not running / not set / the API failed).
+        // UI thread only: the Remote API can be slow, so the answer is kept for a few seconds.
+        private string? GetBananaGuitarName()
+        {
+            if (_voicemeeter == null) return null;
+            long now = System.Diagnostics.Stopwatch.GetTimestamp();
+            if (_bananaNameAt != 0 && System.Diagnostics.Stopwatch.GetElapsedTime(_bananaNameAt, now) < BananaNameMaxAge)
+                return _bananaName;
+
+            string? name = null;
+            try
+            {
+                if (_voicemeeter.Status == VoicemeeterStatus.Running)
+                    name = _voicemeeter.GetHardwareInputName(_voicemeeter.GuitarStripIndex)?.Trim();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Looper: could not ask Voicemeeter for the guitar input");
+            }
+            _bananaName = name;
+            _bananaNameAt = now;
+            return name;
+        }
+
+        // Banana may report a truncated or decorated name: exact first, then one starting with the other, then containing it.
+        internal static AudioDeviceInfo? MatchDeviceName(IReadOnlyList<AudioDeviceInfo> devices, string name)
+        {
+            name = name.Trim();
+            if (name.Length < 3 || name == "-") return null;
+            devices = devices.Where(d => d.Name.Trim().Length >= 3 && !AudioRoutingService.IsVoicemeeterDevice(d.Name)).ToList();
+
+            var exact = devices.FirstOrDefault(d => string.Equals(d.Name.Trim(), name, StringComparison.OrdinalIgnoreCase));
+            if (exact != null) return exact;
+
+            var prefix = devices.FirstOrDefault(d =>
+                d.Name.StartsWith(name, StringComparison.OrdinalIgnoreCase) || name.StartsWith(d.Name.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (prefix != null) return prefix;
+
+            return devices.FirstOrDefault(d =>
+                d.Name.Contains(name, StringComparison.OrdinalIgnoreCase) || name.Contains(d.Name.Trim(), StringComparison.OrdinalIgnoreCase));
         }
 
         // ───────────────────────── capture (NAudio's thread) ─────────────────────────
@@ -536,6 +732,7 @@ namespace CenterHubNew.MVVM.Services
                 }
                 long start = session.Clock.Stamp(audible, session.Total, n);
                 if (start == CaptureClock.NotReady) return;   // warming up: nothing is placed yet
+                start -= session.ResamplerDelay;
 
                 var calibration = Volatile.Read(ref _calibration);
                 if (calibration != null) calibration.Append(start, output, n);
