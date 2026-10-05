@@ -243,6 +243,12 @@ something "works", and when releasing.
   after any pattern edit. Engine tests render offline and assert exact frames; keep them exact.
 - Events are delivered when audible, so a `Stopped` event from the previous run can arrive after a
   new `Start()` — the view-model ignores it while the engine is playing.
+- **Looper**: engine tests with an attached-but-empty looper must stay bit-identical to no looper.
+  The real capture path can't be unit-tested; check it silently with
+  `dotnet run --project tools/page-render -- <out> looper-probe` (drums at volume 0, records one
+  bar from the real input, verifies length and that the loop has no holes). It writes a WAV of
+  the user's input — delete it afterwards. How good the loop *sounds* (timing after calibration)
+  only the user can judge.
 - **"Real drums" (`DrumKitKind.Acoustic`, the default)** plays recorded hits from
   `Assets/Drums/acoustic.chdk` (embedded resource; public-domain Open Source Drumkit, see
   `Assets/Drums/README.md`; rebuild with `tools/page-render … build-drumkit`). Velocity picks the

@@ -38,7 +38,7 @@ namespace CenterHubNew.MVVM.Navigation
             new PageDescriptor("autoclicker", "Auto Clicker", "", "Tools",        "Automated mouse clicks",                  typeof(AutoClickerViewModel),   "mouse click"),
             new PageDescriptor("clipboard",   "Clipboard",    "", "Tools",        "Clipboard history",                       typeof(ClipboardViewModel),     "copy paste history"),
             new PageDescriptor("randomizer",  "Randomizer",   "", "Hobby",        "Pick a random option from a custom list", typeof(RandomizerViewModel),    "random pick dice"),
-            new PageDescriptor("metronome",   "Metronome",    "", "Hobby",        "Click and drum beats for practice",       typeof(MetronomeViewModel),     "drums beat tempo bpm practice guitar setlist"),
+            new PageDescriptor("metronome",   "Jam Station", "", "Hobby",        "Drum machine, metronome and guitar looper", typeof(MetronomeViewModel),   "metronome drums beat tempo bpm practice guitar setlist looper loop click"),
             new PageDescriptor("network",     "Network",      "", "System",       "Wi-Fi signal + connection fixes",         typeof(NetworkViewModel),       "wifi internet ping"),
             new PageDescriptor("hotkeys",     "Hotkeys",      "", "System",       "Global keyboard shortcuts",               typeof(HotkeySettingsViewModel),"shortcuts keys keyboard"),
             new PageDescriptor("settings",    "Settings",     "", "System",       "App settings, theme and backup",          typeof(SettingsViewModel),      "preferences theme zoom tray startup backup"),

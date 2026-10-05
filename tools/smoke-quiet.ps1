@@ -10,11 +10,11 @@
 param(
     [string]$Exe = "$PSScriptRoot\..\bin\x64\Debug\net10.0-windows10.0.22621.0\CenterHubNew.exe",
     [string]$OutDir = "$env:TEMP\centerhub-smoke-quiet",
-    [string[]]$Screenshot = @('Metronome', 'Sound'),
+    [string[]]$Screenshot = @('Jam Station', 'Sound'),
     # Window sizes ("WIDTHxHEIGHT") to resize to after the page tour; each size screenshots the
     # pages in -SizePages. Resizing uses SetWindowPos — still no input and no focus change.
     [string[]]$Sizes = @(),
-    [string[]]$SizePages = @('Home', 'Sound', 'Metronome')
+    [string[]]$SizePages = @('Home', 'Sound', 'Jam Station')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -62,7 +62,7 @@ $pages = [ordered]@{
     'Home' = 'Home'; 'Settings' = 'Settings'
     'Monitoring' = 'Monitoring'; 'Standing' = 'Standing Timer'; 'Notes' = 'Notes'; 'Layouts' = 'Window Layouts'
     'Sound' = 'Sound'; 'Soundboard' = 'Soundboard'; 'Utilities' = 'Utilities'; 'Auto Clicker' = 'Auto Clicker'
-    'Clipboard' = 'Clipboard History'; 'Randomizer' = 'Randomizer'; 'Metronome' = 'Metronome'
+    'Clipboard' = 'Clipboard History'; 'Randomizer' = 'Randomizer'; 'Jam Station' = 'Jam Station'
     'Network' = 'Network'; 'Hotkeys' = 'Global Hotkeys'
 }
 

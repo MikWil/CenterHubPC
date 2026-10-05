@@ -72,6 +72,7 @@ namespace CenterHubNew.MVVM.Services
                     var loaded = JsonConvert.DeserializeObject<UiSettings>(File.ReadAllText(_filePath), Json);
                     if (loaded != null)
                     {
+                        Upgrade(loaded);
                         Sanitize(loaded);
                         return loaded;
                     }
@@ -84,7 +85,23 @@ namespace CenterHubNew.MVVM.Services
             }
             catch (Exception ex) { _logger?.LogError(ex, "Error loading ui.json"); }
 
-            return new UiSettings();
+            return new UiSettings { SettingsVersion = CurrentVersion };
+        }
+
+        /// <summary>Bumped whenever a default changes in a way existing files should pick up once.</summary>
+        internal const int CurrentVersion = 2;
+
+        /// <summary>One-time changes for files written by an older version (saved with the next change).</summary>
+        internal static void Upgrade(UiSettings s)
+        {
+            if (s.SettingsVersion < 2)
+            {
+                // 7.1: minimize stays on the taskbar and the tray icon is always there. Files from
+                // 7.0 hold the old defaults (hide to tray, icon only while hidden), not a choice.
+                s.MinimizeToTray = false;
+                s.AlwaysShowTrayIcon = true;
+            }
+            s.SettingsVersion = CurrentVersion;
         }
 
         private void SaveLocked()

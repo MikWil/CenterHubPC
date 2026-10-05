@@ -51,6 +51,7 @@ namespace CenterHubNew.MVVM.Services
 
         private DrumKit _kit;
         private long _voiceSeq;
+        private LooperEngine? _looper;      // mixed into Read after the master stage; null = no looper
 
         // ── settings ──
         private double _bpm = 120;
@@ -150,6 +151,15 @@ namespace CenterHubNew.MVVM.Services
         {
             get { lock (_gate) return _humanize; }
             set { lock (_gate) _humanize = Math.Clamp(value, 0f, 0.3f); }
+        }
+
+        /// <summary>
+        /// Attaches (or, with null, detaches) the guitar looper. It is told about bar starts and stops and
+        /// mixes itself into <see cref="Read"/>; with no looper, or an empty one, the output is unchanged.
+        /// </summary>
+        public void AttachLooper(LooperEngine? looper)
+        {
+            lock (_gate) _looper = looper;
         }
 
         /// <summary>Swaps the drum kit. Already-sounding voices keep their old samples.</summary>
@@ -309,6 +319,7 @@ namespace CenterHubNew.MVVM.Services
                 _gapMuted = ComputeGapMute();
                 _framesToNextTick = 0;
                 _playing = true;
+                _looper?.OnEngineStart(_framesRendered);
             }
         }
 
@@ -391,6 +402,24 @@ namespace CenterHubNew.MVVM.Services
             }
         }
 
+        /// <summary>
+        /// Schedules <paramref name="count"/> accented clicks <paramref name="intervalFrames"/> apart as
+        /// delayed voices, sample-exact, independent of the sequencer (works while stopped; used to calibrate
+        /// the looper's latency). Returns the engine frame of the first click. The click volume has a floor
+        /// of 0.5 so the clicks are always audible.
+        /// </summary>
+        public long ScheduleClicks(MetronomeSound sound, int count, int intervalFrames)
+        {
+            lock (_gate)
+            {
+                float gain = 0.9f * Math.Max(_clickVolume, 0.5f);
+                var click = _kit.GetClick(sound, true);
+                for (int i = 0; i < count; i++)
+                    AddVoice(click, gain, gain, null, null, i * intervalFrames);
+                return _framesRendered;
+            }
+        }
+
         /// <summary>Plays one drum piece so the user can audition the kit (works while stopped).</summary>
         public void PreviewVoice(DrumVoice voice)
         {
@@ -413,6 +442,7 @@ namespace CenterHubNew.MVVM.Services
                 lock (_gate)
                 {
                     if (_playing) return false;
+                    if (_looper != null && _looper.IsBusy) return false;
                     for (int i = 0; i < _voices.Length; i++)
                         if (_voices[i].Data != null) return false;
                     return true;
@@ -486,6 +516,8 @@ namespace CenterHubNew.MVVM.Services
                     }
                     buffer[i] = x;
                 }
+
+                _looper?.Mix(buffer, offset, frames, _framesRendered, master);
 
                 _framesRendered += frames;
                 return count;
@@ -694,6 +726,8 @@ namespace CenterHubNew.MVVM.Services
             }
 
             int tick = _tick;
+            // A real bar starts (the count-in does not count) — the looper is slaved to these.
+            if (tick == 0 && _section != DrumSection.CountIn) _looper?.OnBarStart(frame, _bpm);
             bool onGrid = tick % _ticksPerStep == 0;
             bool beatStart = tick % TicksPerBeat == 0;
             var pattern = _pattern;
@@ -994,6 +1028,7 @@ namespace CenterHubNew.MVVM.Services
             if (!_playing) return;
 
             _playing = false;
+            _looper?.OnEngineStop(frame);
             _section = DrumSection.Stopped;
             _fillNextBar = false;
             _transitionNextBar = false;

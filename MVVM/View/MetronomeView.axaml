@@ -183,6 +183,50 @@
             <Setter Property="MaxColumns" Value="3"/>
         </Style>
 
+        <!-- Looper: options in two columns / stacked when narrow -->
+        <Style Selector="controls|AdaptiveColumnsPanel.looperOpts">
+            <Setter Property="MaxColumns" Value="2"/>
+        </Style>
+        <Style Selector="StackPanel.root:narrow controls|AdaptiveColumnsPanel.looperOpts">
+            <Setter Property="MaxColumns" Value="1"/>
+        </Style>
+
+        <!-- Looper: record button (red while recording / overdubbing, amber outline while armed) -->
+        <Style Selector="Border.recDot">
+            <Setter Property="Width" Value="14"/>
+            <Setter Property="Height" Value="14"/>
+            <Setter Property="CornerRadius" Value="7"/>
+            <Setter Property="Background" Value="{DynamicResource ErrorBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.rec.armed">
+            <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="Background" Value="{DynamicResource WarningSubtleBrush}"/>
+        </Style>
+        <Style Selector="Button.rec.recording">
+            <Setter Property="Background" Value="{DynamicResource ErrorBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="Button.rec.recording:pointerover /template/ Border#Bg">
+            <Setter Property="Background" Value="{DynamicResource ErrorBrush}"/>
+        </Style>
+        <Style Selector="Button.rec.recording Border.recDot">
+            <Setter Property="Background" Value="White"/>
+        </Style>
+
+        <!-- Looper: loop position bar (accent; red while recording) -->
+        <Style Selector="Border.posFill">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+        <Style Selector="Border.posFill.rec">
+            <Setter Property="Background" Value="{DynamicResource ErrorBrush}"/>
+        </Style>
+        <Style Selector="Border.lvlFill">
+            <Setter Property="Background" Value="{DynamicResource SuccessBrush}"/>
+        </Style>
+
         <!-- Tap tempo + presets: side by side, stacked when narrow -->
         <Style Selector="Button.tap">
             <Setter Property="Grid.Column" Value="0"/>
@@ -233,8 +277,8 @@
         </Style>
     </UserControl.Styles>
 
-    <controls:PageHost Title="Metronome"
-                       Subtitle="Click, drum beats with fills, and practice tools"
+    <controls:PageHost Title="Jam Station"
+                       Subtitle="Drum machine, metronome and guitar looper"
                        Mode="Reading">
         <controls:PageHost.HeaderBadge>
             <Border VerticalAlignment="Center"
@@ -568,6 +612,229 @@
                                       Width="150"/>
                         </StackPanel>
                     </WrapPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ===== LOOPER ===== -->
+            <Border Classes="card" Margin="0,0,0,12" IsVisible="{Binding HasLooper}">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,14" Spacing="8">
+                        <Border Width="3" Height="14" CornerRadius="2"
+                                Background="{DynamicResource ErrorBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="LOOPER" FontSize="10" FontWeight="Bold" LetterSpacing="1"
+                                   Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Pedal row: 4 across, 2x2 when narrow -->
+                    <controls:AdaptiveColumnsPanel Classes="pedals" MinColumnWidth="120"
+                                                   ColumnSpacing="8" RowSpacing="8" Margin="0,0,0,12">
+                        <Button Classes="secondary rec" Padding="10,16" FontSize="14" FontWeight="SemiBold"
+                                HorizontalAlignment="Stretch"
+                                Classes.armed="{Binding LooperIsArmed}"
+                                Classes.recording="{Binding LooperIsRecording}"
+                                IsEnabled="{Binding LooperControlsEnabled}"
+                                Command="{Binding LooperRecordCommand}"
+                                ToolTip.Tip="Record, overdub or finish the loop (also the pedal hotkey)">
+                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                <Border Classes="recDot"/>
+                                <TextBlock Text="{Binding LooperRecordLabel}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="secondary" Padding="10,16" FontSize="14" FontWeight="SemiBold"
+                                HorizontalAlignment="Stretch"
+                                IsEnabled="{Binding LooperStopEnabled}"
+                                Command="{Binding LooperStopCommand}"
+                                ToolTip.Tip="Silence the loop, or start it again on the next bar">
+                            <TextBlock Text="{Binding LooperStopLabel}"/>
+                        </Button>
+                        <Button Classes="secondary" Padding="10,16" FontSize="14" FontWeight="SemiBold"
+                                HorizontalAlignment="Stretch"
+                                IsEnabled="{Binding LooperUndoEnabled}"
+                                Command="{Binding LooperUndoCommand}"
+                                ToolTip.Tip="Remove the newest overdub layer">
+                            <TextBlock Text="Undo"/>
+                        </Button>
+                        <Button Classes="danger" Padding="10,16" FontSize="14"
+                                HorizontalAlignment="Stretch"
+                                IsEnabled="{Binding LooperClearEnabled}"
+                                Command="{Binding LooperClearCommand}"
+                                ToolTip.Tip="Forget the loop (or cancel a recording)">
+                            <TextBlock Text="Clear"/>
+                        </Button>
+                    </controls:AdaptiveColumnsPanel>
+
+                    <!-- Status + loop position -->
+                    <TextBlock Text="{Binding LooperStatusText}"
+                               FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               Margin="0,0,0,8"/>
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+                        <Border Grid.Column="0" Height="6" CornerRadius="3" ClipToBounds="True"
+                                VerticalAlignment="Center"
+                                Background="{DynamicResource BorderSubtleBrush}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="{Binding LooperPositionFill}"/>
+                                    <ColumnDefinition Width="{Binding LooperPositionRest}"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" Classes="posFill"
+                                        Classes.rec="{Binding LooperIsRecording}"/>
+                            </Grid>
+                        </Border>
+                        <TextBlock Grid.Column="1" Text="{Binding LooperLoopInfo}"
+                                   FontSize="11" Margin="12,0,0,0" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   IsVisible="{Binding LooperHasLoop}"/>
+                    </Grid>
+
+                    <!-- Loop was recorded at another tempo -->
+                    <Border CornerRadius="8" Padding="12,8" Margin="0,0,0,12"
+                            Background="{DynamicResource WarningSubtleBrush}"
+                            IsVisible="{Binding LooperTempoMismatch}">
+                        <Grid ColumnDefinitions="*,12,Auto">
+                            <TextBlock Grid.Column="0" Text="{Binding LooperTempoMismatchText}"
+                                       FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource WarningBrush}"/>
+                            <Button Grid.Column="2" Classes="secondary" Padding="12,6" FontSize="12"
+                                    Command="{Binding LooperMatchTempoCommand}">
+                                <TextBlock Text="{Binding LooperMatchTempoText}" FontWeight="SemiBold"/>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <!-- Calibration prompt -->
+                    <TextBlock Text="{Binding LooperCalibrationText}"
+                               FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap"
+                               Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,12"
+                               IsVisible="{Binding IsLooperCalibrating}"/>
+
+                    <!-- Options: two columns when wide, stacked when narrow -->
+                    <controls:AdaptiveColumnsPanel Classes="looperOpts" MinColumnWidth="260"
+                                                   ColumnSpacing="16" RowSpacing="14" Margin="0,0,0,12">
+                        <!-- Left: length, volume, export -->
+                        <StackPanel Spacing="14">
+                            <StackPanel>
+                                <TextBlock Text="LENGTH"
+                                           FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           Margin="0,0,0,6"/>
+                                <ComboBox ItemsSource="{Binding LooperLengthOptions}"
+                                          SelectedItem="{Binding SelectedLooperLength, Mode=TwoWay}"
+                                          IsEnabled="{Binding LooperControlsEnabled}"
+                                          HorizontalAlignment="Stretch"
+                                          ToolTip.Tip="How many bars a new loop lasts. Free = until you press Finish."/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="LOOP VOLUME"
+                                           FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           Margin="0,0,0,2"/>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Slider Grid.Column="0" Minimum="0" Maximum="150"
+                                            Value="{Binding LooperVolumePercent, Mode=TwoWay}"
+                                            VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding LooperVolumePercent, StringFormat='{}{0:0}%'}"
+                                               FontSize="12" FontWeight="SemiBold" Width="48"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"
+                                               VerticalAlignment="Center" TextAlignment="Right"/>
+                                </Grid>
+                            </StackPanel>
+                            <Button Classes="secondary" Padding="16,9" FontSize="12"
+                                    HorizontalAlignment="Left"
+                                    IsEnabled="{Binding LooperExportEnabled}"
+                                    Click="LooperExport_Click"
+                                    ToolTip.Tip="Save the loop as a WAV file">
+                                <TextBlock Text="Export WAV" FontWeight="SemiBold"/>
+                            </Button>
+                        </StackPanel>
+
+                        <!-- Right: input, delay compensation -->
+                        <StackPanel Spacing="14">
+                            <StackPanel>
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,6">
+                                    <TextBlock Grid.Column="0" Text="INPUT"
+                                               FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                               Foreground="{DynamicResource TextMutedBrush}"
+                                               VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="Input live" FontSize="12"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   VerticalAlignment="Center"/>
+                                        <ToggleSwitch OnContent="" OffContent=""
+                                                      IsEnabled="{Binding LooperControlsEnabled}"
+                                                      IsChecked="{Binding LooperInputOpen, Mode=TwoWay}"/>
+                                    </StackPanel>
+                                </Grid>
+                                <!-- Input level meter (fluid width) -->
+                                <Border Height="6" CornerRadius="3" ClipToBounds="True" Margin="0,0,0,8"
+                                        Background="{DynamicResource BorderSubtleBrush}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="{Binding LooperInputLevelFill}"/>
+                                            <ColumnDefinition Width="{Binding LooperInputLevelRest}"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" Classes="lvlFill"/>
+                                    </Grid>
+                                </Border>
+                                <Grid ColumnDefinitions="*,6,Auto">
+                                    <ComboBox Grid.Column="0"
+                                              ItemsSource="{Binding LooperInputDevices}"
+                                              SelectedItem="{Binding SelectedLooperInputDevice, Mode=TwoWay}"
+                                              IsEnabled="{Binding LooperControlsEnabled}"
+                                              HorizontalAlignment="Stretch"
+                                              DropDownOpened="LooperDevices_DropDownOpened"
+                                              ToolTip.Tip="Which input the looper records from"/>
+                                    <Button Grid.Column="2" Classes="secondary" Padding="10,8" FontSize="13"
+                                            Command="{Binding RefreshLooperDevicesCommand}"
+                                            ToolTip.Tip="Refresh the device list">
+                                        <TextBlock Text="↻"/>
+                                    </Button>
+                                </Grid>
+                                <TextBlock Text="{Binding LooperInputDeviceName, StringFormat='Listening to {0}'}"
+                                           FontSize="11" TextWrapping="Wrap" Margin="2,6,0,0"
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           IsVisible="{Binding LooperHasInputDeviceName}"/>
+                            </StackPanel>
+
+                            <StackPanel>
+                                <TextBlock Text="DELAY COMPENSATION"
+                                           FontSize="9" FontWeight="Bold" LetterSpacing="1"
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           Margin="0,0,0,2"/>
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,6">
+                                    <Slider Grid.Column="0" Minimum="0" Maximum="400"
+                                            IsSnapToTickEnabled="True" TickFrequency="1"
+                                            Value="{Binding LooperLatencyMs, Mode=TwoWay}"
+                                            IsEnabled="{Binding LooperControlsEnabled}"
+                                            VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding LooperLatencyMs, StringFormat='{}{0} ms'}"
+                                               FontSize="12" FontWeight="SemiBold" Width="58"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"
+                                               VerticalAlignment="Center" TextAlignment="Right"/>
+                                </Grid>
+                                <Button Classes="secondary" Padding="16,9" FontSize="12"
+                                        HorizontalAlignment="Left" Margin="0,0,0,6"
+                                        IsEnabled="{Binding LooperControlsEnabled}"
+                                        Command="{Binding CalibrateLooperCommand}"
+                                        ToolTip.Tip="Stops the drums and measures the delay from 8 clicks">
+                                    <TextBlock Text="Calibrate" FontWeight="SemiBold"/>
+                                </Button>
+                                <TextBlock Text="Loop sounds late or early? Calibrate once: strum along with 8 clicks."
+                                           FontSize="10" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextMutedBrush}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </controls:AdaptiveColumnsPanel>
+
+                    <TextBlock Text="{Binding LooperError}"
+                               FontSize="12" TextWrapping="Wrap" Margin="0,0,0,8"
+                               Foreground="{DynamicResource ErrorBrush}"
+                               IsVisible="{Binding LooperHasError}"/>
+                    <TextBlock Text="The looper follows the drum machine's bars, so it runs while the drums or click are playing."
+                               FontSize="10" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextMutedBrush}"/>
                 </StackPanel>
             </Border>
 

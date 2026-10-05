@@ -8,6 +8,13 @@ using Newtonsoft.Json.Converters;
 
 namespace CenterHubNew.MVVM.Services
 {
+    /// <summary>Small pure helpers for the persisted settings.</summary>
+    public static class MetronomeSettingsHelper
+    {
+        /// <summary>Valid looper lengths are 0 (free), 1, 2, 4 and 8 bars; anything else becomes 4.</summary>
+        public static int LooperLengthOrDefault(int bars) => bars is 0 or 1 or 2 or 4 or 8 ? bars : 4;
+    }
+
     /// <summary>
     /// Persists the Metronome page settings to %AppData%\CenterHub\metronome.json
     /// (same convention as voicemeeter.json). Enums are stored as strings so the file
@@ -93,6 +100,10 @@ namespace CenterHubNew.MVVM.Services
             s.TrainerTargetBpm = Math.Clamp(s.TrainerTargetBpm, 30, 280);
             s.GapPlayBars = Math.Clamp(s.GapPlayBars, 1, 16);
             s.GapMuteBars = Math.Clamp(s.GapMuteBars, 1, 16);
+            s.LooperLengthBars = MetronomeSettingsHelper.LooperLengthOrDefault(s.LooperLengthBars);
+            s.LooperVolume = double.IsNaN(s.LooperVolume) ? 1.0 : Math.Clamp(s.LooperVolume, 0.0, 1.5);
+            s.LooperLatencyMs = Math.Clamp(s.LooperLatencyMs, 0, 400);
+            if (string.IsNullOrWhiteSpace(s.LooperInputDeviceId)) s.LooperInputDeviceId = null;
             s.Accents ??= new List<BeatAccent>();
 
             for (int i = 0; i < s.Accents.Count; i++)

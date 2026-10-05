@@ -187,6 +187,16 @@ namespace CenterHubNew
                     () => TryPost(() => Services.GetService<MetronomeViewModel>()?.NextSong()));
                 hotkeyService.SetCallback(HotkeyAction.MetronomePrevSong,
                     () => TryPost(() => Services.GetService<MetronomeViewModel>()?.PreviousSong()));
+
+                // ── Guitar looper: the same four actions as a looper pedal
+                hotkeyService.SetCallback(HotkeyAction.LooperRecord,
+                    () => TryPost(() => Services.GetService<MetronomeViewModel>()?.LooperRecord()));
+                hotkeyService.SetCallback(HotkeyAction.LooperStop,
+                    () => TryPost(() => Services.GetService<MetronomeViewModel>()?.LooperStop()));
+                hotkeyService.SetCallback(HotkeyAction.LooperUndo,
+                    () => TryPost(() => Services.GetService<MetronomeViewModel>()?.LooperUndo()));
+                hotkeyService.SetCallback(HotkeyAction.LooperClear,
+                    () => TryPost(() => Services.GetService<MetronomeViewModel>()?.LooperClear()));
             }
             catch (Exception ex)
             {
@@ -276,6 +286,7 @@ namespace CenterHubNew
                     services.AddSingleton<SettingsBackupService>();
                     services.AddSingleton<MetronomeService>();
                     services.AddSingleton<MetronomeSettingsService>();
+                    services.AddSingleton<LooperService>();
                     services.AddSingleton<RandomizerSoundService>();
                     services.AddSingleton<IAudioDeviceService, AudioDeviceService>();
                     services.AddSingleton<IVoicemeeterService, VoicemeeterService>();

@@ -193,12 +193,16 @@ namespace CenterHubNew.MVVM.Services
             Add(HotkeyAction.ApplyLayout1, "Apply Layout 1", "WINDOW LAYOUTS");
             Add(HotkeyAction.ApplyLayout2, "Apply Layout 2", "WINDOW LAYOUTS");
             Add(HotkeyAction.ApplyLayout3, "Apply Layout 3", "WINDOW LAYOUTS");
-            Add(HotkeyAction.MetronomeStartStop, "Start / Stop", "METRONOME");
-            Add(HotkeyAction.MetronomeFill, "Drum Fill", "METRONOME");
-            Add(HotkeyAction.MetronomeNextPart, "Next Song Part", "METRONOME");
-            Add(HotkeyAction.MetronomeTapTempo, "Tap Tempo", "METRONOME");
-            Add(HotkeyAction.MetronomeNextSong, "Next Setlist Song", "METRONOME");
-            Add(HotkeyAction.MetronomePrevSong, "Previous Setlist Song", "METRONOME");
+            Add(HotkeyAction.MetronomeStartStop, "Start / Stop", "JAM STATION");
+            Add(HotkeyAction.MetronomeFill, "Drum Fill", "JAM STATION");
+            Add(HotkeyAction.MetronomeNextPart, "Next Song Part", "JAM STATION");
+            Add(HotkeyAction.MetronomeTapTempo, "Tap Tempo", "JAM STATION");
+            Add(HotkeyAction.MetronomeNextSong, "Next Setlist Song", "JAM STATION");
+            Add(HotkeyAction.MetronomePrevSong, "Previous Setlist Song", "JAM STATION");
+            Add(HotkeyAction.LooperRecord, "Looper: Record / Overdub", "JAM STATION");
+            Add(HotkeyAction.LooperStop, "Looper: Stop / Play Loop", "JAM STATION");
+            Add(HotkeyAction.LooperUndo, "Looper: Undo Overdub", "JAM STATION");
+            Add(HotkeyAction.LooperClear, "Looper: Clear", "JAM STATION");
             ApplyDefaults();
         }
 

@@ -131,6 +131,7 @@ The Metronome page is a click **and** a BeatBuddy-style drum machine, all synthe
 - `DrumKit` provides every drum voice and click sound: "Real drums" (default) plays recorded hits from the embedded `Assets/Drums/acoustic.chdk` (public domain, see `Assets/Drums/README.md`), with velocity layers and alternating hits; Rock / Electro / Jazz are synthesized. Deterministic.
 - `DrumStyleLibrary` (+ `.RockPop.cs`, `.Groove.cs`) holds the styles, written as drum tabs — see `DrumBar.Parse` in `MVVM/Models/DrumModels.cs`. Every bar of a style must have `Beats × StepsPerBeat` steps; `DrumStyleLibrary.Validate` (unit-tested) catches typos. Fills keep the groove for the first half of the bar because they can be triggered mid-bar.
 - `MetronomeService` owns the audio output (WASAPI shared/event, WaveOut fallback; opened on demand, closed ~1.5 s after going idle) and delivers the engine's position events on the UI thread *when they become audible*, so the lights match the sound.
+- **Guitar looper** (the page is called "Jam Station"; its key and class names stay `metronome` / `Metronome*`): `LooperEngine` (pure, attached to the drum engine with `AttachLooper`; bar-synced state machine Empty → Armed → Recording → Playing ⇄ Overdubbing / Stopped, layers with undo, mixed at the end of `Read`) and `LooperService` (WASAPI shared capture of the guitar input, resampled to mono 44.1 kHz; each captured buffer is placed at the engine frame that was *audible* when it was played — `MetronomeService.GetAudibleFrame()` minus `LatencyMs`; `CalibrateAsync` measures that delay from 8 strummed clicks). The loop plays through the drum machine's output, so it goes where the drums go (you hear it; Discord does not).
 - Settings persist in `%AppData%\CenterHub\metronome.json` via `MetronomeSettingsService`.
 - Hotkeys (unbound by default): Start/Stop, Drum Fill, Next Song Part, Tap Tempo — a USB footswitch that sends keys works as a pedal.
 
@@ -142,7 +143,7 @@ The Metronome page is a click **and** a BeatBuddy-style drum machine, all synthe
 - GlobalHotkeyService requires a window HWND — initialized after MainWindow loads. Map keys with `GlobalHotkeyService.KeyToVirtualKey` (Avalonia `Key` is not a Win32 VK code)
 - View-models that global hotkeys act on (Sound, Standing, Clipboard, AutoClicker, Soundboard, Metronome) are **singletons**
 - Single-instance enforced in `Program.Main` via `Mutex` ("CenterHubNew_SingleInstance_Mutex"); a second launch signals the first to restore its window
-- Minimize hides to the tray (`Hide()`); closing the main window quits (`ShutdownMode.OnMainWindowClose`), no confirmation
+- Minimize stays on the taskbar and the tray icon is always shown (defaults since 7.1; `UiSettings.MinimizeToTray` / `AlwaysShowTrayIcon` / `CloseToTray` change it — hiding is `Hide()`, never `ShowInTaskbar`). Closing the main window quits (`ShutdownMode.OnMainWindowClose`), no confirmation. Changed defaults reach existing `ui.json` files through `UiSettingsService.Upgrade` + `SettingsVersion`
 - Build/installer via `build-installer.ps1`
 
 ## Testing

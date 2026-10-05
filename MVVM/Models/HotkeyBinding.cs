@@ -47,6 +47,12 @@ namespace CenterHubNew.MVVM.Models
 
         // App (added in 7.0 — appended so saved names keep their meaning)
         AppCommandPalette,
+
+        // Guitar looper (Jam Station) — pedal actions
+        LooperRecord,
+        LooperStop,
+        LooperUndo,
+        LooperClear,
     }
 
     /// <summary>

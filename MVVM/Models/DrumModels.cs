@@ -385,6 +385,16 @@ namespace CenterHubNew.MVVM.Models
         public int GapPlayBars { get; set; } = 2;
         public int GapMuteBars { get; set; } = 2;
 
+        // ── Guitar looper ──
+        /// <summary>Length of a new loop in bars; 0 = free (ends when Record is pressed again).</summary>
+        public int LooperLengthBars { get; set; } = 4;
+        /// <summary>Loop playback level, 0–1.5.</summary>
+        public double LooperVolume { get; set; } = 1.0;
+        /// <summary>Delay compensation in milliseconds, 0–400.</summary>
+        public int LooperLatencyMs { get; set; } = 60;
+        /// <summary>Capture device id; null = automatic (guitar from the Sound setup, else the Windows default).</summary>
+        public string? LooperInputDeviceId { get; set; }
+
         // ── Setlists ──
         public List<Setlist> Setlists { get; set; } = new();
         public string? ActiveSetlistId { get; set; }

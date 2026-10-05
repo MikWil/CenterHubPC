@@ -23,6 +23,7 @@ namespace CenterHubNew.MVVM.Services
         private readonly ILogger<MetronomeService>? _logger;
         private readonly Dictionary<DrumKitKind, DrumKit> _kits = new();
 
+        private readonly object _outputGate = new(); // guards _output/_framesAtOpen: the looper's capture thread reads the device clock
         private IWavePlayer? _output;
         private long _framesAtOpen;
         private DispatcherTimer? _pump;
@@ -99,6 +100,55 @@ namespace CenterHubNew.MVVM.Services
             Engine.PreviewVoice(voice);
         }
 
+        /// <summary>
+        /// Plays <paramref name="count"/> plain clicks at <paramref name="bpm"/> without starting the
+        /// sequencer (looper calibration). Returns the engine frame of the first click (the others follow
+        /// every <paramref name="intervalFrames"/>), or -1 when no output could be opened.
+        /// </summary>
+        public long PlayClickTrack(MetronomeSound sound, int count, double bpm, out int intervalFrames)
+        {
+            intervalFrames = (int)Math.Round(Engine.WaveFormat.SampleRate * 60.0 / Math.Clamp(bpm, 30.0, 300.0));
+            if (!EnsureOutput()) return -1;
+            return Engine.ScheduleClicks(sound, count, intervalFrames);
+        }
+
+        /// <summary>
+        /// The engine frame the output device is playing right now, or -1 when there is no output (or its
+        /// clock can't be read). Safe to call from any thread, e.g. the looper's capture thread.
+        /// </summary>
+        public long GetAudibleFrame()
+        {
+            IWavePlayer? output;
+            long framesAtOpen;
+            lock (_outputGate)
+            {
+                output = _output;
+                framesAtOpen = _framesAtOpen;
+            }
+            if (output == null) return -1;
+            return TryGetPlayedFrames(output, framesAtOpen, Engine.FramesRendered, out long played) ? played : -1;
+        }
+
+        // The frames the device has actually played, clamped to what has been rendered. False when the
+        // device position can't be read (e.g. the output is being disposed).
+        private bool TryGetPlayedFrames(IWavePlayer output, long framesAtOpen, long rendered, out long played)
+        {
+            try
+            {
+                // The position is in bytes of the DEVICE format, which may not be the engine's.
+                var position = (IWavePosition)output;
+                double seconds = (double)position.GetPosition() / Math.Max(1, position.OutputWaveFormat.AverageBytesPerSecond);
+                played = framesAtOpen + (long)(seconds * Engine.WaveFormat.SampleRate);
+                if (played > rendered) played = rendered;
+                return true;
+            }
+            catch
+            {
+                played = rendered;
+                return false;
+            }
+        }
+
         /// <summary>Stops playback, the pump and the output. Safe to call more than once; never throws.</summary>
         public void Dispose()
         {
@@ -127,8 +177,11 @@ namespace CenterHubNew.MVVM.Services
 
                 // Publish only after Play() succeeded. The device position restarts at 0 per output.
                 output.PlaybackStopped += OnPlaybackStopped;
-                _framesAtOpen = framesAtOpen;
-                _output = output;
+                lock (_outputGate)
+                {
+                    _framesAtOpen = framesAtOpen;
+                    _output = output;
+                }
             }
 
             _idleSinceTimestamp = 0;
@@ -218,19 +271,7 @@ namespace CenterHubNew.MVVM.Services
 
             // 1. How far the device has actually played.
             long rendered = Engine.FramesRendered;
-            long playedFrames;
-            try
-            {
-                // The position is in bytes of the DEVICE format, which may not be the engine's.
-                var position = (IWavePosition)output;
-                double seconds = (double)position.GetPosition() / Math.Max(1, position.OutputWaveFormat.AverageBytesPerSecond);
-                playedFrames = _framesAtOpen + (long)(seconds * Engine.WaveFormat.SampleRate);
-                if (playedFrames > rendered) playedFrames = rendered;
-            }
-            catch
-            {
-                playedFrames = rendered;
-            }
+            TryGetPlayedFrames(output, _framesAtOpen, rendered, out long playedFrames);
 
             // 2. Deliver every event whose frame has become audible. The output never buffers
             //    anywhere near half a second, so an event older than that is delivered regardless —
@@ -278,8 +319,12 @@ namespace CenterHubNew.MVVM.Services
 
         private void CloseOutput()
         {
-            var output = _output;
-            _output = null;
+            IWavePlayer? output;
+            lock (_outputGate)
+            {
+                output = _output;
+                _output = null;
+            }
             if (output == null) return;
             output.PlaybackStopped -= OnPlaybackStopped;
             try { output.Stop(); } catch { /* best effort */ }

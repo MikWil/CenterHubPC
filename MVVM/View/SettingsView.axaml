@@ -98,7 +98,7 @@
                     <Grid Classes="setting" ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,16,0">
                             <TextBlock Text="Minimize hides to the tray"/>
-                            <TextBlock Classes="hint" Text="Off: minimize goes to the taskbar like any other window"/>
+                            <TextBlock Classes="hint" Text="Off: minimize stays on the taskbar like any other window"/>
                         </StackPanel>
                         <ToggleSwitch Grid.Column="1" OnContent="" OffContent=""
                                       IsChecked="{Binding MinimizeToTray, Mode=TwoWay}"/>
@@ -116,7 +116,7 @@
                     <Grid Classes="setting" ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,16,0">
                             <TextBlock Text="Always show the tray icon"/>
-                            <TextBlock Classes="hint" Text="Off: the icon only appears while the window is hidden"/>
+                            <TextBlock Classes="hint" Text="On: the icon by the clock is always there. Off: only while the window is hidden"/>
                         </StackPanel>
                         <ToggleSwitch Grid.Column="1" OnContent="" OffContent=""
                                       IsChecked="{Binding AlwaysShowTrayIcon, Mode=TwoWay}"/>

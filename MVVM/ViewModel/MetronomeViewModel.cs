@@ -4,6 +4,8 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia.Threading;
 using CenterHubNew.MVVM.Models;
 using CenterHubNew.MVVM.Services;
@@ -50,6 +52,94 @@ namespace CenterHubNew.MVVM.ViewModel
         public string Name { get; init; } = "";
         public int Bars { get; init; }
         public override string ToString() => Name;
+    }
+
+    /// <summary>A selectable loop length for the looper (0 bars = free).</summary>
+    public sealed class LooperLengthChoice
+    {
+        public string Name { get; init; } = "";
+        public int Bars { get; init; }
+        public override string ToString() => Name;
+    }
+
+    /// <summary>A selectable looper input device; a null <see cref="Id"/> means automatic.</summary>
+    public sealed class LooperDeviceChoice
+    {
+        public LooperDeviceChoice(string? id, string name)
+        {
+            Id = id;
+            Name = name;
+        }
+
+        public string? Id { get; }
+        public string Name { get; }
+        public override string ToString() => Name;
+    }
+
+    /// <summary>Pure text/format helpers for the looper card (unit-tested).</summary>
+    public static class LooperText
+    {
+        public static string Bars(int bars) => bars == 1 ? "1 bar" : $"{bars} bars";
+
+        public static string Layers(int layers) => layers == 1 ? "1 layer" : $"{layers} layers";
+
+        /// <summary>"4 bars · 2 layers"; empty when there is no loop.</summary>
+        public static string LoopInfo(int bars, int layers)
+        {
+            if (bars <= 0) return "";
+            return layers > 0 ? $"{Bars(bars)} · {Layers(layers)}" : Bars(bars);
+        }
+
+        public static string Status(LooperState state, int loopBars, int layers, int lengthBars)
+        {
+            switch (state)
+            {
+                case LooperState.Armed:
+                    return "Armed — starts on the next bar";
+                case LooperState.Recording:
+                    return lengthBars > 0 ? $"Recording… {Bars(lengthBars)}" : "Recording… press Finish to end on a bar line";
+                case LooperState.Playing:
+                    return "Playing · " + LoopInfo(loopBars, layers);
+                case LooperState.Overdubbing:
+                    return loopBars > 0 ? $"Overdubbing · {Bars(loopBars)}" : "Overdubbing";
+                case LooperState.Stopped:
+                    return loopBars > 0 ? $"Stopped · {Bars(loopBars)}" : "Stopped";
+                default:
+                    return "Empty — press Record";
+            }
+        }
+
+        public static string RecordLabel(LooperState state, int lengthBars) => state switch
+        {
+            LooperState.Armed => "Cancel",
+            LooperState.Recording => lengthBars > 0 ? "Recording…" : "Finish",
+            LooperState.Playing => "Overdub",
+            LooperState.Stopped => "Overdub",
+            LooperState.Overdubbing => "Stop overdub",
+            _ => "Record",
+        };
+
+        public static string StopLabel(LooperState state) => state == LooperState.Stopped ? "Play loop" : "Stop loop";
+
+        /// <summary>True for states where a finished loop exists.</summary>
+        public static bool HasLoop(LooperState state) =>
+            state is LooperState.Playing or LooperState.Overdubbing or LooperState.Stopped;
+
+        public static bool IsRecording(LooperState state) =>
+            state is LooperState.Recording or LooperState.Overdubbing;
+
+        /// <summary>The loop was recorded at a tempo that differs from the current one by at least 1 BPM.</summary>
+        public static bool TempoMismatch(LooperState state, double loopBpm, int currentBpm) =>
+            HasLoop(state) && loopBpm > 0 && Math.Abs(loopBpm - currentBpm) >= 1.0;
+
+        public static string TempoMismatchText(double loopBpm) => $"Recorded at {(int)Math.Round(loopBpm)} BPM";
+
+        public static string MatchTempoText(double loopBpm) => $"Back to {(int)Math.Round(loopBpm)} BPM";
+
+        /// <summary>Fraction 0–1 of a 0–1 / 0–100 style value, clamped (NaN becomes 0).</summary>
+        public static double Fraction(double value) => double.IsNaN(value) ? 0 : Math.Clamp(value, 0.0, 1.0);
+
+        public static string ExportFileName(DateTime now) => $"loop-{now:yyyyMMdd-HHmm}.wav";
     }
 
     /// <summary>One beat of the bar: its accent state and whether it is sounding right now.</summary>
@@ -257,6 +347,7 @@ namespace CenterHubNew.MVVM.ViewModel
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(TempoName))]
         [NotifyPropertyChangedFor(nameof(IntervalDisplay))]
+        [NotifyPropertyChangedFor(nameof(LooperTempoMismatch))]
         private int _bpm = 120;
 
         [ObservableProperty] private double _volume = 0.75; // 0.0–1.0
@@ -361,6 +452,153 @@ namespace CenterHubNew.MVVM.ViewModel
         /// <summary>False when no practice log is available (headless tools); the card is hidden then.</summary>
         public bool HasPracticeLog => _practiceLog is not null;
 
+        // ── Guitar looper (everything here no-ops when _looper is null) ──
+        private readonly LooperService? _looper;
+        private readonly LooperDeviceChoice _automaticInput = new(null, "Automatic (guitar from Sound setup)");
+        private CancellationTokenSource? _calibrateCts;
+        private bool _looperDevicesBusy;
+        private bool _looperDevicesSwapping;
+        private bool _looperInputOpen;
+
+        /// <summary>False when no looper service is available (headless tools); the card is hidden then.</summary>
+        public bool HasLooper => _looper is not null;
+
+        public IReadOnlyList<LooperLengthChoice> LooperLengthOptions { get; } = new[]
+        {
+            new LooperLengthChoice { Name = "Free",   Bars = 0 },
+            new LooperLengthChoice { Name = "1 bar",  Bars = 1 },
+            new LooperLengthChoice { Name = "2 bars", Bars = 2 },
+            new LooperLengthChoice { Name = "4 bars", Bars = 4 },
+            new LooperLengthChoice { Name = "8 bars", Bars = 8 },
+        };
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(LooperRecordLabel))]
+        [NotifyPropertyChangedFor(nameof(LooperStatusText))]
+        private LooperLengthChoice? _selectedLooperLength;
+
+        [ObservableProperty] private double _looperVolumePercent = 100; // 0–150
+        [ObservableProperty] private int _looperLatencyMs = 60;         // 0–400
+
+        [ObservableProperty] private IReadOnlyList<LooperDeviceChoice> _looperInputDevices = Array.Empty<LooperDeviceChoice>();
+        [ObservableProperty] private LooperDeviceChoice? _selectedLooperInputDevice;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(LooperIsRecording))]
+        [NotifyPropertyChangedFor(nameof(LooperIsArmed))]
+        [NotifyPropertyChangedFor(nameof(LooperIsPlaying))]
+        [NotifyPropertyChangedFor(nameof(LooperHasLoop))]
+        [NotifyPropertyChangedFor(nameof(LooperStopEnabled))]
+        [NotifyPropertyChangedFor(nameof(LooperClearEnabled))]
+        [NotifyPropertyChangedFor(nameof(LooperExportEnabled))]
+        [NotifyPropertyChangedFor(nameof(LooperRecordLabel))]
+        [NotifyPropertyChangedFor(nameof(LooperStopLabel))]
+        [NotifyPropertyChangedFor(nameof(LooperStatusText))]
+        [NotifyPropertyChangedFor(nameof(LooperTempoMismatch))]
+        private LooperState _looperState;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(LooperStatusText))]
+        [NotifyPropertyChangedFor(nameof(LooperLoopInfo))]
+        private int _looperLoopBars;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(LooperStatusText))]
+        [NotifyPropertyChangedFor(nameof(LooperLoopInfo))]
+        private int _looperLayerCount;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(LooperTempoMismatch))]
+        [NotifyPropertyChangedFor(nameof(LooperTempoMismatchText))]
+        [NotifyPropertyChangedFor(nameof(LooperMatchTempoText))]
+        private double _looperLoopBpm;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(LooperUndoEnabled))]
+        private bool _looperCanUndo;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(LooperPositionFill))]
+        [NotifyPropertyChangedFor(nameof(LooperPositionRest))]
+        private double _looperPositionPercent; // 0–100
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(LooperInputLevelFill))]
+        [NotifyPropertyChangedFor(nameof(LooperInputLevelRest))]
+        private double _looperInputLevelPercent; // 0–100
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(LooperHasInputDeviceName))]
+        private string _looperInputDeviceName = "";
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(LooperHasError))]
+        private string _looperError = "";
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(LooperControlsEnabled))]
+        [NotifyPropertyChangedFor(nameof(LooperStopEnabled))]
+        [NotifyPropertyChangedFor(nameof(LooperUndoEnabled))]
+        [NotifyPropertyChangedFor(nameof(LooperClearEnabled))]
+        [NotifyPropertyChangedFor(nameof(LooperExportEnabled))]
+        private bool _isLooperCalibrating;
+
+        [ObservableProperty] private string _looperCalibrationText = "";
+
+        public bool LooperIsRecording => LooperText.IsRecording(LooperState);
+        public bool LooperIsArmed => LooperState == LooperState.Armed;
+        public bool LooperIsPlaying => LooperState == LooperState.Playing;
+        public bool LooperHasLoop => LooperText.HasLoop(LooperState);
+        public bool LooperHasError => LooperError.Length > 0;
+        public bool LooperHasInputDeviceName => LooperInputDeviceName.Length > 0;
+
+        public string LooperStatusText =>
+            LooperText.Status(LooperState, LooperLoopBars, LooperLayerCount, SelectedLooperLength?.Bars ?? 0);
+        public string LooperRecordLabel => LooperText.RecordLabel(LooperState, SelectedLooperLength?.Bars ?? 0);
+        public string LooperStopLabel => LooperText.StopLabel(LooperState);
+        public string LooperLoopInfo => LooperText.LoopInfo(LooperLoopBars, LooperLayerCount);
+
+        public bool LooperTempoMismatch => LooperText.TempoMismatch(LooperState, LooperLoopBpm, Bpm);
+        public string LooperTempoMismatchText => LooperText.TempoMismatchText(LooperLoopBpm);
+        public string LooperMatchTempoText => LooperText.MatchTempoText(LooperLoopBpm);
+
+        // Enabled states (calibration disables everything else)
+        public bool LooperControlsEnabled => !IsLooperCalibrating;
+        public bool LooperStopEnabled => LooperHasLoop && !IsLooperCalibrating;
+        public bool LooperUndoEnabled => LooperCanUndo && !IsLooperCalibrating;
+        public bool LooperClearEnabled => LooperState != LooperState.Empty && !IsLooperCalibrating;
+        public bool LooperExportEnabled => LooperHasLoop && !IsLooperCalibrating;
+
+        // Fluid-width meters: two star columns whose widths are the filled / remaining fractions.
+        public Avalonia.Controls.GridLength LooperPositionFill =>
+            new(LooperText.Fraction(LooperPositionPercent / 100.0), Avalonia.Controls.GridUnitType.Star);
+        public Avalonia.Controls.GridLength LooperPositionRest =>
+            new(1.0 - LooperText.Fraction(LooperPositionPercent / 100.0), Avalonia.Controls.GridUnitType.Star);
+        public Avalonia.Controls.GridLength LooperInputLevelFill =>
+            new(LooperText.Fraction(LooperInputLevelPercent / 100.0), Avalonia.Controls.GridUnitType.Star);
+        public Avalonia.Controls.GridLength LooperInputLevelRest =>
+            new(1.0 - LooperText.Fraction(LooperInputLevelPercent / 100.0), Avalonia.Controls.GridUnitType.Star);
+
+        /// <summary>"Input live" toggle: turning it on opens the capture device, off closes it.</summary>
+        public bool LooperInputOpen
+        {
+            get => _looperInputOpen;
+            set
+            {
+                if (_looper is null || IsDisposed || IsLooperCalibrating)
+                {
+                    OnPropertyChanged(); // snap the toggle back
+                    return;
+                }
+                if (value == _looperInputOpen) return;
+
+                if (value) _looper.OpenInput();
+                else _looper.CloseInput();
+                RefreshLooper();
+                OnPropertyChanged(); // re-read in case opening failed and the state didn't change
+            }
+        }
+
         // ── Collections ──
         public ObservableCollection<BeatLight>   BeatLights   { get; } = new();
         public ObservableCollection<PatternRow>  PatternRows  { get; } = new();
@@ -437,6 +675,8 @@ namespace CenterHubNew.MVVM.ViewModel
             nameof(CountIn), nameof(IntroFill), nameof(SelectedAutoFill),
             nameof(TrainerEnabled), nameof(TrainerStepBpm), nameof(TrainerEveryBars), nameof(TrainerTargetBpm),
             nameof(GapEnabled), nameof(GapPlayBars), nameof(GapMuteBars),
+            nameof(SelectedLooperLength), nameof(LooperVolumePercent), nameof(LooperLatencyMs),
+            nameof(SelectedLooperInputDevice),
         };
 
         // Top-to-bottom order of the pattern grid rows.
@@ -476,10 +716,12 @@ namespace CenterHubNew.MVVM.ViewModel
             MetronomeService audio,
             MetronomeSettingsService settingsService,
             ILogger<MetronomeViewModel>? logger = null,
-            PracticeLogService? practiceLog = null) : base(logger)
+            PracticeLogService? practiceLog = null,
+            LooperService? looper = null) : base(logger)
         {
             _audio = audio;
             _settingsService = settingsService;
+            _looper = looper;
             _practiceLog = practiceLog ?? ResolvePracticeLog();
             Songs.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasSongs));
 
@@ -520,6 +762,36 @@ namespace CenterHubNew.MVVM.ViewModel
             _gapPlayBars = Math.Clamp(s.GapPlayBars, 1, 16);
             _gapMuteBars = Math.Clamp(s.GapMuteBars, 1, 16);
 
+            // Looper options (backing fields again), then push them into the service.
+            int lengthBars = MetronomeSettingsHelper.LooperLengthOrDefault(s.LooperLengthBars);
+            _selectedLooperLength = LooperLengthOptions.First(o => o.Bars == lengthBars);
+            _looperVolumePercent = double.IsNaN(s.LooperVolume) ? 100 : Math.Clamp(s.LooperVolume, 0.0, 1.5) * 100.0;
+            _looperLatencyMs = Math.Clamp(s.LooperLatencyMs, 0, 400);
+            var initialDevices = new List<LooperDeviceChoice> { _automaticInput };
+            LooperDeviceChoice selectedDevice = _automaticInput;
+            if (!string.IsNullOrEmpty(s.LooperInputDeviceId))
+            {
+                // The real list is loaded when the dropdown first opens; until then show a stand-in for the saved device.
+                selectedDevice = new LooperDeviceChoice(s.LooperInputDeviceId, "Saved input device");
+                initialDevices.Add(selectedDevice);
+            }
+            _looperInputDevices = initialDevices;
+            _selectedLooperInputDevice = selectedDevice;
+            if (_looper is not null)
+            {
+                try
+                {
+                    _looper.LengthBars = lengthBars;
+                    _looper.Volume = (float)(_looperVolumePercent / 100.0);
+                    _looper.LatencyMs = _looperLatencyMs;
+                    _looper.InputDeviceId = selectedDevice.Id;
+                }
+                catch (Exception ex)
+                {
+                    Logger?.LogWarning(ex, "Couldn't apply the looper settings");
+                }
+            }
+
             if (s.Accents is { Count: > 0 }) _accentMemory.AddRange(s.Accents);
             else _accentMemory.Add(BeatAccent.Accent);
 
@@ -544,6 +816,12 @@ namespace CenterHubNew.MVVM.ViewModel
             ApplyAllToEngine();
 
             _audio.PositionChanged += OnPosition;
+
+            if (_looper is not null)
+            {
+                RefreshLooper();
+                _looper.Changed += OnLooperChanged;
+            }
         }
 
         // =====================================================
@@ -576,6 +854,12 @@ namespace CenterHubNew.MVVM.ViewModel
                 return;
             }
 
+            StartPlaying();
+        }
+
+        /// <summary>Starts the drum machine / click (count-in etc. apply). Toasts and returns false when the output can't be opened.</summary>
+        private bool StartPlaying()
+        {
             try
             {
                 ApplyAllToEngine();
@@ -592,6 +876,223 @@ namespace CenterHubNew.MVVM.ViewModel
                 BeginSession();
             else
                 ToastService.Instance.Error("Couldn't open the audio output");
+            return IsPlaying;
+        }
+
+        // =====================================================
+        //  Guitar looper
+        // =====================================================
+
+        /// <summary>The pedal: starts the drum machine if it isn't running, then Record / Overdub / Finish.</summary>
+        [RelayCommand]
+        public void LooperRecord()
+        {
+            if (IsDisposed || _looper is null || IsLooperCalibrating) return;
+            if (!IsPlaying && !StartPlaying()) return;
+            _looper.PressRecord();
+            RefreshLooper();
+        }
+
+        [RelayCommand]
+        public void LooperStop()
+        {
+            if (IsDisposed || _looper is null || IsLooperCalibrating) return;
+            _looper.PressStop();
+            RefreshLooper();
+        }
+
+        [RelayCommand]
+        public void LooperUndo()
+        {
+            if (IsDisposed || _looper is null || IsLooperCalibrating) return;
+            _looper.Undo();
+            RefreshLooper();
+        }
+
+        [RelayCommand]
+        public void LooperClear()
+        {
+            if (IsDisposed || _looper is null || IsLooperCalibrating) return;
+            _looper.Clear();
+            RefreshLooper();
+        }
+
+        /// <summary>Sets the tempo to the one the loop was recorded at.</summary>
+        [RelayCommand]
+        private void LooperMatchTempo()
+        {
+            if (IsDisposed || _looper is null || LooperLoopBpm <= 0) return;
+            Bpm = Math.Clamp((int)Math.Round(LooperLoopBpm), MinBpm, MaxBpm);
+        }
+
+        /// <summary>Reads the device list (off the UI thread) when the dropdown first opens, or on demand.</summary>
+        [RelayCommand]
+        private async Task RefreshLooperDevicesAsync()
+        {
+            if (IsDisposed || _looper is null || _looperDevicesBusy) return;
+            var looper = _looper;
+            _looperDevicesBusy = true;
+            try
+            {
+                IReadOnlyList<AudioDeviceInfo> devices;
+                try
+                {
+                    devices = await Task.Run(() => looper.GetInputDevices());
+                }
+                catch (Exception ex)
+                {
+                    Logger?.LogWarning(ex, "Couldn't list the looper input devices");
+                    return;
+                }
+                if (IsDisposed) return;
+
+                string? keepId = SelectedLooperInputDevice?.Id;
+                var list = new List<LooperDeviceChoice> { _automaticInput };
+                foreach (var d in devices) list.Add(new LooperDeviceChoice(d.Id, d.Name));
+
+                LooperDeviceChoice selected = _automaticInput;
+                if (keepId is not null)
+                {
+                    var match = list.FirstOrDefault(c => c.Id == keepId);
+                    if (match is null)
+                    {
+                        // Saved device is unplugged right now: keep the choice (and the saved id) visible.
+                        match = new LooperDeviceChoice(keepId, "Unavailable input device");
+                        list.Add(match);
+                    }
+                    selected = match;
+                }
+
+                _looperDevicesSwapping = true;
+                try
+                {
+                    LooperInputDevices = list;
+                    SelectedLooperInputDevice = selected;
+                }
+                finally
+                {
+                    _looperDevicesSwapping = false;
+                }
+
+                // The ComboBox may have pushed null into the selection while its items were swapped.
+                OnPropertyChanged(nameof(SelectedLooperInputDevice));
+            }
+            finally
+            {
+                _looperDevicesBusy = false;
+            }
+        }
+
+        /// <summary>Stops the drum machine, then measures the input-to-output delay (the user strums along with clicks).</summary>
+        [RelayCommand]
+        private async Task CalibrateLooperAsync()
+        {
+            if (IsDisposed || _looper is null || IsLooperCalibrating) return;
+            var looper = _looper;
+
+            IsLooperCalibrating = true;
+            if (IsPlaying)
+            {
+                _audio.Stop();
+                ResetLiveState();
+            }
+            LooperCalibrationText = "Strum once on each of the 8 clicks…";
+
+            var cts = new CancellationTokenSource();
+            _calibrateCts = cts;
+            try
+            {
+                int? ms = await looper.CalibrateAsync(cts.Token);
+                if (IsDisposed) return;
+
+                if (ms is int measured)
+                {
+                    LooperLatencyMs = Math.Clamp(measured, 0, 400);
+                    ToastService.Instance.Success($"Delay measured: {LooperLatencyMs} ms");
+                }
+                else
+                {
+                    string? error = looper.LastError;
+                    ToastService.Instance.Error(string.IsNullOrEmpty(error) ? "Couldn't measure the delay" : error);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Page closed mid-calibration.
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogWarning(ex, "Looper calibration failed");
+                if (!IsDisposed) ToastService.Instance.Error("Couldn't measure the delay");
+            }
+            finally
+            {
+                if (ReferenceEquals(_calibrateCts, cts)) _calibrateCts = null;
+                cts.Dispose();
+                if (!IsDisposed)
+                {
+                    IsLooperCalibrating = false;
+                    LooperCalibrationText = "";
+                    RefreshLooper();
+                }
+            }
+        }
+
+        /// <summary>Writes the loop to a WAV file (the view's save picker supplies the path).</summary>
+        public void ExportLoop(string path)
+        {
+            if (IsDisposed || _looper is null || string.IsNullOrWhiteSpace(path)) return;
+            bool ok;
+            try { ok = _looper.ExportWav(path); }
+            catch (Exception ex)
+            {
+                Logger?.LogWarning(ex, "Couldn't export the loop");
+                ok = false;
+            }
+
+            if (ok)
+            {
+                ToastService.Instance.Success($"Loop saved to {System.IO.Path.GetFileName(path)}");
+            }
+            else
+            {
+                string? error = _looper.LastError;
+                ToastService.Instance.Error(string.IsNullOrEmpty(error) ? "Couldn't save the loop" : error);
+            }
+            RefreshLooper();
+        }
+
+        /// <summary>Suggested file name for the export picker.</summary>
+        public string LooperExportFileName => LooperText.ExportFileName(DateTime.Now);
+
+        private void OnLooperChanged()
+        {
+            if (IsDisposed) return;
+            RefreshLooper();
+        }
+
+        /// <summary>Mirrors the service's state into the bindable properties (setters ignore unchanged values).</summary>
+        private void RefreshLooper()
+        {
+            var looper = _looper;
+            if (looper is null) return;
+
+            LooperState = looper.State;
+            LooperLoopBars = looper.LoopBars;
+            LooperLayerCount = looper.LayerCount;
+            LooperLoopBpm = looper.LoopBpm;
+            LooperCanUndo = looper.CanUndo;
+            LooperPositionPercent = LooperText.Fraction(looper.Position) * 100.0;
+            LooperInputLevelPercent = LooperText.Fraction(looper.InputLevel) * 100.0;
+            LooperInputDeviceName = looper.InputDeviceName ?? "";
+            LooperError = looper.LastError ?? "";
+
+            bool open = looper.IsInputOpen;
+            if (open != _looperInputOpen)
+            {
+                _looperInputOpen = open;
+                OnPropertyChanged(nameof(LooperInputOpen));
+            }
         }
 
         [RelayCommand]
@@ -968,6 +1469,35 @@ namespace CenterHubNew.MVVM.ViewModel
             if (_sessionStart is not null && value > _sessionMaxBpm) _sessionMaxBpm = value;
             if (_initializing || IsDisposed) return;
             Engine.Bpm = value;
+        }
+
+        partial void OnSelectedLooperLengthChanged(LooperLengthChoice? value)
+        {
+            if (_initializing || IsDisposed || value is null || _looper is null) return;
+            _looper.LengthBars = value.Bars;
+        }
+
+        partial void OnLooperVolumePercentChanged(double value)
+        {
+            double clamped = double.IsNaN(value) ? 100 : Math.Clamp(value, 0.0, 150.0);
+            if (clamped != value) { LooperVolumePercent = clamped; return; }
+            if (_initializing || IsDisposed || _looper is null) return;
+            _looper.Volume = (float)(clamped / 100.0);
+        }
+
+        partial void OnLooperLatencyMsChanged(int value)
+        {
+            int clamped = Math.Clamp(value, 0, 400);
+            if (clamped != value) { LooperLatencyMs = clamped; return; }
+            if (_initializing || IsDisposed || _looper is null) return;
+            _looper.LatencyMs = clamped;
+        }
+
+        partial void OnSelectedLooperInputDeviceChanged(LooperDeviceChoice? value)
+        {
+            // null arrives while the ComboBox swaps its items; the device list refresh restores the selection.
+            if (_initializing || _looperDevicesSwapping || IsDisposed || value is null || _looper is null) return;
+            _looper.InputDeviceId = value.Id;
         }
 
         partial void OnSelectedSetlistChanged(SetlistItem? value)
@@ -1472,6 +2002,10 @@ namespace CenterHubNew.MVVM.ViewModel
                     GapEnabled = GapEnabled,
                     GapPlayBars = (int)GapPlayBars,
                     GapMuteBars = (int)GapMuteBars,
+                    LooperLengthBars = SelectedLooperLength?.Bars ?? 4,
+                    LooperVolume = Math.Clamp(LooperVolumePercent / 100.0, 0.0, 1.5),
+                    LooperLatencyMs = Math.Clamp(LooperLatencyMs, 0, 400),
+                    LooperInputDeviceId = SelectedLooperInputDevice?.Id,
                     Setlists = Setlists.Select(l => l.Model).ToList(),
                     ActiveSetlistId = SelectedSetlist?.Model.Id,
                     ActiveSongIndex = SelectedSong is null ? 0 : Math.Max(0, Songs.IndexOf(SelectedSong)),
@@ -1488,6 +2022,8 @@ namespace CenterHubNew.MVVM.ViewModel
             if (!IsDisposed && disposing)
             {
                 _audio.PositionChanged -= OnPosition;
+                if (_looper is not null) _looper.Changed -= OnLooperChanged; // the service itself belongs to DI
+                try { _calibrateCts?.Cancel(); } catch (ObjectDisposedException) { }
                 _saveTimer?.Stop();
                 SaveNow();
                 _audio.Stop();

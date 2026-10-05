@@ -97,7 +97,7 @@ $pages = [ordered]@{
     'Home' = 'Home'; 'Settings' = 'Settings'
     'Monitoring' = 'Monitoring'; 'Standing' = 'Standing Timer'; 'Notes' = 'Notes'; 'Layouts' = 'Window Layouts'
     'Sound' = 'Sound'; 'Soundboard' = 'Soundboard'; 'Utilities' = 'Utilities'; 'Auto Clicker' = 'Auto Clicker'
-    'Clipboard' = 'Clipboard History'; 'Randomizer' = 'Randomizer'; 'Metronome' = 'Metronome'
+    'Clipboard' = 'Clipboard History'; 'Randomizer' = 'Randomizer'; 'Jam Station' = 'Jam Station'
     'Network' = 'Network'; 'Hotkeys' = 'Global Hotkeys'
 }
 
@@ -128,7 +128,7 @@ try {
     }
 
     # Keyboard / accessibility selection used to highlight an item without changing page.
-    foreach ($nav in @('Sound', 'Metronome', 'Monitoring')) {
+    foreach ($nav in @('Sound', 'Jam Station', 'Monitoring')) {
         $item = Nav-Item $win $nav
         $item.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
         Check "Page opens by keyboard/UIA select: $nav" { Wait-Heading $win $pages[$nav] }

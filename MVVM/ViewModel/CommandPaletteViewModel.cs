@@ -316,6 +316,16 @@ namespace CenterHubNew.MVVM.ViewModel
             list.Add(new PaletteCommand("metro:prevsong", "Previous song", "Metronome", "",
                 "setlist practice back", null, () => WithMetronome(m => m.PreviousSong())));
 
+            // Looper
+            list.Add(new PaletteCommand("loop:record", "Looper: record / overdub", "Jam Station", "",
+                "loop guitar rec layer", null, () => WithMetronome(m => m.LooperRecord())));
+            list.Add(new PaletteCommand("loop:stop", "Looper: stop / play loop", "Jam Station", "",
+                "loop guitar pause", null, () => WithMetronome(m => m.LooperStop())));
+            list.Add(new PaletteCommand("loop:undo", "Looper: undo last overdub", "Jam Station", "",
+                "loop guitar layer", null, () => WithMetronome(m => m.LooperUndo())));
+            list.Add(new PaletteCommand("loop:clear", "Looper: clear loop", "Jam Station", "",
+                "loop guitar delete erase", null, () => WithMetronome(m => m.LooperClear())));
+
             // App
             list.Add(new PaletteCommand("app:zoomin", "Zoom in", "App", "", "bigger larger scale", "Ctrl +",
                 () => Sync(() => _shell?.ZoomBy(0.1))));

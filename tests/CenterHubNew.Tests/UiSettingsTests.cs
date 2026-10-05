@@ -13,17 +13,38 @@ public class UiSettingsTests : IDisposable
     public void Dispose() { try { Directory.Delete(_folder, recursive: true); } catch { } }
 
     [Fact]
-    public void Defaults_keep_todays_behaviour_and_start_on_home()
+    public void Defaults_start_on_home_and_minimize_to_the_taskbar_with_a_tray_icon()
     {
         var s = new UiSettingsService(null, _folder).Current;
 
         Assert.Equal("home", s.StartPage);
         Assert.Equal(1.0, s.Zoom);
-        Assert.True(s.MinimizeToTray);    // minimize has always hidden to the tray
-        Assert.False(s.CloseToTray);      // and close has always quit
+        Assert.False(s.MinimizeToTray);     // minimize stays on the taskbar…
+        Assert.True(s.AlwaysShowTrayIcon);  // …and the tray icon is always there
+        Assert.False(s.CloseToTray);        // close quits
+        Assert.Equal(UiSettingsService.CurrentVersion, s.SettingsVersion);
         Assert.True(s.ShowStatusStrip);
         Assert.Equal(SidebarMode.Auto, s.Sidebar);
         Assert.Equal(AppTheme.Dark, s.Theme);
+    }
+
+    [Fact]
+    public void A_file_from_7_0_gets_the_new_tray_defaults_once_and_later_choices_stick()
+    {
+        // 7.0 wrote its defaults: hide to tray on minimize, icon only while hidden. No version field.
+        File.WriteAllText(Path.Combine(_folder, "ui.json"),
+            """{ "MinimizeToTray": true, "AlwaysShowTrayIcon": false, "Zoom": 1.1 }""");
+
+        var service = new UiSettingsService(null, _folder);
+        Assert.False(service.Current.MinimizeToTray);
+        Assert.True(service.Current.AlwaysShowTrayIcon);
+        Assert.Equal(1.1, service.Current.Zoom, 3);   // everything else is kept
+
+        // The user then prefers the old way: that is a choice and survives restarts.
+        service.Update(s => { s.MinimizeToTray = true; s.AlwaysShowTrayIcon = false; });
+        var reloaded = new UiSettingsService(null, _folder).Current;
+        Assert.True(reloaded.MinimizeToTray);
+        Assert.False(reloaded.AlwaysShowTrayIcon);
     }
 
     [Fact]
@@ -80,7 +101,7 @@ public class UiSettingsTests : IDisposable
 
         // tools/regression.ps1 and tools/smoke-quiet.ps1 find sidebar items by these names.
         foreach (var title in new[] { "Monitoring", "Standing", "Notes", "Layouts", "Sound", "Soundboard", "Utilities",
-                                      "Auto Clicker", "Clipboard", "Randomizer", "Metronome", "Network", "Hotkeys" })
+                                      "Auto Clicker", "Clipboard", "Randomizer", "Jam Station", "Network", "Hotkeys" })
             Assert.Contains(PageRegistry.All, p => p.Title == title);
 
         Assert.NotNull(PageRegistry.Find("HOME"));

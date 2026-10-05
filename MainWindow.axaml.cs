@@ -366,7 +366,7 @@ namespace CenterHubNew
         private void UpdateTrayIconVisibility()
         {
             if (_notifyIcon == null) return;
-            _notifyIcon.Visible = !IsVisible || (_uiSettings?.Current.AlwaysShowTrayIcon ?? false);
+            _notifyIcon.Visible = !IsVisible || (_uiSettings?.Current.AlwaysShowTrayIcon ?? true);
         }
 
         private void HideToTray()
@@ -426,8 +426,9 @@ namespace CenterHubNew
                     var previous = change.GetOldValue<WindowState>();
                     if (previous != WindowState.Minimized) _lastShownState = previous;
 
-                    // MinimizeToTray off = minimize to the taskbar like any window.
-                    if (_uiSettings?.Current.MinimizeToTray ?? true)
+                    // Default: minimize to the taskbar like any window (the tray icon is there too).
+                    // MinimizeToTray on = hide the window, leaving only the tray icon.
+                    if (_uiSettings?.Current.MinimizeToTray ?? false)
                         HideToTray();
                 }
                 else

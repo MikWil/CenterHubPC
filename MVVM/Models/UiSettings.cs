@@ -69,11 +69,17 @@ namespace CenterHubNew.MVVM.Models
 
         public bool ShowStatusStrip { get; set; } = true;
 
-        /// <summary>Show the tray icon while the window is open too (it always shows while hidden).</summary>
-        public bool AlwaysShowTrayIcon { get; set; }
+        /// <summary>
+        /// Version of the defaults this file was written with (0 = before versions existed).
+        /// <c>UiSettingsService</c> upgrades older files once; see <c>UiSettingsService.CurrentVersion</c>.
+        /// </summary>
+        public int SettingsVersion { get; set; }
 
-        /// <summary>Minimize hides to the tray (true, the long-standing behaviour) or to the taskbar.</summary>
-        public bool MinimizeToTray { get; set; } = true;
+        /// <summary>Show the tray icon while the window is open too (it always shows while hidden).</summary>
+        public bool AlwaysShowTrayIcon { get; set; } = true;
+
+        /// <summary>Minimize hides to the tray (true) or stays on the taskbar like any window (false, the default).</summary>
+        public bool MinimizeToTray { get; set; }
 
         /// <summary>The close button hides to the tray instead of quitting.</summary>
         public bool CloseToTray { get; set; }

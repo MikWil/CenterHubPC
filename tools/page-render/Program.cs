@@ -85,6 +85,7 @@ internal static class Program
             case "audio-diag": DeviceRateDiag(); return 0;
             case "widths": RenderWidths(outDir); return 0;
             case "palette": RenderPalette(outDir); return 0;
+            case "looper-probe": return LooperProbe(outDir);
             default: RenderMetronome(outDir); return 0;
         }
     }
@@ -350,14 +351,16 @@ internal static class Program
         string temp = Path.Combine(Path.GetTempPath(), "CenterHubRender-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(temp);
         using var service = new MetronomeService();
-        var vm = new MetronomeViewModel(service, new MetronomeSettingsService(null, temp)) { IsDrumsMode = true };
+        // A real looper service so its card shows; nothing is opened (no capture, no output).
+        using var looper = new LooperService(service, new AudioDeviceService(), new VoicemeeterSettingsService(null, temp));
+        var vm = new MetronomeViewModel(service, new MetronomeSettingsService(null, temp), null, null, looper) { IsDrumsMode = true };
 
         foreach (int width in new[] { 480, 640, 900, 1300 })
         {
             var view = new MetronomeView { DataContext = vm };
             var window = new Window
             {
-                Width = width, Height = 1400,
+                Width = width, Height = 2000,
                 Background = new SolidColorBrush(Color.Parse("#0F0F16")),
                 Content = view,
             };
@@ -403,6 +406,84 @@ internal static class Program
     /// Drives the REAL <see cref="MetronomeService"/> (real device, real event pump) at master
     /// volume 0 and checks that beats are reported on time. Returns 0 when timing is good.
     /// </summary>
+    /// <summary>
+    /// The looper's REAL capture path, silently: drums at master volume 0 (the loop is silent too),
+    /// record one bar from the guitar input, then look at what landed in the loop — the right
+    /// length, and no holes (holes = the capture-to-engine clock mapping dropped or overlapped audio).
+    /// </summary>
+    private static int LooperProbe(string outDir)
+    {
+        using var service = new MetronomeService();
+        service.Engine.MasterVolume = 0f;
+        service.Engine.Bpm = 120;
+        service.Engine.SetStyle(DrumStyleLibrary.Find("rock-8ths"));
+        service.Engine.IntroEnabled = false;
+        service.Engine.CountInEnabled = false;
+
+        using var looper = new LooperService(service, new AudioDeviceService(), new VoicemeeterSettingsService());
+        looper.LengthBars = 1;
+
+        var clock = Stopwatch.StartNew();
+        var pumpTick = typeof(MetronomeService).GetMethod("OnPumpTick", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        float peakLevel = 0;
+        void Pump(int ms)
+        {
+            long until = clock.ElapsedMilliseconds + ms;
+            while (clock.ElapsedMilliseconds < until)
+            {
+                Dispatcher.UIThread.RunJobs();
+                pumpTick.Invoke(service, new object?[] { null, EventArgs.Empty });
+                peakLevel = Math.Max(peakLevel, looper.InputLevel);
+                Thread.Sleep(10);
+            }
+        }
+
+        bool opened = looper.OpenInput();
+        Console.WriteLine($"input: \"{looper.InputDeviceName}\" opened={opened} error={looper.LastError ?? "-"}");
+        if (!opened) return 1;
+        Pump(700);
+        Console.WriteLine($"input level while idle: {peakLevel:F4}");
+
+        service.Start();
+        if (!service.IsPlaying) { Console.WriteLine("FAIL: could not open an audio output"); return 1; }
+        Pump(300);
+        looper.PressRecord();
+        Console.WriteLine($"after Record: {looper.State}");
+        var seen = new List<LooperState>();
+        long until = clock.ElapsedMilliseconds + 7000;
+        while (clock.ElapsedMilliseconds < until)
+        {
+            Pump(50);
+            if (seen.Count == 0 || seen[^1] != looper.State) seen.Add(looper.State);
+        }
+        Console.WriteLine($"states: {string.Join(" -> ", seen)}; bars={looper.LoopBars} bpm={looper.LoopBpm} layers={looper.LayerCount} audible frame={service.GetAudibleFrame()}");
+
+        string wav = Path.Combine(outDir, "looper-probe.wav");
+        bool exported = looper.ExportWav(wav);
+        service.Stop();
+        Pump(400);
+        looper.CloseInput();
+        if (!exported) { Console.WriteLine("FAIL: nothing was recorded"); return 1; }
+
+        using var reader = new AudioFileReader(wav);
+        var data = new float[reader.Length / 4];
+        int read = reader.Read(data, 0, data.Length);
+        int frames = read / reader.WaveFormat.Channels;
+        float peak = 0; int zeros = 0, longestZeroRun = 0, run = 0;
+        for (int i = 0; i < read; i += reader.WaveFormat.Channels)
+        {
+            float v = Math.Abs(data[i]);
+            peak = Math.Max(peak, v);
+            if (v == 0) { zeros++; run++; longestZeroRun = Math.Max(longestZeroRun, run); } else run = 0;
+        }
+        int expected = 2 * reader.WaveFormat.SampleRate;   // one 4/4 bar at 120 BPM
+        Console.WriteLine($"loop: {frames} frames (expected {expected}), peak {peak:F4}, exact-zero samples {100.0 * zeros / Math.Max(1, frames):F1} %, longest zero run {longestZeroRun} frames ({1000.0 * longestZeroRun / reader.WaveFormat.SampleRate:F1} ms)");
+
+        bool ok = seen.Contains(LooperState.Recording) && looper.State == LooperState.Playing && Math.Abs(frames - expected) <= 2;
+        Console.WriteLine(ok ? "PASS (structure) — holes are only meaningful if the input is not digital silence" : "FAIL");
+        return ok ? 0 : 1;
+    }
+
     private static int SilentDeviceCheck()
     {
         using var service = new MetronomeService();
