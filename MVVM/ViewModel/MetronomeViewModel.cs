@@ -479,6 +479,10 @@ namespace CenterHubNew.MVVM.ViewModel
 
         [ObservableProperty] private double _looperVolumePercent = 100; // 0–150
         [ObservableProperty] private int _looperLatencyMs = 60;         // 0–400
+        /// <summary>The loop plays as soon as the first take ends (off: it waits for Play loop).</summary>
+        [ObservableProperty] private bool _looperAutoPlay = true;
+        /// <summary>Record starts the drum machine when it isn't playing (off: Record only arms).</summary>
+        [ObservableProperty] private bool _looperStartsDrums = true;
 
         [ObservableProperty] private IReadOnlyList<LooperDeviceChoice> _looperInputDevices = Array.Empty<LooperDeviceChoice>();
         [ObservableProperty] private LooperDeviceChoice? _selectedLooperInputDevice;
@@ -676,7 +680,7 @@ namespace CenterHubNew.MVVM.ViewModel
             nameof(TrainerEnabled), nameof(TrainerStepBpm), nameof(TrainerEveryBars), nameof(TrainerTargetBpm),
             nameof(GapEnabled), nameof(GapPlayBars), nameof(GapMuteBars),
             nameof(SelectedLooperLength), nameof(LooperVolumePercent), nameof(LooperLatencyMs),
-            nameof(SelectedLooperInputDevice),
+            nameof(SelectedLooperInputDevice), nameof(LooperAutoPlay), nameof(LooperStartsDrums),
         };
 
         // Top-to-bottom order of the pattern grid rows.
@@ -767,6 +771,8 @@ namespace CenterHubNew.MVVM.ViewModel
             _selectedLooperLength = LooperLengthOptions.First(o => o.Bars == lengthBars);
             _looperVolumePercent = double.IsNaN(s.LooperVolume) ? 100 : Math.Clamp(s.LooperVolume, 0.0, 1.5) * 100.0;
             _looperLatencyMs = Math.Clamp(s.LooperLatencyMs, 0, 400);
+            _looperAutoPlay = s.LooperAutoPlay;
+            _looperStartsDrums = s.LooperStartsDrums;
             var initialDevices = new List<LooperDeviceChoice> { _automaticInput };
             LooperDeviceChoice selectedDevice = _automaticInput;
             if (!string.IsNullOrEmpty(s.LooperInputDeviceId))
@@ -784,6 +790,7 @@ namespace CenterHubNew.MVVM.ViewModel
                     _looper.LengthBars = lengthBars;
                     _looper.Volume = (float)(_looperVolumePercent / 100.0);
                     _looper.LatencyMs = _looperLatencyMs;
+                    _looper.AutoPlay = _looperAutoPlay;
                     _looper.InputDeviceId = selectedDevice.Id;
                 }
                 catch (Exception ex)
@@ -883,12 +890,15 @@ namespace CenterHubNew.MVVM.ViewModel
         //  Guitar looper
         // =====================================================
 
-        /// <summary>The pedal: starts the drum machine if it isn't running, then Record / Overdub / Finish.</summary>
+        /// <summary>
+        /// The pedal: Record / Overdub / Finish. Starts the drum machine first when it isn't running
+        /// and <see cref="LooperStartsDrums"/> is on; otherwise the looper just arms and waits for it.
+        /// </summary>
         [RelayCommand]
         public void LooperRecord()
         {
             if (IsDisposed || _looper is null || IsLooperCalibrating) return;
-            if (!IsPlaying && !StartPlaying()) return;
+            if (!IsPlaying && LooperStartsDrums && !StartPlaying()) return;
             _looper.PressRecord();
             RefreshLooper();
         }
@@ -1493,6 +1503,12 @@ namespace CenterHubNew.MVVM.ViewModel
             _looper.LatencyMs = clamped;
         }
 
+        partial void OnLooperAutoPlayChanged(bool value)
+        {
+            if (_initializing || IsDisposed || _looper is null) return;
+            _looper.AutoPlay = value;
+        }
+
         partial void OnSelectedLooperInputDeviceChanged(LooperDeviceChoice? value)
         {
             // null arrives while the ComboBox swaps its items; the device list refresh restores the selection.
@@ -2005,6 +2021,8 @@ namespace CenterHubNew.MVVM.ViewModel
                     LooperLengthBars = SelectedLooperLength?.Bars ?? 4,
                     LooperVolume = Math.Clamp(LooperVolumePercent / 100.0, 0.0, 1.5),
                     LooperLatencyMs = Math.Clamp(LooperLatencyMs, 0, 400),
+                    LooperAutoPlay = LooperAutoPlay,
+                    LooperStartsDrums = LooperStartsDrums,
                     LooperInputDeviceId = SelectedLooperInputDevice?.Id,
                     Setlists = Setlists.Select(l => l.Model).ToList(),
                     ActiveSetlistId = SelectedSetlist?.Model.Id,

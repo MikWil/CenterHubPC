@@ -438,8 +438,17 @@ internal static class Program
             }
         }
 
+        // Optional 4th argument: part of an input device's name to probe instead of the automatic choice.
+        string? want = Environment.GetCommandLineArgs().Skip(1).ElementAtOrDefault(2);
+        foreach (var d in looper.GetInputDevices())
+        {
+            bool pick = want != null && d.Name.Contains(want, StringComparison.OrdinalIgnoreCase);
+            Console.WriteLine($"  device: {d.Name}{(pick ? "   <- probing this one" : "")}");
+            if (pick) looper.InputDeviceId = d.Id;
+        }
+
         bool opened = looper.OpenInput();
-        Console.WriteLine($"input: \"{looper.InputDeviceName}\" opened={opened} error={looper.LastError ?? "-"}");
+        Console.WriteLine($"input: \"{looper.InputDeviceName}\" opened={opened} error={looper.LastError ?? "-"} format={looper.InputFormat}");
         if (!opened) return 1;
         Pump(700);
         Console.WriteLine($"input level while idle: {peakLevel:F4}");
@@ -450,13 +459,23 @@ internal static class Program
         looper.PressRecord();
         Console.WriteLine($"after Record: {looper.State}");
         var seen = new List<LooperState>();
-        long until = clock.ElapsedMilliseconds + 7000;
+        var errors = new List<string>();
+        long began = clock.ElapsedMilliseconds, until = began + 7000, nextNote = began + 250;
         while (clock.ElapsedMilliseconds < until)
         {
             Pump(50);
             if (seen.Count == 0 || seen[^1] != looper.State) seen.Add(looper.State);
+            if (clock.ElapsedMilliseconds >= nextNote)
+            {
+                errors.Add($"{(clock.ElapsedMilliseconds - began) / 1000.0:F1}s:{looper.ClockErrorFrames:F0}");
+                nextNote += errors.Count < 8 ? 250 : 1000;
+            }
         }
+        Console.WriteLine($"clock error (frames) over time: {string.Join("  ", errors)}");
         Console.WriteLine($"states: {string.Join(" -> ", seen)}; bars={looper.LoopBars} bpm={looper.LoopBpm} layers={looper.LayerCount} audible frame={service.GetAudibleFrame()}");
+
+        var stats = looper.InputStats;
+        Console.WriteLine($"capture buffers written: {stats.Buffers}, clock corrections (stretched to fit, no click): {stats.Slips}, real gaps/overlaps: {stats.Jumps}");
 
         string wav = Path.Combine(outDir, "looper-probe.wav");
         bool exported = looper.ExportWav(wav);

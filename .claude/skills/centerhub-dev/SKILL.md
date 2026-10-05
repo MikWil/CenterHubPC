@@ -249,6 +249,16 @@ something "works", and when releasing.
   bar from the real input, verifies length and that the loop has no holes). It writes a WAV of
   the user's input — delete it afterwards. How good the loop *sounds* (timing after calibration)
   only the user can judge.
+- **"Robotic" loop = the capture clock chasing jitter** (7.1.0): `CaptureClock` followed the jittery
+  device position one frame per buffer, so 3 of 4 buffers dropped/repeated a sample (measured 535
+  of 701). Rules now: fixed offset after an 8-buffer warm-up, a 2 s settle that glides ≤ 6
+  frames/buffer (the first estimate is 40–170 frames off while the output spins up), then a 32-frame
+  deadband with hysteresis and ≤ 1 frame per 8 buffers — which only tracks real drift between the
+  two devices' clocks (Katana vs output ≈ 3 frames/s). Every correction is *stretched* into the
+  buffer by `LooperEngine.WriteInput` (never drop/repeat/hole). The probe prints the counts and the
+  clock error over time; `looper-probe KATANA` probes a device by name.
+- Never fold stereo to mono by picking the louder channel per sample (distortion) — average the
+  channels that carry signal.
 - **"Real drums" (`DrumKitKind.Acoustic`, the default)** plays recorded hits from
   `Assets/Drums/acoustic.chdk` (embedded resource; public-domain Open Source Drumkit, see
   `Assets/Drums/README.md`; rebuild with `tools/page-render … build-drumkit`). Velocity picks the

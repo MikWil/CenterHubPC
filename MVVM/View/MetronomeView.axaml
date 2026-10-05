@@ -747,6 +747,14 @@
                                     ToolTip.Tip="Save the loop as a WAV file">
                                 <TextBlock Text="Export WAV" FontWeight="SemiBold"/>
                             </Button>
+                            <StackPanel Spacing="6">
+                                <CheckBox IsChecked="{Binding LooperAutoPlay, Mode=TwoWay}"
+                                          Content="Play the loop automatically after recording"
+                                          ToolTip.Tip="Off: the take is kept silent until you press Play loop"/>
+                                <CheckBox IsChecked="{Binding LooperStartsDrums, Mode=TwoWay}"
+                                          Content="Record starts the metronome / drums"
+                                          ToolTip.Tip="Off: Record only arms the looper; recording begins on the first bar once you press Start"/>
+                            </StackPanel>
                         </StackPanel>
 
                         <!-- Right: input, delay compensation -->

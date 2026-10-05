@@ -394,6 +394,10 @@ namespace CenterHubNew.MVVM.Models
         public int LooperLatencyMs { get; set; } = 60;
         /// <summary>Capture device id; null = automatic (guitar from the Sound setup, else the Windows default).</summary>
         public string? LooperInputDeviceId { get; set; }
+        /// <summary>The loop plays as soon as the first take ends; off = it waits for Play loop.</summary>
+        public bool LooperAutoPlay { get; set; } = true;
+        /// <summary>Record starts the drum machine when it isn't playing; off = Record only arms the looper.</summary>
+        public bool LooperStartsDrums { get; set; } = true;
 
         // ── Setlists ──
         public List<Setlist> Setlists { get; set; } = new();

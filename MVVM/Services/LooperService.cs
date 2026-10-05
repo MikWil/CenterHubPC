@@ -41,6 +41,8 @@ namespace CenterHubNew.MVVM.Services
             public float[] Resampled = new float[4096];
             public long Total;                           // engine-rate samples produced so far
             public readonly CaptureClock Clock = new();
+            public double[] ChannelEnergy = Array.Empty<double>();   // smoothed mean square per channel
+            public bool[] ChannelActive = Array.Empty<bool>();
         }
 
         /// <summary>Raw capture with audible-frame stamps (no latency compensation) for calibration.</summary>
@@ -162,6 +164,29 @@ namespace CenterHubNew.MVVM.Services
         {
             get => _looper.LengthBars;
             set => _looper.LengthBars = Math.Clamp(value, 0, 64);
+        }
+
+        /// <summary>Diagnostics: see <see cref="LooperEngine.InputStats"/>.</summary>
+        public (long Buffers, long Slips, long Jumps) InputStats => _looper.InputStats;
+
+        /// <summary>Diagnostics: frames the capture placement is off its own long-run estimate (see <c>CaptureClock.Error</c>).</summary>
+        public double ClockErrorFrames => Volatile.Read(ref _session)?.Clock.Error ?? 0;
+
+        /// <summary>Diagnostics: the format the open input delivers, e.g. "48000 Hz, 2 ch, 32-bit float" (null when closed).</summary>
+        public string? InputFormat
+        {
+            get
+            {
+                var s = Volatile.Read(ref _session);
+                return s == null ? null : $"{s.SourceRate} Hz, {s.Channels} ch, {s.Bits}-bit{(s.IsFloat ? " float" : "")}";
+            }
+        }
+
+        /// <summary>True (default): the loop plays as soon as the first take ends; false: it waits for Play loop.</summary>
+        public bool AutoPlay
+        {
+            get => _looper.AutoPlay;
+            set => _looper.AutoPlay = value;
         }
 
         /// <summary>Loop playback gain 0..1.5.</summary>
@@ -510,6 +535,7 @@ namespace CenterHubNew.MVVM.Services
                     return;
                 }
                 long start = session.Clock.Stamp(audible, session.Total, n);
+                if (start == CaptureClock.NotReady) return;   // warming up: nothing is placed yet
 
                 var calibration = Volatile.Read(ref _calibration);
                 if (calibration != null) calibration.Append(start, output, n);
@@ -521,15 +547,36 @@ namespace CenterHubNew.MVVM.Services
             }
         }
 
-        /// <summary>Whatever the device delivers (16/24/32-bit PCM or float, any channel count) to one mono float stream: the loudest channel per frame.</summary>
+        /// <summary>
+        /// Whatever the device delivers (16/24/32-bit PCM or float, any channel count) to one mono float
+        /// stream: the average of the channels that carry signal. (Picking the loudest channel per
+        /// *sample* switches between channels thousands of times a second — audible distortion on a
+        /// stereo source such as an amp's USB output.) A channel counts as silent while its level stays
+        /// 40 dB under the loudest one, so a mono mic on a stereo device is not halved.
+        /// </summary>
         private static void DecodeToMono(CaptureSession s, byte[] buffer, int frames, int bytesPerSample, int frameBytes)
         {
+            int channels = s.Channels;
+            if (s.ChannelEnergy.Length != channels)
+            {
+                s.ChannelEnergy = new double[channels];
+                s.ChannelActive = new bool[channels];
+                Array.Fill(s.ChannelActive, true);
+            }
+            var energy = s.ChannelEnergy;
+            var active = s.ChannelActive;
+
+            int activeCount = 0;
+            for (int c = 0; c < channels; c++) if (active[c]) activeCount++;
+            float scale = 1f / Math.Max(1, activeCount);
+
+            Span<double> sum = channels <= 16 ? stackalloc double[channels] : new double[channels];
             var mono = s.Mono;
             for (int i = 0; i < frames; i++)
             {
-                float best = 0f;
+                float mix = 0f;
                 int at = i * frameBytes;
-                for (int c = 0; c < s.Channels; c++, at += bytesPerSample)
+                for (int c = 0; c < channels; c++, at += bytesPerSample)
                 {
                     float v;
                     if (s.IsFloat && bytesPerSample == 4) v = BitConverter.ToSingle(buffer, at);
@@ -537,10 +584,21 @@ namespace CenterHubNew.MVVM.Services
                     else if (bytesPerSample == 3) v = ((buffer[at] << 8 | buffer[at + 1] << 16 | buffer[at + 2] << 24) >> 8) / 8388608f;
                     else if (bytesPerSample == 4) v = BitConverter.ToInt32(buffer, at) / 2147483648f;
                     else v = 0f;
-                    if (Math.Abs(v) > Math.Abs(best)) best = v;
+                    sum[c] += (double)v * v;
+                    if (active[c]) mix += v;
                 }
-                mono[i] = best;
+                mono[i] = mix * scale;
             }
+
+            // Which channels carry signal — decided slowly (≈ 1 s), applied from the next buffer on.
+            double loudest = 0;
+            for (int c = 0; c < channels; c++)
+            {
+                energy[c] += (sum[c] / frames - energy[c]) * 0.02;
+                loudest = Math.Max(loudest, energy[c]);
+            }
+            if (loudest > 1e-9)
+                for (int c = 0; c < channels; c++) active[c] = energy[c] >= loudest * 1e-4;
         }
 
         private void OnCaptureStopped(CaptureSession session, StoppedEventArgs e)

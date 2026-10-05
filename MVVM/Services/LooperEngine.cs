@@ -85,7 +85,6 @@ namespace CenterHubNew.MVVM.Services
         // Input continuity.
         private bool _haveInput;
         private long _lastInputEnd;
-        private float _lastSample;
 
         public LooperEngine(int sampleRate = 44100)
         {
@@ -106,6 +105,17 @@ namespace CenterHubNew.MVVM.Services
             get => Volatile.Read(ref _lengthBars);
             set => Volatile.Write(ref _lengthBars, Math.Max(0, value));
         }
+
+        /// <summary>
+        /// True (default): the loop plays as soon as the first take ends. False: the take is kept
+        /// silent (<see cref="LooperState.Stopped"/>) until the Stop/Play pedal starts it.
+        /// </summary>
+        public bool AutoPlay
+        {
+            get => Volatile.Read(ref _autoPlay);
+            set => Volatile.Write(ref _autoPlay, value);
+        }
+        private bool _autoPlay = true;
 
         /// <summary>Loop playback gain, 0..1.5.</summary>
         public float Volume
@@ -426,6 +436,18 @@ namespace CenterHubNew.MVVM.Services
         /// <c>data[offset]</c> — already corrected for latency, i.e. the frame that was audible when the
         /// note was played. A slip of a few frames against the previous buffer (clock correction) is bridged.
         /// </summary>
+        /// <summary>
+        /// Diagnostics: buffers written while a take or loop existed, how many of them were a clock
+        /// correction of a few frames (stretched to fit — no click), and how many were further off
+        /// than that (a real gap or overlap, which is audible).
+        /// </summary>
+        public (long Buffers, long Slips, long Jumps) InputStats
+        {
+            get { lock (_lock) return (_inputBuffers, _inputSlips, _inputJumps); }
+        }
+        private long _inputBuffers, _inputSlips, _inputJumps;
+        private float[] _stretch = Array.Empty<float>();
+
         public void WriteInput(long firstFrame, float[] data, int offset, int count)
         {
             if (count <= 0) return;
@@ -437,28 +459,39 @@ namespace CenterHubNew.MVVM.Services
                     return;
                 }
 
+                _inputBuffers++;
                 if (_haveInput)
                 {
                     long gap = firstFrame - _lastInputEnd;
-                    if (gap < 0 && gap >= -MaxSlipFrames)
+                    if (gap != 0)
                     {
-                        int skip = (int)-gap;
-                        if (skip >= count) return;
-                        offset += skip;
-                        count -= skip;
-                        firstFrame = _lastInputEnd;
+                        if (Math.Abs(gap) <= MaxSlipFrames) _inputSlips++;
+                        else _inputJumps++;
                     }
-                    else if (gap > 0 && gap <= MaxSlipFrames)
+                    if (gap != 0 && Math.Abs(gap) <= MaxSlipFrames && count + gap >= 32)
                     {
-                        Span<float> fill = stackalloc float[MaxSlipFrames];
-                        fill.Slice(0, (int)gap).Fill(_lastSample);
-                        WriteSpan(_lastInputEnd, fill.Slice(0, (int)gap));
+                        // A clock correction of a few frames: stretch this buffer so it starts where the
+                        // previous one ended and still ends where it should. Dropping or repeating the
+                        // samples instead leaves a step in the waveform — a click on every correction.
+                        int stretched = count + (int)gap;
+                        if (_stretch.Length < stretched) _stretch = new float[stretched * 2];
+                        double step = (count - 1) / (double)(stretched - 1);
+                        for (int i = 0; i < stretched; i++)
+                        {
+                            double at = i * step;
+                            int i0 = (int)at;
+                            int i1 = Math.Min(i0 + 1, count - 1);
+                            float f = (float)(at - i0);
+                            _stretch[i] = data[offset + i0] * (1f - f) + data[offset + i1] * f;
+                        }
+                        WriteSpan(_lastInputEnd, new ReadOnlySpan<float>(_stretch, 0, stretched));
+                        _lastInputEnd = firstFrame + count;
+                        return;
                     }
                 }
 
                 WriteSpan(firstFrame, new ReadOnlySpan<float>(data, offset, count));
                 _lastInputEnd = firstFrame + count;
-                _lastSample = data[offset + count - 1];
                 _haveInput = true;
             }
         }
@@ -594,8 +627,10 @@ namespace CenterHubNew.MVVM.Services
             RefreshSnapshot();
 
             _phaseBar = _takeStartBar;
-            _state = LooperState.Playing;
-            _audible = true;
+            // Auto-play off: keep the take but stay silent until the Stop/Play pedal starts it.
+            bool play = AutoPlay;
+            _state = play ? LooperState.Playing : LooperState.Stopped;
+            _audible = play;
             _awaitBar = false;
             _stopPending = false;
             _stopFrame = long.MaxValue;
@@ -812,24 +847,44 @@ namespace CenterHubNew.MVVM.Services
     /// <summary>
     /// Maps capture buffers onto the engine's frame clock. The device position is jittery, so a running
     /// estimate of <c>audibleFrame − capturedSampleCount</c> is low-passed (re-syncing on big jumps) and
-    /// consecutive buffers are placed contiguously: the estimate is followed one frame at a time.
+    /// consecutive buffers are placed contiguously.
+    /// <para>
+    /// Every correction of the placement drops or repeats a sample — a tiny click. Following the
+    /// jitter one frame at a time did that on three buffers out of four (measured: 535 of 701), which
+    /// made loops sound robotic. So the offset is fixed after a short warm-up and only nudged when
+    /// the low-passed estimate has really moved away (the two devices' clocks drifting apart), and
+    /// then at most a few times a second.
+    /// </para>
     /// </summary>
     internal sealed class CaptureClock
     {
-        private const double Alpha = 0.02;          // low-pass weight once the estimate has settled
+        /// <summary>Returned by <see cref="Stamp"/> while the clock is warming up: don't place this buffer.</summary>
+        public const long NotReady = long.MinValue;
+
+        private const double Alpha = 0.002;         // low-pass weight once the estimate has settled
         private const double ResyncFrames = 4410;   // 100 ms: the estimate is wrong, not jittery
-        private const int SettleBuffers = 20;       // follow the first buffers directly (running mean)
+        private const int WarmupBuffers = 8;        // measure this many buffers before placing any
+        private const double Deadband = 32;         // frames (0.7 ms) the placement may be off before it is nudged
+        private const int MinBuffersBetweenSlips = 8;
+        private const int SettleBuffers = 200;      // ≈ 2 s after a start: corrections glide quickly
+        private const int SettleStep = 6;           // frames per buffer while settling (≤ LooperEngine's stretch limit)
+        private bool _correcting;
 
         private double _estimate;
         private long _used;
         private int _count;
+        private int _sinceSlip;
 
         public void Reset() => _count = 0;
+
+        /// <summary>Diagnostics: frames the current placement is away from the low-passed estimate (0 while warming up).</summary>
+        public double Error => _count >= WarmupBuffers ? Volatile.Read(ref _estimate) - Volatile.Read(ref _used) : 0;
 
         /// <summary>
         /// Engine frame of the first sample of a buffer of <paramref name="count"/> samples that has just
         /// arrived, when <paramref name="audibleFrameAtEnd"/> was audible and <paramref name="totalAtEnd"/>
-        /// samples (this buffer included) have been captured so far.
+        /// samples (this buffer included) have been captured so far — or <see cref="NotReady"/> during
+        /// the warm-up after a start, a reset or a jump of the output clock.
         /// </summary>
         public long Stamp(long audibleFrameAtEnd, long totalAtEnd, int count)
         {
@@ -838,22 +893,45 @@ namespace CenterHubNew.MVVM.Services
             if (_count == 0 || Math.Abs(measured - _estimate) > ResyncFrames)
             {
                 _estimate = measured;
-                _used = (long)Math.Round(measured);
                 _count = 1;
+                return NotReady;
+            }
+
+            _count++;
+            _estimate += (measured - _estimate) * Math.Max(Alpha, 1.0 / _count);
+            if (_count < WarmupBuffers) return NotReady;
+
+            if (_count == WarmupBuffers)
+            {
+                _used = (long)Math.Round(_estimate);
+                _sinceSlip = 0;
+                _correcting = false;
             }
             else
             {
-                _count++;
-                _estimate += (measured - _estimate) * Math.Max(Alpha, 1.0 / _count);
+                _sinceSlip++;
+                double diff = _estimate - _used;
                 if (_count <= SettleBuffers)
                 {
-                    _used = (long)Math.Round(_estimate);
+                    // Right after a start the first estimate is taken while the output is still
+                    // spinning up (measured: 40–170 frames off, settled within 1.5 s). Glide there a
+                    // few frames per buffer — the looper stretches each buffer to fit, so there is
+                    // neither a hole (a jump left 4 ms of silence in the take) nor a click.
+                    if (Math.Abs(diff) >= 2) _used += (long)Math.Clamp(Math.Round(diff), -SettleStep, SettleStep);
+                    _correcting = false;
                 }
                 else
                 {
-                    double diff = _estimate - _used;
-                    if (diff >= 1.5) _used++;
-                    else if (diff <= -1.5) _used--;
+                    // Hysteresis: start correcting at the deadband, stop well inside it — otherwise an
+                    // estimate resting on the edge slips for ever.
+                    if (Math.Abs(diff) >= Deadband) _correcting = true;
+                    else if (Math.Abs(diff) < Deadband / 4) _correcting = false;
+
+                    if (_correcting && _sinceSlip >= MinBuffersBetweenSlips)
+                    {
+                        _used += diff > 0 ? 1 : -1;
+                        _sinceSlip = 0;
+                    }
                 }
             }
 

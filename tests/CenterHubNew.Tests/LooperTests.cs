@@ -353,6 +353,67 @@ public class LooperLoopTests
     }
 
     [Fact]
+    public void With_auto_play_off_the_take_waits_silently_until_Play_then_starts_in_phase()
+    {
+        var h = new LoopHarness();
+        h.Looper.LengthBars = 2;
+        h.Looper.AutoPlay = false;
+        h.Signal = LoopHarness.Impulses(h.Beat, 1000, 0.5f);
+        h.Looper.PressRecord(0);
+        h.Engine.Start();
+        long loop = h.Bar * 2;
+
+        h.RunTo(h.Bar * 5 + 10000);
+        Assert.Equal(LooperState.Stopped, h.Looper.State);     // recorded and kept…
+        Assert.Equal(2, h.Looper.LoopBars);
+        Assert.Equal(1, h.Looper.LayerCount);
+        Assert.Empty(h.NonZero(0, h.Bar * 5 + 10000));         // …but never played by itself
+
+        h.Looper.PressStop(h.Frame);                           // the Play loop pedal
+        Assert.Equal(LooperState.Playing, h.Looper.State);
+        h.RunTo(h.Bar * 10);
+        Assert.Empty(h.NonZero(0, h.Bar * 6));                 // waits for the bar line
+        var expected = LoopHarness.Expected(h.Bar * 6, h.Bar * 10, 0, loop, LoopHarness.BeatPositions(h.Beat, 4, 1000));
+        Assert.Equal(expected, h.NonZero(h.Bar * 6, h.Bar * 10));
+    }
+
+    [Fact]
+    public void A_clock_correction_of_a_frame_leaves_no_click_in_the_recording()
+    {
+        // A 220 Hz tone captured in 441-frame buffers; every 4th buffer arrives one frame early or
+        // late (the capture clock nudging the placement). The recorded loop must stay a smooth sine.
+        var h = new LoopHarness { CaptureLag = 100000 };   // the harness feeds nothing: this test feeds by hand
+        h.Looper.LengthBars = 1;
+        h.Looper.PressRecord(0);
+        h.Engine.Start();
+
+        const int buffer = 441;
+        const double w = 2 * Math.PI * 220 / LoopHarness.Rate;
+        var data = new float[buffer];
+        long source = 0, stamp = 0;
+        int n = 0;
+        while (stamp < h.Bar + buffer * 4)
+        {
+            h.RunTo(Math.Max(h.Frame, stamp + buffer + 2000));
+            for (int i = 0; i < buffer; i++) data[i] = 0.5f * (float)Math.Sin(w * (source + i));
+            if (n % 4 == 3) stamp += n % 8 == 3 ? 1 : -1;   // the correction
+            h.Looper.WriteInput(stamp, data, 0, buffer);
+            source += buffer;
+            stamp += buffer;
+            n++;
+        }
+        h.RunTo(h.Bar * 2);
+
+        Assert.Equal(LooperState.Playing, h.Looper.State);
+        var loop = h.Looper.RenderCycle()!;
+        // Largest step of a clean 0.5-amplitude 220 Hz sine is 0.5·w ≈ 0.0157. A dropped or repeated
+        // sample shows up as a step of twice that (or a flat spot followed by a double step).
+        double maxStep = 0.5 * w;
+        for (int i = 400; i < loop.Length - 400; i++)   // away from the seam fades
+            Assert.True(Math.Abs(loop[i] - loop[i - 1]) <= maxStep * 1.25, $"step {Math.Abs(loop[i] - loop[i - 1]):F4} at {i}");
+    }
+
+    [Fact]
     public void Stopped_then_Record_overdubs_from_the_next_bar_start()
     {
         var h = new LoopHarness();
@@ -552,22 +613,75 @@ public class LooperCaptureClockTests
         const long truth = 123456;      // engine frame of capture sample 0
         const int buffer = 441;
         long total = 0, previousEnd = -1, lastStart = 0;
+        int placed = 0, slips = 0;
 
         for (int i = 0; i < 600; i++)
         {
             total += buffer;
             long audible = truth + total + rng.Next(-300, 301);
             long start = clock.Stamp(audible, total, buffer);
-            if (i > 25) Assert.InRange(start - previousEnd, -1, 1);
+            if (start == CaptureClock.NotReady) { Assert.Equal(0, placed); continue; }   // only at the very start
+            if (placed++ > 0)
+            {
+                // While settling (the first ~2 s) it glides a few frames per buffer; afterwards single frames, rarely.
+                Assert.InRange(start - previousEnd, -6, 6);
+                if (i > 210)
+                {
+                    Assert.InRange(start - previousEnd, -1, 1);
+                    if (start != previousEnd) slips++;
+                }
+            }
             previousEnd = start + buffer;
             lastStart = start;
         }
 
-        Assert.InRange(lastStart - (truth + total - buffer), -80, 80);
+        Assert.InRange(600 - placed, 1, 10);                              // a short warm-up, then every buffer
+        // Jitter must not be chased: each slip is a dropped/repeated sample (the "robotic" loop bug).
+        Assert.True(slips <= placed / 8, $"{slips} slips in {placed} buffers");
+        Assert.InRange(lastStart - (truth + total - buffer), -150, 150);  // within ~3 ms even with ±7 ms jitter
     }
 
     [Fact]
-    public void A_big_jump_resyncs_and_a_reset_forgets_the_estimate()
+    public void A_steady_device_clock_gives_no_slips_at_all_and_exact_placement()
+    {
+        var clock = new CaptureClock();
+        long total = 0, previousEnd = -1;
+        int placed = 0;
+        for (int i = 0; i < 400; i++)
+        {
+            total += 441;
+            long start = clock.Stamp(1000 + total + (i % 2 == 0 ? 5 : -5), total, 441);   // ±5 frames of jitter
+            if (start == CaptureClock.NotReady) continue;
+            if (placed++ > 0) Assert.Equal(previousEnd, start);
+            previousEnd = start + 441;
+        }
+        Assert.InRange(previousEnd - (1000 + total), -6, 6);
+    }
+
+    [Fact]
+    public void Drift_between_the_two_devices_is_followed_with_rare_single_frame_slips()
+    {
+        var clock = new CaptureClock();
+        long total = 0, previousEnd = -1;
+        int placed = 0, slips = 0;
+        for (int i = 0; i < 3000; i++)   // 30 s; the output runs 100 ppm fast: 4.4 frames a second
+        {
+            total += 441;
+            long start = clock.Stamp(1000 + total + (long)(total * 0.0001), total, 441);
+            if (start == CaptureClock.NotReady) continue;
+            if (placed++ > 0 && start != previousEnd)
+            {
+                slips++;
+                Assert.InRange(start - previousEnd, i > 210 ? -1 : -6, i > 210 ? 1 : 6);   // glides while settling
+            }
+            previousEnd = start + 441;
+        }
+        Assert.InRange(slips, 60, 180);                                              // ≈ 132 frames of drift
+        Assert.InRange(previousEnd - (1000 + total + (long)(total * 0.0001)), -60, 60);
+    }
+
+    [Fact]
+    public void A_big_jump_warms_up_again_and_a_reset_forgets_the_estimate()
     {
         var clock = new CaptureClock();
         long total = 0;
@@ -577,13 +691,21 @@ public class LooperCaptureClockTests
             clock.Stamp(1000 + total, total, 441);
         }
 
-        total += 441;
-        long start = clock.Stamp(1000 + total + 20000, total, 441);   // the output clock jumped 20000 frames
+        // The output clock jumped 20000 frames (the device was reopened): measure again, then place.
+        long start = CaptureClock.NotReady;
+        int skipped = 0;
+        while (start == CaptureClock.NotReady)
+        {
+            total += 441;
+            start = clock.Stamp(1000 + total + 20000, total, 441);
+            if (start == CaptureClock.NotReady) skipped++;
+        }
+        Assert.InRange(skipped, 1, 10);
         Assert.Equal(1000 + 20000 + total - 441, start);
 
         clock.Reset();
         total += 441;
-        Assert.Equal(5000 + total - 441, clock.Stamp(5000 + total, total, 441));
+        Assert.Equal(CaptureClock.NotReady, clock.Stamp(5000 + total, total, 441));
     }
 }
 
